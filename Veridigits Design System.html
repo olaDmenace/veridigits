@@ -1,0 +1,2179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Veridigits — Design System v1.0</title>
+
+<!-- General Sans (Aeonik-alike, free) + JetBrains Mono -->
+<link rel="preconnect" href="https://api.fontshare.com" crossorigin />
+<link href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap" rel="stylesheet" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+<style>
+/* ============================================================
+   VERIDIGITS DESIGN TOKENS
+   Light-only · Warm paper background · Single accent
+   Token names map 1:1 to a Tailwind config theme extension.
+============================================================ */
+:root {
+  /* — Paper / surfaces — */
+  --paper:       #FAF8F3;   /* primary bg, warm off-white */
+  --surface:     #FFFFFF;   /* cards, modals */
+  --subtle:      #F2EFE8;   /* hover, code blocks, faint fills */
+  --quiet:       #ECE9E0;   /* dividers tinted */
+  --border:      #E2DED2;
+  --border-strong: #C8C2B1;
+
+  /* — Ink — */
+  --ink:         #14110C;   /* near-black, warmed */
+  --ink-2:       #3A3630;
+  --ink-muted:   #6B6558;
+  --ink-subtle:  #9A9388;
+
+  /* — Accent: verification green — */
+  --vg-50:       #ECFAF0;
+  --vg-100:      #D5F4DF;
+  --vg-200:      #A8E8BE;
+  --vg-300:      #6ED593;
+  --vg-500:      #00C46A;   /* primary accent */
+  --vg-600:      #00A85B;
+  --vg-700:      #00854A;
+  --vg-900:      #0A3D26;
+
+  /* — System — */
+  --danger:      #D43F3F;
+  --danger-soft: #FBEAEA;
+  --warn:        #C77E1B;
+  --warn-soft:   #FAEFD8;
+  --info:        #2563EB;
+  --info-soft:   #E5EDFD;
+
+  /* — Radii — */
+  --r-xs: 4px;
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-xl: 20px;
+  --r-2xl: 28px;
+  --r-full: 999px;
+
+  /* — Shadows (warm-tinted) — */
+  --sh-xs:  0 1px 0 rgba(20,17,12,.04);
+  --sh-sm:  0 1px 2px rgba(20,17,12,.06), 0 1px 0 rgba(20,17,12,.03);
+  --sh-md:  0 4px 12px -4px rgba(20,17,12,.08), 0 2px 4px -2px rgba(20,17,12,.05);
+  --sh-lg:  0 16px 40px -12px rgba(20,17,12,.12), 0 4px 12px -4px rgba(20,17,12,.06);
+  --sh-card: 0 1px 0 rgba(20,17,12,.04), 0 1px 2px rgba(20,17,12,.04);
+  --sh-glow: 0 0 0 4px rgba(0, 196, 106, .14);
+
+  /* — Type families — */
+  --font-sans: "Aeonik", "General Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* — Motion — */
+  --ease-out: cubic-bezier(.2,.8,.2,1);
+  --ease-in:  cubic-bezier(.6,.04,.98,.34);
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-slow: 360ms;
+}
+
+/* ============================================================
+   RESET & BASE
+============================================================ */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.55;
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+img, svg { display: block; max-width: 100%; }
+a { color: inherit; text-decoration: none; }
+button { font: inherit; cursor: pointer; }
+
+/* ============================================================
+   PAGE FRAME
+============================================================ */
+.page {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 56px;
+}
+@media (max-width: 760px) {
+  .page { padding: 0 24px; }
+}
+
+/* Top bar */
+.topbar {
+  position: sticky; top: 0; z-index: 50;
+  background: color-mix(in oklab, var(--paper) 88%, transparent);
+  backdrop-filter: saturate(140%) blur(8px);
+  border-bottom: 1px solid var(--border);
+}
+.topbar-inner {
+  display: flex; align-items: center; justify-content: space-between;
+  height: 64px;
+}
+.topbar nav { display: flex; gap: 28px; }
+.topbar nav a {
+  font-size: 14px; color: var(--ink-muted); font-weight: 500;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+.topbar nav a:hover { color: var(--ink); }
+.topbar .meta {
+  font-family: var(--font-mono); font-size: 12px; color: var(--ink-subtle);
+}
+
+/* ============================================================
+   LOGO
+============================================================ */
+.logo {
+  display: inline-flex; align-items: center; gap: 10px;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 19px;
+  letter-spacing: -0.012em;
+  color: var(--ink);
+}
+.logo .mark {
+  width: 26px; height: 26px;
+  display: grid; place-items: center;
+  background: var(--ink);
+  color: var(--vg-500);
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+}
+.logo .dot { color: var(--vg-500); }
+
+/* ============================================================
+   TYPE
+============================================================ */
+.display, .h1, .h2, .h3, .h4 {
+  font-family: var(--font-sans);
+  letter-spacing: -0.022em;
+  color: var(--ink);
+  margin: 0;
+  text-wrap: balance;
+}
+.display { font-size: clamp(48px, 6vw, 80px); line-height: 1.02; font-weight: 600; letter-spacing: -0.035em; }
+.h1 { font-size: clamp(36px, 4vw, 52px); line-height: 1.05; font-weight: 600; letter-spacing: -0.028em; }
+.h2 { font-size: 36px; line-height: 1.1; font-weight: 600; letter-spacing: -0.022em; }
+.h3 { font-size: 24px; line-height: 1.2; font-weight: 600; letter-spacing: -0.014em; }
+.h4 { font-size: 18px; line-height: 1.3; font-weight: 600; letter-spacing: -0.008em; }
+.body  { font-size: 16px; line-height: 1.55; color: var(--ink-2); }
+.body-lg { font-size: 19px; line-height: 1.55; color: var(--ink-2); text-wrap: pretty; }
+.small { font-size: 14px; line-height: 1.5; color: var(--ink-muted); }
+.caption { font-size: 13px; line-height: 1.45; color: var(--ink-muted); }
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 12px; font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  color: var(--ink-muted);
+}
+.mono { font-family: var(--font-mono); }
+
+/* ============================================================
+   SECTION FRAME
+============================================================ */
+.section { padding: 96px 0; border-top: 1px solid var(--border); }
+.section:first-of-type { border-top: 0; }
+.section-head { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 48px; }
+.section-head .left { max-width: 720px; }
+.section-head .eyebrow + .h2 { margin-top: 12px; }
+.section-head .h2 + .body { margin-top: 14px; }
+
+/* ============================================================
+   HERO  —  inspired by dogesms.com
+============================================================ */
+.hero { padding: 96px 0 120px; position: relative; }
+.hero-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 80px;
+  align-items: center;
+}
+@media (max-width: 900px) {
+  .hero-grid { grid-template-columns: 1fr; gap: 56px; }
+}
+.hero h1 {
+  font-size: clamp(56px, 7vw, 96px);
+  line-height: 0.98;
+  letter-spacing: -0.04em;
+  font-weight: 600;
+  margin: 18px 0 24px;
+}
+.hero h1 .accent {
+  display: inline-block;
+  position: relative;
+}
+.hero h1 .accent::after {
+  content: "";
+  position: absolute;
+  left: -2px; right: -2px; bottom: 4px;
+  height: 14px;
+  background: var(--vg-500);
+  z-index: -1;
+  border-radius: 2px;
+  opacity: 0.95;
+}
+.hero p.lead {
+  font-size: 19px;
+  line-height: 1.55;
+  color: var(--ink-2);
+  max-width: 480px;
+  margin: 0 0 36px;
+}
+.hero-cta { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.hero-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
+  margin-top: 64px;
+  border-top: 1px solid var(--border);
+  padding-top: 32px;
+}
+.hero-stats .stat { padding-right: 24px; border-right: 1px solid var(--border); }
+.hero-stats .stat:last-child { border-right: 0; }
+.hero-stats .num {
+  font-family: var(--font-mono);
+  font-size: 36px;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+  line-height: 1;
+}
+.hero-stats .lbl {
+  font-size: 13px;
+  color: var(--ink-muted);
+  margin-top: 8px;
+  letter-spacing: 0.01em;
+}
+
+/* — Phone mockup — */
+.phone-stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 620px;
+}
+.phone-stage::before {
+  /* soft halo behind phone */
+  content: ""; position: absolute; inset: 0;
+  background: radial-gradient(60% 50% at 60% 50%, rgba(0,196,106,.12), transparent 70%);
+  z-index: 0;
+}
+.phone {
+  position: relative; z-index: 1;
+  width: 320px;
+  background: #14110C;
+  border-radius: 44px;
+  padding: 12px;
+  box-shadow:
+    0 60px 80px -40px rgba(20,17,12,.35),
+    0 24px 40px -20px rgba(20,17,12,.18),
+    inset 0 0 0 1px rgba(255,255,255,.04);
+}
+.phone-screen {
+  background: var(--paper);
+  border-radius: 32px;
+  padding: 14px 0 0;
+  height: 600px;
+  overflow: hidden;
+  position: relative;
+}
+.phone-statusbar {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 4px 24px 14px;
+  font-size: 14px; font-weight: 600;
+  font-family: var(--font-mono);
+  color: var(--ink);
+}
+.phone-statusbar .right { display: flex; gap: 6px; align-items: center; opacity: .9; }
+.phone-notch {
+  position: absolute; top: 8px; left: 50%; transform: translateX(-50%);
+  width: 92px; height: 26px; background: #14110C; border-radius: 16px;
+}
+.phone-content { padding: 8px 16px 16px; }
+.phone-card-active {
+  background: var(--ink);
+  color: var(--paper);
+  border-radius: 20px;
+  padding: 16px 18px;
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 14px;
+}
+.phone-card-active .label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--vg-300);
+}
+.phone-card-active .code {
+  font-family: var(--font-mono);
+  font-size: 28px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  margin-top: 4px;
+}
+.phone-card-active .timer {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--vg-300);
+  letter-spacing: 0.02em;
+}
+.phone-card-active .timer-lbl {
+  font-size: 10px; color: var(--ink-subtle);
+  text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 2px;
+  text-align: right;
+}
+.msg-list-head {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 4px 8px;
+}
+.msg-list-head .ttl { font-weight: 600; font-size: 14px; }
+.msg-list-head .cnt {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--ink-muted);
+  background: var(--subtle);
+  padding: 2px 8px; border-radius: var(--r-full);
+}
+.sms-row {
+  display: flex; gap: 12px; align-items: flex-start;
+  padding: 12px 4px;
+  border-top: 1px solid var(--quiet);
+  position: relative;
+}
+.sms-row .ico {
+  width: 32px; height: 32px; border-radius: 8px;
+  display: grid; place-items: center; flex-shrink: 0;
+  font-family: var(--font-mono); font-size: 13px; font-weight: 600;
+}
+.sms-row .top { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.sms-row .name { font-weight: 600; font-size: 14px; }
+.sms-row .ago { font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted); }
+.sms-row .body { font-size: 13px; color: var(--ink-2); margin-top: 2px; line-height: 1.4; }
+.sms-row .body code {
+  font-family: var(--font-mono); font-weight: 500; color: var(--vg-700);
+  background: var(--vg-50); padding: 1px 6px; border-radius: 4px;
+}
+.sms-row.new::before {
+  content: ""; position: absolute; left: -8px; top: 22px;
+  width: 4px; height: 4px; border-radius: 50%; background: var(--vg-500);
+  box-shadow: 0 0 0 4px rgba(0,196,106,.18);
+  animation: pulse 1.6s var(--ease-out) infinite;
+}
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 4px rgba(0,196,106,.18); }
+  50%      { box-shadow: 0 0 0 8px rgba(0,196,106,0); }
+}
+.receiving {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--font-mono); font-size: 12px;
+  color: var(--ink-muted);
+  padding: 14px 4px 4px;
+}
+.receiving .dots { display: inline-flex; gap: 3px; }
+.receiving .dots i {
+  width: 4px; height: 4px; border-radius: 50%; background: var(--vg-500);
+  animation: blink 1.2s var(--ease-out) infinite;
+}
+.receiving .dots i:nth-child(2) { animation-delay: .2s; }
+.receiving .dots i:nth-child(3) { animation-delay: .4s; }
+@keyframes blink {
+  0%, 60%, 100% { opacity: .25; transform: scale(.8); }
+  30% { opacity: 1; transform: scale(1); }
+}
+
+/* — Service icon swatches (placeholder, no logos) — */
+.svc-tg { background: #E7F2FA; color: #1F86C9; }
+.svc-wa { background: #E4F6E7; color: #1FA850; }
+.svc-go { background: #FFE9E0; color: #C24A1F; }
+.svc-tk { background: #F4E1F0; color: #8B2A78; }
+.svc-di { background: #E6E8FF; color: #3F4BCC; }
+.svc-ig { background: #FCE6E1; color: #C4366A; }
+
+/* ============================================================
+   BUTTONS
+============================================================ */
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 44px; padding: 0 18px;
+  font-family: var(--font-sans);
+  font-size: 14px; font-weight: 500;
+  letter-spacing: -0.005em;
+  border-radius: var(--r-md);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ink);
+  transition: background var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out),
+              color var(--dur-fast) var(--ease-out),
+              box-shadow var(--dur-fast) var(--ease-out),
+              transform var(--dur-fast) var(--ease-out);
+}
+.btn:focus-visible { outline: none; box-shadow: var(--sh-glow); }
+.btn:active { transform: translateY(0.5px); }
+
+.btn-primary { background: var(--ink); color: var(--paper); }
+.btn-primary:hover { background: #2A2620; }
+.btn-primary .dot { width: 6px; height: 6px; background: var(--vg-500); border-radius: 50%; }
+
+.btn-accent { background: var(--vg-500); color: var(--ink); }
+.btn-accent:hover { background: var(--vg-600); }
+
+.btn-secondary { background: var(--surface); color: var(--ink); border-color: var(--border-strong); box-shadow: var(--sh-xs); }
+.btn-secondary:hover { background: var(--subtle); }
+
+.btn-ghost { color: var(--ink-2); }
+.btn-ghost:hover { background: var(--subtle); color: var(--ink); }
+
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-danger:hover { background: #B83434; }
+
+.btn-sm { height: 34px; padding: 0 12px; font-size: 13px; border-radius: var(--r-sm); }
+.btn-lg { height: 52px; padding: 0 22px; font-size: 15px; border-radius: var(--r-md); }
+
+/* ============================================================
+   CARDS, INPUTS, BADGES, TABLES, ETC.
+============================================================ */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 24px;
+  box-shadow: var(--sh-card);
+}
+.card-flat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+}
+
+.input {
+  display: block; width: 100%;
+  height: 44px;
+  padding: 0 14px;
+  font: 500 14px/1 var(--font-sans);
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
+}
+.input::placeholder { color: var(--ink-subtle); font-weight: 400; }
+.input:focus { outline: none; border-color: var(--ink); box-shadow: var(--sh-glow); }
+.input.mono { font-family: var(--font-mono); }
+
+.label {
+  display: block; font-size: 13px; font-weight: 500;
+  color: var(--ink-2); margin-bottom: 6px;
+}
+
+.badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 22px; padding: 0 8px;
+  font-family: var(--font-mono);
+  font-size: 11px; font-weight: 500;
+  letter-spacing: 0.04em; text-transform: uppercase;
+  border-radius: var(--r-full);
+  background: var(--subtle); color: var(--ink-2);
+  border: 1px solid var(--border);
+}
+.badge-success { background: var(--vg-50); color: var(--vg-700); border-color: var(--vg-100); }
+.badge-warn { background: var(--warn-soft); color: var(--warn); border-color: #F2D9A8; }
+.badge-danger { background: var(--danger-soft); color: var(--danger); border-color: #F2C5C5; }
+.badge-info { background: var(--info-soft); color: var(--info); border-color: #C5D4F2; }
+.badge .pulse { width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: pulse-c 1.6s ease-in-out infinite; }
+@keyframes pulse-c { 0%,100%{opacity:.4} 50%{opacity:1} }
+
+.table {
+  width: 100%; border-collapse: collapse;
+  font-size: 14px;
+}
+.table th {
+  text-align: left;
+  font-weight: 500; color: var(--ink-muted);
+  font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase;
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+}
+.table td {
+  padding: 16px; border-bottom: 1px solid var(--quiet);
+  color: var(--ink-2); vertical-align: middle;
+}
+.table tr:hover td { background: var(--subtle); }
+.table .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--ink); }
+
+/* ============================================================
+   TOKEN CARDS
+============================================================ */
+.tokens {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 16px;
+}
+.tok {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 18px;
+  display: flex; flex-direction: column; gap: 10px;
+  min-height: 140px;
+}
+.tok .swatch {
+  height: 56px; border-radius: var(--r-sm);
+  border: 1px solid rgba(20,17,12,.06);
+}
+.tok .nm { font-weight: 600; font-size: 13px; color: var(--ink); }
+.tok .vl { font-family: var(--font-mono); font-size: 12px; color: var(--ink-muted); }
+
+.span-3 { grid-column: span 3; }
+.span-4 { grid-column: span 4; }
+.span-6 { grid-column: span 6; }
+.span-12 { grid-column: span 12; }
+@media (max-width: 760px) {
+  .span-3, .span-4, .span-6 { grid-column: span 6; }
+}
+
+/* type specimen card */
+.type-card {
+  display: grid;
+  grid-template-columns: 200px 1fr auto;
+  gap: 24px;
+  align-items: end;
+  padding: 24px;
+  border-bottom: 1px solid var(--border);
+}
+.type-card:last-child { border-bottom: 0; }
+.type-card .meta {
+  font-family: var(--font-mono); font-size: 12px;
+  color: var(--ink-muted);
+  display: flex; flex-direction: column; gap: 4px;
+}
+.type-card .spec {
+  font-family: var(--font-mono); font-size: 12px;
+  color: var(--ink-subtle); white-space: nowrap;
+}
+
+/* radius / shadow swatches */
+.radius-row, .shadow-row {
+  display: grid; grid-template-columns: repeat(7, 1fr); gap: 16px;
+}
+.radius-card, .shadow-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 16px;
+  border-radius: var(--r-lg);
+  display: flex; flex-direction: column; gap: 12px; align-items: stretch;
+  min-height: 130px;
+}
+.radius-card .demo { background: var(--vg-100); border: 1px solid var(--vg-200); height: 60px; }
+.shadow-card .demo { background: var(--surface); border: 1px solid var(--border); height: 60px; border-radius: var(--r-md); }
+.radius-card .nm, .shadow-card .nm { font-weight: 600; font-size: 13px; }
+.radius-card .vl, .shadow-card .vl { font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted); }
+
+/* ============================================================
+   COMPONENT GALLERIES
+============================================================ */
+.gallery {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+@media (max-width: 900px) { .gallery { grid-template-columns: 1fr; } }
+
+.demo-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+}
+.demo-card header {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: center;
+  background: var(--surface);
+}
+.demo-card header .ttl { font-weight: 600; font-size: 13px; }
+.demo-card header .meta { font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted); }
+.demo-card .body { padding: 24px; background: var(--paper); }
+.demo-card.dense .body { padding: 16px; }
+
+.row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+.col { display: flex; flex-direction: column; gap: 12px; }
+
+/* ============================================================
+   DOMAIN COMPONENTS
+============================================================ */
+/* Wallet card */
+.wallet {
+  background: var(--ink); color: var(--paper);
+  border-radius: var(--r-xl);
+  padding: 24px;
+  position: relative; overflow: hidden;
+}
+.wallet::after {
+  content: ""; position: absolute; inset: -40% -10% auto auto;
+  width: 360px; height: 360px;
+  background: radial-gradient(closest-side, rgba(0,196,106,.22), transparent 70%);
+  filter: blur(2px);
+}
+.wallet .lbl {
+  font-family: var(--font-mono); font-size: 11px;
+  text-transform: uppercase; letter-spacing: 0.12em;
+  color: var(--ink-subtle);
+}
+.wallet .bal {
+  font-family: var(--font-mono);
+  font-size: 56px; font-weight: 500; line-height: 1;
+  letter-spacing: -0.025em; margin-top: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.wallet .bal .cents { color: var(--ink-subtle); }
+.wallet .bal .cur { color: var(--vg-300); margin-right: 8px; font-size: 28px; vertical-align: top; line-height: 1.5; font-weight: 500; }
+.wallet .meta { display: flex; gap: 24px; margin-top: 24px; }
+.wallet .meta div { font-size: 13px; color: var(--ink-subtle); }
+.wallet .meta div b { display: block; color: var(--paper); font-family: var(--font-mono); font-size: 16px; margin-top: 4px; font-weight: 500; }
+.wallet .actions { position: relative; z-index: 2; display: flex; gap: 10px; margin-top: 24px; }
+.wallet .btn-on-dark { background: rgba(255,255,255,.10); color: var(--paper); border: 1px solid rgba(255,255,255,.14); }
+.wallet .btn-on-dark:hover { background: rgba(255,255,255,.16); }
+.wallet .btn-accent { background: var(--vg-500); color: var(--ink); }
+
+/* Service tile */
+.svc-grid {
+  display: grid; gap: 12px;
+  grid-template-columns: repeat(4, 1fr);
+}
+@media (max-width: 760px) { .svc-grid { grid-template-columns: repeat(2, 1fr); } }
+.svc-tile {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--r-md);
+  cursor: pointer;
+  transition: border-color var(--dur-fast), box-shadow var(--dur-fast), background var(--dur-fast);
+}
+.svc-tile:hover { border-color: var(--ink); box-shadow: var(--sh-sm); }
+.svc-tile.selected { border-color: var(--ink); box-shadow: var(--sh-glow); }
+.svc-tile .ico {
+  width: 36px; height: 36px; border-radius: var(--r-sm);
+  display: grid; place-items: center;
+  font-family: var(--font-mono); font-weight: 600; font-size: 13px;
+  flex-shrink: 0;
+}
+.svc-tile .nm { font-weight: 500; font-size: 14px; color: var(--ink); }
+.svc-tile .pr { font-family: var(--font-mono); font-size: 12px; color: var(--ink-muted); }
+
+/* Country row */
+.cty-list { display: grid; gap: 4px; max-height: 320px; overflow: auto; padding-right: 4px; }
+.cty-row {
+  display: grid;
+  grid-template-columns: 32px 1fr auto auto;
+  gap: 12px; align-items: center;
+  padding: 10px 12px; border-radius: var(--r-sm);
+  cursor: pointer;
+  font-size: 14px;
+}
+.cty-row:hover { background: var(--subtle); }
+.cty-row.selected { background: var(--ink); color: var(--paper); }
+.cty-row.selected .iso, .cty-row.selected .pr { color: var(--vg-300); }
+.cty-row .flag {
+  width: 24px; height: 18px; border-radius: 3px;
+  border: 1px solid rgba(0,0,0,.06);
+  display: grid; place-items: center;
+  font-family: var(--font-mono); font-size: 9px; font-weight: 600;
+  background: var(--subtle); color: var(--ink-muted);
+  letter-spacing: 0;
+}
+.cty-row .iso { font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted); }
+.cty-row .pr { font-family: var(--font-mono); font-size: 13px; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+/* Order card */
+.order-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 20px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 20px; align-items: center;
+}
+.order-card .svc-ico {
+  width: 44px; height: 44px;
+  border-radius: var(--r-md);
+  display: grid; place-items: center;
+  font-family: var(--font-mono); font-weight: 600; font-size: 14px;
+}
+.order-card .meta { display: flex; flex-direction: column; gap: 6px; }
+.order-card .meta .top { display: flex; align-items: center; gap: 10px; }
+.order-card .meta .ttl { font-weight: 600; font-size: 15px; }
+.order-card .num {
+  font-family: var(--font-mono); font-size: 14px; color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+.order-card .right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.order-card .right .price { font-family: var(--font-mono); font-weight: 500; font-size: 14px; }
+.order-card .countdown {
+  font-family: var(--font-mono); font-size: 13px; color: var(--ink-muted);
+}
+
+/* OTP code reveal */
+.otp-reveal {
+  background: var(--ink); color: var(--paper);
+  padding: 28px;
+  border-radius: var(--r-lg);
+  text-align: center;
+  position: relative;
+}
+.otp-reveal .lbl { font-family: var(--font-mono); font-size: 11px; color: var(--ink-subtle); text-transform: uppercase; letter-spacing: 0.12em; }
+.otp-reveal .code {
+  font-family: var(--font-mono); font-size: 56px; font-weight: 500;
+  letter-spacing: 0.18em; margin: 12px 0 8px;
+  color: var(--vg-300);
+  font-variant-numeric: tabular-nums;
+}
+.otp-reveal .src { font-size: 13px; color: var(--ink-subtle); }
+.otp-reveal .copy {
+  position: absolute; top: 14px; right: 14px;
+  background: rgba(255,255,255,.10); color: var(--paper);
+  border: 1px solid rgba(255,255,255,.14);
+  padding: 6px 10px; border-radius: var(--r-sm);
+  font-family: var(--font-mono); font-size: 11px; cursor: pointer;
+}
+
+/* SMS bubble */
+.sms-bubble {
+  display: grid; grid-template-columns: 36px 1fr auto;
+  gap: 12px; padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+}
+.sms-bubble .av {
+  width: 36px; height: 36px; border-radius: var(--r-sm);
+  display: grid; place-items: center;
+  font-family: var(--font-mono); font-size: 13px; font-weight: 600;
+}
+.sms-bubble .who { font-weight: 600; font-size: 14px; }
+.sms-bubble .when { font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted); }
+.sms-bubble .msg { font-size: 14px; color: var(--ink-2); margin-top: 4px; line-height: 1.45; }
+.sms-bubble .msg code {
+  font-family: var(--font-mono); background: var(--vg-50);
+  color: var(--vg-700); padding: 1px 6px; border-radius: 4px;
+}
+
+/* Top-up tile */
+.topup-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+}
+@media (max-width: 760px) { .topup-grid { grid-template-columns: repeat(2, 1fr); } }
+.topup-tile {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 18px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
+}
+.topup-tile:hover { border-color: var(--ink); }
+.topup-tile.selected {
+  border-color: var(--ink); background: var(--ink); color: var(--paper);
+}
+.topup-tile.selected .lbl { color: var(--ink-subtle); }
+.topup-tile .lbl { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-muted); }
+.topup-tile .amt { font-family: var(--font-mono); font-size: 24px; font-weight: 500; margin-top: 6px; font-variant-numeric: tabular-nums; }
+
+/* Chip group (crypto) */
+.chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-full);
+  font-size: 13px; font-weight: 500; color: var(--ink-2);
+  cursor: pointer;
+}
+.chip.selected { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.chip .tic {
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--subtle);
+  display: grid; place-items: center;
+  font-family: var(--font-mono); font-size: 9px; color: var(--ink-muted);
+}
+.chip.selected .tic { background: var(--vg-500); color: var(--ink); }
+
+/* Status row helper */
+.dotline { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-muted); }
+.dotline .d { width: 6px; height: 6px; border-radius: 50%; background: var(--ink-subtle); }
+.dotline.ok .d { background: var(--vg-500); }
+.dotline.warn .d { background: var(--warn); }
+.dotline.danger .d { background: var(--danger); }
+
+/* ============================================================
+   PAGE TEMPLATES (mock frames)
+============================================================ */
+.frame {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-xl);
+  overflow: hidden;
+  box-shadow: var(--sh-card);
+}
+.frame > .chrome {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 16px;
+  background: var(--subtle);
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-mono); font-size: 11px; color: var(--ink-muted);
+}
+.frame > .chrome .lights { display: flex; gap: 6px; }
+.frame > .chrome .lights i {
+  width: 10px; height: 10px; border-radius: 50%; background: var(--quiet);
+}
+.frame > .chrome .url {
+  flex: 1; text-align: center;
+  background: var(--surface); padding: 4px 12px; border-radius: var(--r-full);
+  border: 1px solid var(--border);
+}
+
+/* Dashboard layout */
+.dash {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  min-height: 600px;
+}
+.dash .side {
+  border-right: 1px solid var(--border);
+  padding: 24px 16px;
+  background: var(--paper);
+}
+.dash .side .logo { margin-bottom: 28px; padding: 0 8px; }
+.dash .side nav { display: flex; flex-direction: column; gap: 2px; }
+.dash .side nav a {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 12px; border-radius: var(--r-sm);
+  font-size: 14px; color: var(--ink-2);
+}
+.dash .side nav a:hover { background: var(--subtle); }
+.dash .side nav a.active { background: var(--ink); color: var(--paper); }
+.dash .side nav a .k { font-family: var(--font-mono); font-size: 11px; color: var(--ink-subtle); }
+.dash .side nav a.active .k { color: var(--vg-300); }
+.dash .side .group {
+  margin-top: 24px;
+  font-family: var(--font-mono); font-size: 11px;
+  text-transform: uppercase; letter-spacing: 0.10em;
+  color: var(--ink-subtle); padding: 0 12px 8px;
+}
+.dash .main { padding: 32px; background: var(--paper); }
+.dash .main .pageh { display: flex; justify-content: space-between; align-items: end; margin-bottom: 24px; }
+.dash .main .pageh .h2 { font-size: 28px; }
+
+/* simple grid helpers in templates */
+.g-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.g-3 { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+@media (max-width: 900px) { .g-2, .g-3 { grid-template-columns: 1fr; } }
+
+/* code block */
+pre.code {
+  background: var(--ink);
+  color: #DDD7C8;
+  padding: 22px 24px;
+  border-radius: var(--r-lg);
+  overflow: auto;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 0;
+}
+pre.code .k { color: #FF9472; }
+pre.code .s { color: var(--vg-300); }
+pre.code .c { color: #7C7666; font-style: italic; }
+pre.code .n { color: #E8C570; }
+pre.code .v { color: #AECBFA; }
+
+/* misc */
+.divider { height: 1px; background: var(--border); margin: 16px 0; }
+.kbd {
+  display: inline-grid; place-items: center;
+  min-width: 22px; height: 22px; padding: 0 6px;
+  background: var(--surface); border: 1px solid var(--border-strong);
+  border-bottom-width: 2px; border-radius: var(--r-xs);
+  font-family: var(--font-mono); font-size: 11px; color: var(--ink-2);
+}
+
+/* footer */
+.foot {
+  border-top: 1px solid var(--border);
+  padding: 48px 0;
+  font-size: 13px; color: var(--ink-muted);
+  display: flex; justify-content: space-between; align-items: center;
+}
+
+/* hide scrollbar bling */
+.cty-list::-webkit-scrollbar { width: 6px; }
+.cty-list::-webkit-scrollbar-thumb { background: var(--quiet); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     TOPBAR
+============================================================ -->
+<header class="topbar">
+  <div class="page topbar-inner">
+    <a class="logo" href="#">
+      <span class="mark">v.</span>
+      <span>veridigits<span class="dot">.</span></span>
+    </a>
+    <nav>
+      <a href="#brand">Brand</a>
+      <a href="#foundations">Foundations</a>
+      <a href="#components">Components</a>
+      <a href="#domain">Domain</a>
+      <a href="#templates">Templates</a>
+      <a href="#handover">Handover</a>
+    </nav>
+    <span class="meta">DESIGN SYSTEM · v1.0 · 2026.05</span>
+  </div>
+</header>
+
+<!-- ============================================================
+     HERO
+============================================================ -->
+<section class="page hero">
+  <div class="hero-grid">
+    <div>
+      <div class="eyebrow">Veridigits · brand &amp; product system</div>
+      <h1>
+        Receive SMS<br />
+        <span class="accent">without the trace.</span>
+      </h1>
+      <p class="lead">
+        A design system for an anonymity-first SMS verification platform.
+        Built light, built quiet, built to feel like infrastructure rather than a casino.
+        Every token, component, and template here drops directly into the Next.js + Tailwind + TypeScript stack Claude Code is shipping against.
+      </p>
+      <div class="hero-cta">
+        <a class="btn btn-primary btn-lg" href="#foundations">
+          <span class="dot"></span>
+          Open the system
+        </a>
+        <a class="btn btn-secondary btn-lg" href="#handover">Implementation handover</a>
+      </div>
+
+      <div class="hero-stats">
+        <div class="stat">
+          <div class="num">180+</div>
+          <div class="lbl">Countries supported</div>
+        </div>
+        <div class="stat">
+          <div class="num">5,000+</div>
+          <div class="lbl">Services to verify</div>
+        </div>
+        <div class="stat">
+          <div class="num">$0.05</div>
+          <div class="lbl">From, per activation</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Phone mockup -->
+    <div class="phone-stage">
+      <div class="phone">
+        <div class="phone-screen">
+          <div class="phone-notch"></div>
+          <div class="phone-statusbar">
+            <span>9:41</span>
+            <span class="right"><span>5G</span> <span>●●●●</span></span>
+          </div>
+          <div class="phone-content">
+            <!-- active number / live code -->
+            <div class="phone-card-active">
+              <div>
+                <div class="label">Active · Telegram · US</div>
+                <div class="code">+1 415 555 0142</div>
+              </div>
+              <div>
+                <div class="timer-lbl">Expires</div>
+                <div class="timer">16s</div>
+              </div>
+            </div>
+
+            <div class="msg-list-head">
+              <div class="ttl">Inbox</div>
+              <div class="cnt">04</div>
+            </div>
+
+            <div class="sms-row new">
+              <div class="ico svc-tg">tg</div>
+              <div style="flex:1">
+                <div class="top"><span class="name">Telegram</span><span class="ago">now</span></div>
+                <div class="body">Login code: <code>503126</code></div>
+              </div>
+            </div>
+            <div class="sms-row">
+              <div class="ico svc-wa">wa</div>
+              <div style="flex:1">
+                <div class="top"><span class="name">WhatsApp</span><span class="ago">2m</span></div>
+                <div class="body">Your code is <code>847-291</code>. Don't share.</div>
+              </div>
+            </div>
+            <div class="sms-row">
+              <div class="ico svc-go">G</div>
+              <div style="flex:1">
+                <div class="top"><span class="name">Google</span><span class="ago">5m</span></div>
+                <div class="body"><code>G-928451</code> is your verification code.</div>
+              </div>
+            </div>
+            <div class="sms-row">
+              <div class="ico svc-tk">tk</div>
+              <div style="flex:1">
+                <div class="top"><span class="name">TikTok</span><span class="ago">8m</span></div>
+                <div class="body"><code>6729</code> is your TikTok code.</div>
+              </div>
+            </div>
+
+            <div class="receiving">
+              <span class="dots"><i></i><i></i><i></i></span>
+              Receiving SMS…
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     1 · BRAND
+============================================================ -->
+<section id="brand" class="page section">
+  <div class="section-head">
+    <div class="left">
+      <div class="eyebrow">01 · Brand</div>
+      <h2 class="h2">Quiet, anonymous, technical.</h2>
+      <p class="body">
+        Veridigits sits in a category that's loud, scammy, and full of neon. Our positioning is the opposite —
+        a piece of infrastructure that recedes. The wordmark sits on warm paper. The accent is used sparingly,
+        only where verification has happened. Numbers always speak in monospace. Sentences stay short.
+      </p>
+    </div>
+  </div>
+
+  <div class="tokens" style="grid-template-columns: 1.4fr 1fr;">
+    <div class="card" style="display:grid; place-items:center; padding: 64px;">
+      <div style="display:flex; flex-direction:column; gap:48px; align-items:center;">
+        <div class="logo" style="font-size: 44px;">
+          <span class="mark" style="width:48px;height:48px;font-size:22px;border-radius:10px;">v.</span>
+          <span>veridigits<span class="dot">.</span></span>
+        </div>
+        <div style="display:flex; gap:32px; align-items:center;">
+          <div class="logo" style="font-size: 19px;">
+            <span class="mark">v.</span>
+            <span>veridigits<span class="dot">.</span></span>
+          </div>
+          <div class="logo" style="font-size: 14px; opacity: .7;">
+            <span class="mark" style="width:20px;height:20px;font-size:10px;">v.</span>
+            <span>veridigits</span>
+          </div>
+          <div class="mark" style="width:48px; height:48px; font-size:22px; border-radius:10px; background: var(--ink); color: var(--vg-500); display:grid; place-items:center; font-family: var(--font-mono); font-weight: 600;">v.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="eyebrow" style="margin-bottom: 20px;">Voice</div>
+      <h3 class="h3" style="margin-bottom: 12px;">Sentence-case, terse, never excited.</h3>
+      <p class="body" style="margin: 0 0 24px;">
+        Stripe-confident, not Discord-friendly. No exclamation marks. No emoji.
+        Numbers do the talking; copy stays out of the way.
+      </p>
+
+      <div class="divider"></div>
+
+      <div class="col">
+        <div>
+          <div class="caption" style="color: var(--vg-700); margin-bottom: 4px;">✓ DO</div>
+          <div class="body" style="color: var(--ink);">"Top up your wallet to start receiving SMS."</div>
+        </div>
+        <div>
+          <div class="caption" style="color: var(--danger); margin-bottom: 4px;">✗ DON'T</div>
+          <div class="body" style="color: var(--ink-muted); text-decoration: line-through;">"🚀 Get started in seconds — let's go!"</div>
+        </div>
+        <div>
+          <div class="caption" style="color: var(--vg-700); margin-bottom: 4px;">✓ DO</div>
+          <div class="body" style="color: var(--ink);">"Number expired. No SMS received. Refunded $0.65."</div>
+        </div>
+        <div>
+          <div class="caption" style="color: var(--danger); margin-bottom: 4px;">✗ DON'T</div>
+          <div class="body" style="color: var(--ink-muted); text-decoration: line-through;">"Oops! Something went wrong 😅 Please try again."</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     2 · FOUNDATIONS
+============================================================ -->
+<section id="foundations" class="page section">
+  <div class="section-head">
+    <div class="left">
+      <div class="eyebrow">02 · Foundations</div>
+      <h2 class="h2">Tokens.</h2>
+      <p class="body">
+        Names map 1:1 to <code class="mono">tailwind.config.ts</code> theme extensions and the
+        <code class="mono">--background / --foreground / --primary</code> CSS variable pattern.
+      </p>
+    </div>
+  </div>
+
+  <!-- Color: Surfaces -->
+  <h3 class="h4" style="margin-bottom: 16px;">Surfaces &amp; ink</h3>
+  <div class="tokens" style="margin-bottom: 40px;">
+    <div class="tok span-3"><div class="swatch" style="background: var(--paper); border-color: var(--border);"></div><div class="nm">paper</div><div class="vl">#FAF8F3 · --background</div></div>
+    <div class="tok span-3"><div class="swatch" style="background: var(--surface); border-color: var(--border);"></div><div class="nm">surface</div><div class="vl">#FFFFFF · --card</div></div>
+    <div class="tok span-3"><div class="swatch" style="background: var(--subtle);"></div><div class="nm">subtle</div><div class="vl">#F2EFE8 · --muted</div></div>
+    <div class="tok span-3"><div class="swatch" style="background: var(--quiet);"></div><div class="nm">quiet</div><div class="vl">#ECE9E0</div></div>
+
+    <div class="tok span-3"><div class="swatch" style="background: var(--border);"></div><div class="nm">border</div><div class="vl">#E2DED2 · --border</div></div>
+    <div class="tok span-3"><div class="swatch" style="background: var(--border-strong);"></div><div class="nm">border-strong</div><div class="vl">#C8C2B1 · --input</div></div>
+    <div class="tok span-3"><div class="swatch" style="background: var(--ink);"></div><div class="nm">ink</div><div class="vl">#14110C · --foreground</div></div>
+    <div class="tok span-3"><div class="swatch" style="background: var(--ink-2);"></div><div class="nm">ink-2</div><div class="vl">#3A3630</div></div>
+
+    <div class="tok span-3"><div class="swatch" style="background: var(--ink-muted);"></div><div class="nm">ink-muted</div><div class="vl">#6B6558 · --muted-fg</div></div>
+    <div class="tok span-3"><div class="swatch" style="background: var(--ink-subtle);"></div><div class="nm">ink-subtle</div><div class="vl">#9A9388</div></div>
+  </div>
+
+  <!-- Color: Accent -->
+  <h3 class="h4" style="margin-bottom: 16px;">Verification green — the only accent</h3>
+  <div class="tokens" style="margin-bottom: 40px;">
+    <div class="tok span-3"><div class="swatch" style="background: var(--vg-50);"></div><div class="nm">vg/50</div><div class="vl">#ECFAF0</div></div>
+    <div class="tok span-3"><div class="swatch" style="background: var(--vg-100);"></div><div class="nm">vg/100</div><div class="vl">#D5F4DF</div></div>
+    <div class="tok span-3"><div class="swatch" style="background: var(--vg-200);"></div><div class="nm">vg/200</div><div class="vl">#A8E8BE</div></div>
+    <div class="tok span-3"><div class="swatch" style="background: var(--vg-300);"></div><div class="nm">vg/300</div><div class="vl">#6ED593</div></div>
+    <div class="tok span-3"><div class="swatch" style="background: var(--vg-500);"></div><div class="nm">vg/500 · primary</div><div class="vl">#00C46A · --primary</div></div>
+    <div class="tok span-3"><div class="swatch" style="background: var(--vg-600);"></div><div class="nm">vg/600</div><div class="vl">#00A85B</div></div>
+    <div class="tok span-3"><div class="swatch" style="background: var(--vg-700);"></div><div class="nm">vg/700</div><div class="vl">#00854A</div></div>
+    <div class="tok span-3"><div class="swatch" style="background: var(--vg-900);"></div><div class="nm">vg/900</div><div class="vl">#0A3D26</div></div>
+  </div>
+
+  <!-- Color: Semantic -->
+  <h3 class="h4" style="margin-bottom: 16px;">Semantic — used sparingly, never as decoration</h3>
+  <div class="tokens" style="margin-bottom: 64px;">
+    <div class="tok span-3"><div class="swatch" style="background: var(--danger);"></div><div class="nm">danger</div><div class="vl">#D43F3F · --destructive</div></div>
+    <div class="tok span-3"><div class="swatch" style="background: var(--warn);"></div><div class="nm">warn</div><div class="vl">#C77E1B</div></div>
+    <div class="tok span-3"><div class="swatch" style="background: var(--info);"></div><div class="nm">info</div><div class="vl">#2563EB</div></div>
+    <div class="tok span-3" style="display:flex; flex-direction:column; gap:6px; padding: 12px;">
+      <div class="badge badge-success"><span class="pulse"></span>received</div>
+      <div class="badge badge-warn">pending</div>
+      <div class="badge badge-danger">expired</div>
+      <div class="badge badge-info">refunded</div>
+    </div>
+  </div>
+
+  <!-- Type -->
+  <h3 class="h4" style="margin-bottom: 16px;">Type — Aeonik (brand) · JetBrains Mono (data)</h3>
+  <div class="card" style="padding: 0; margin-bottom: 40px;">
+    <div class="type-card">
+      <div class="meta"><b style="color:var(--ink); font-family: var(--font-sans); font-weight:600;">display</b><span>72/64 · -3.5%</span></div>
+      <div class="display">$0.65 to receive.</div>
+      <div class="spec">Aeonik / 600</div>
+    </div>
+    <div class="type-card">
+      <div class="meta"><b style="color:var(--ink); font-family: var(--font-sans); font-weight:600;">h1</b><span>52/56 · -2.8%</span></div>
+      <div class="h1">Top up your wallet</div>
+      <div class="spec">Aeonik / 600</div>
+    </div>
+    <div class="type-card">
+      <div class="meta"><b style="color:var(--ink); font-family: var(--font-sans); font-weight:600;">h2</b><span>36/42 · -2.2%</span></div>
+      <div class="h2">Active orders</div>
+      <div class="spec">Aeonik / 600</div>
+    </div>
+    <div class="type-card">
+      <div class="meta"><b style="color:var(--ink); font-family: var(--font-sans); font-weight:600;">h3</b><span>24/30 · -1.4%</span></div>
+      <div class="h3">Telegram, United States</div>
+      <div class="spec">Aeonik / 600</div>
+    </div>
+    <div class="type-card">
+      <div class="meta"><b style="color:var(--ink); font-family: var(--font-sans); font-weight:600;">body-lg</b><span>19/30</span></div>
+      <div class="body-lg">A real phone number, paid in crypto, expiring in twenty minutes.</div>
+      <div class="spec">Aeonik / 400</div>
+    </div>
+    <div class="type-card">
+      <div class="meta"><b style="color:var(--ink); font-family: var(--font-sans); font-weight:600;">body</b><span>16/25</span></div>
+      <div class="body">Numbers are reused only after a 24-hour cool-down on the upstream provider.</div>
+      <div class="spec">Aeonik / 400</div>
+    </div>
+    <div class="type-card">
+      <div class="meta"><b style="color:var(--ink); font-family: var(--font-sans); font-weight:600;">small</b><span>14/21</span></div>
+      <div class="small">Cancel within 2 minutes if no SMS arrives — full refund to wallet.</div>
+      <div class="spec">Aeonik / 400</div>
+    </div>
+    <div class="type-card">
+      <div class="meta"><b style="color:var(--ink); font-family: var(--font-sans); font-weight:600;">eyebrow</b><span>12/18 · 10% tracking</span></div>
+      <div class="eyebrow">ORDER · 7F2A · ACTIVE</div>
+      <div class="spec">JetBrains Mono / 500</div>
+    </div>
+    <div class="type-card">
+      <div class="meta"><b style="color:var(--ink); font-family: var(--font-sans); font-weight:600;">mono / digit</b><span>56/56 · tabular</span></div>
+      <div class="mono" style="font-size: 56px; font-weight: 500; letter-spacing: 0.06em; color: var(--ink); font-variant-numeric: tabular-nums;">503&nbsp;126</div>
+      <div class="spec">JetBrains Mono / 500</div>
+    </div>
+  </div>
+
+  <!-- Spacing / Radius / Shadow -->
+  <div class="g-2" style="margin-bottom: 40px;">
+    <div>
+      <h3 class="h4" style="margin-bottom: 16px;">Radius</h3>
+      <div class="radius-row" style="grid-template-columns: repeat(7, 1fr);">
+        <div class="radius-card"><div class="demo" style="border-radius: 0;"></div><div><div class="nm">none</div><div class="vl">0</div></div></div>
+        <div class="radius-card"><div class="demo" style="border-radius: var(--r-xs);"></div><div><div class="nm">xs</div><div class="vl">4px</div></div></div>
+        <div class="radius-card"><div class="demo" style="border-radius: var(--r-sm);"></div><div><div class="nm">sm</div><div class="vl">6px</div></div></div>
+        <div class="radius-card"><div class="demo" style="border-radius: var(--r-md);"></div><div><div class="nm">md</div><div class="vl">10px</div></div></div>
+        <div class="radius-card"><div class="demo" style="border-radius: var(--r-lg);"></div><div><div class="nm">lg</div><div class="vl">14px</div></div></div>
+        <div class="radius-card"><div class="demo" style="border-radius: var(--r-xl);"></div><div><div class="nm">xl</div><div class="vl">20px</div></div></div>
+        <div class="radius-card"><div class="demo" style="border-radius: var(--r-2xl);"></div><div><div class="nm">2xl</div><div class="vl">28px</div></div></div>
+      </div>
+    </div>
+    <div>
+      <h3 class="h4" style="margin-bottom: 16px;">Shadow</h3>
+      <div class="shadow-row" style="grid-template-columns: repeat(4, 1fr);">
+        <div class="shadow-card"><div class="demo" style="box-shadow: var(--sh-xs);"></div><div><div class="nm">xs</div><div class="vl">card border</div></div></div>
+        <div class="shadow-card"><div class="demo" style="box-shadow: var(--sh-sm);"></div><div><div class="nm">sm</div><div class="vl">resting</div></div></div>
+        <div class="shadow-card"><div class="demo" style="box-shadow: var(--sh-md);"></div><div><div class="nm">md</div><div class="vl">popover</div></div></div>
+        <div class="shadow-card"><div class="demo" style="box-shadow: var(--sh-lg);"></div><div><div class="nm">lg</div><div class="vl">modal</div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <h3 class="h4" style="margin-bottom: 16px;">Spacing — 4px base, follow Tailwind defaults</h3>
+  <div class="card" style="padding: 24px;">
+    <div style="display:flex; gap: 16px; align-items: flex-end; flex-wrap: wrap;">
+      <div style="text-align:center;"><div style="width:4px; height:32px; background: var(--ink);"></div><div class="caption">1 · 4</div></div>
+      <div style="text-align:center;"><div style="width:8px; height:32px; background: var(--ink);"></div><div class="caption">2 · 8</div></div>
+      <div style="text-align:center;"><div style="width:12px; height:32px; background: var(--ink);"></div><div class="caption">3 · 12</div></div>
+      <div style="text-align:center;"><div style="width:16px; height:32px; background: var(--ink);"></div><div class="caption">4 · 16</div></div>
+      <div style="text-align:center;"><div style="width:24px; height:32px; background: var(--ink);"></div><div class="caption">6 · 24</div></div>
+      <div style="text-align:center;"><div style="width:32px; height:32px; background: var(--ink);"></div><div class="caption">8 · 32</div></div>
+      <div style="text-align:center;"><div style="width:48px; height:32px; background: var(--ink);"></div><div class="caption">12 · 48</div></div>
+      <div style="text-align:center;"><div style="width:64px; height:32px; background: var(--ink);"></div><div class="caption">16 · 64</div></div>
+      <div style="text-align:center;"><div style="width:96px; height:32px; background: var(--ink);"></div><div class="caption">24 · 96</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     3 · COMPONENTS (UI primitives)
+============================================================ -->
+<section id="components" class="page section">
+  <div class="section-head">
+    <div class="left">
+      <div class="eyebrow">03 · Primitives</div>
+      <h2 class="h2">Primitives.</h2>
+      <p class="body">
+        The standard UI building blocks — button, input, card, badge, dialog, table, tabs — styled with our tokens.
+        Composable, accessible, and consistent across every screen.
+      </p>
+    </div>
+  </div>
+
+  <div class="gallery">
+    <!-- Buttons -->
+    <div class="demo-card">
+      <header><span class="ttl">Button</span><span class="meta">components/ui/button.tsx</span></header>
+      <div class="body">
+        <div class="row">
+          <button class="btn btn-primary"><span class="dot"></span> Buy number</button>
+          <button class="btn btn-accent">Confirm purchase</button>
+          <button class="btn btn-secondary">Cancel order</button>
+          <button class="btn btn-ghost">Back</button>
+          <button class="btn btn-danger">Force expire</button>
+        </div>
+        <div class="row" style="margin-top: 16px;">
+          <button class="btn btn-primary btn-sm">Top up</button>
+          <button class="btn btn-secondary btn-sm">Copy code</button>
+          <button class="btn btn-primary btn-lg">Buy for $0.65</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Inputs -->
+    <div class="demo-card">
+      <header><span class="ttl">Input · Label · Helper</span><span class="meta">components/ui/input.tsx</span></header>
+      <div class="body">
+        <div class="col">
+          <div>
+            <label class="label">Email</label>
+            <input class="input" placeholder="you@cipher.mail" />
+          </div>
+          <div>
+            <label class="label">Top-up amount</label>
+            <input class="input mono" value="$25.00" />
+            <div class="caption" style="margin-top: 6px;">Min $5.00 · paid in USDT, USDC or BTC</div>
+          </div>
+          <div>
+            <label class="label">One-time code</label>
+            <input class="input mono" value="503 126" style="letter-spacing: 0.4em; font-size: 18px; font-weight: 500;" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Badge -->
+    <div class="demo-card">
+      <header><span class="ttl">Badge · Status</span><span class="meta">components/ui/badge.tsx</span></header>
+      <div class="body">
+        <div class="row">
+          <span class="badge"><span class="pulse"></span>pending</span>
+          <span class="badge badge-success"><span class="pulse"></span>active</span>
+          <span class="badge badge-success">received</span>
+          <span class="badge badge-warn">expiring</span>
+          <span class="badge badge-danger">expired</span>
+          <span class="badge badge-info">refunded</span>
+          <span class="badge">cancelled</span>
+        </div>
+        <div class="divider"></div>
+        <div class="row">
+          <span class="dotline ok"><span class="d"></span>5SIM · healthy</span>
+          <span class="dotline warn"><span class="d"></span>SMSPool · degraded</span>
+          <span class="dotline danger"><span class="d"></span>HeroSMS · down</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card -->
+    <div class="demo-card">
+      <header><span class="ttl">Card</span><span class="meta">components/ui/card.tsx</span></header>
+      <div class="body">
+        <div class="card" style="padding: 20px;">
+          <div class="eyebrow">ACCOUNT</div>
+          <h3 class="h3" style="margin-top: 8px;">noreply@veridigits.com</h3>
+          <p class="body" style="margin: 8px 0 16px;">2FA enabled · 12 orders this month · joined Apr 2026</p>
+          <div class="row">
+            <button class="btn btn-secondary btn-sm">Change password</button>
+            <button class="btn btn-ghost btn-sm">Sign out</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Dialog -->
+    <div class="demo-card">
+      <header><span class="ttl">Dialog</span><span class="meta">components/ui/dialog.tsx</span></header>
+      <div class="body" style="background: rgba(20,17,12,.06); padding: 32px;">
+        <div class="card" style="padding: 28px; box-shadow: var(--sh-lg); max-width: 420px; margin: 0 auto;">
+          <div class="eyebrow">CONFIRM PURCHASE</div>
+          <h3 class="h3" style="margin: 8px 0 8px;">Buy a US Telegram number?</h3>
+          <p class="body" style="margin: 0 0 20px;">Number expires in 20 minutes from purchase. Cancel within 2 minutes for a full refund if no SMS arrives.</p>
+          <div class="row" style="justify-content: space-between; padding: 12px 14px; background: var(--subtle); border-radius: var(--r-md); margin-bottom: 20px;">
+            <span class="caption">Wallet after purchase</span>
+            <span class="mono" style="font-weight: 500;">$24.35</span>
+          </div>
+          <div class="row" style="justify-content: flex-end;">
+            <button class="btn btn-ghost">Cancel</button>
+            <button class="btn btn-primary"><span class="dot"></span>Buy for $0.65</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Table -->
+    <div class="demo-card">
+      <header><span class="ttl">Table</span><span class="meta">components/ui/table.tsx</span></header>
+      <div class="body" style="padding: 0;">
+        <table class="table">
+          <thead><tr>
+            <th>Order</th><th>Service</th><th>Country</th><th>Status</th><th style="text-align:right;">Paid</th>
+          </tr></thead>
+          <tbody>
+            <tr>
+              <td class="num">7F2A·9C</td>
+              <td>Telegram</td>
+              <td>United States</td>
+              <td><span class="badge badge-success"><span class="pulse"></span>active</span></td>
+              <td class="num" style="text-align:right;">$0.65</td>
+            </tr>
+            <tr>
+              <td class="num">7F2A·8B</td>
+              <td>WhatsApp</td>
+              <td>United Kingdom</td>
+              <td><span class="badge badge-success">received</span></td>
+              <td class="num" style="text-align:right;">$0.42</td>
+            </tr>
+            <tr>
+              <td class="num">7F2A·7A</td>
+              <td>Google</td>
+              <td>Canada</td>
+              <td><span class="badge badge-info">refunded</span></td>
+              <td class="num" style="text-align:right;">$0.00</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tabs / Chips -->
+    <div class="demo-card">
+      <header><span class="ttl">Tabs · Toggle</span><span class="meta">components/ui/tabs.tsx</span></header>
+      <div class="body">
+        <div style="display:inline-flex; padding:4px; background: var(--subtle); border-radius: var(--r-md);">
+          <button class="btn btn-sm" style="background: var(--surface); box-shadow: var(--sh-xs);">Activation</button>
+          <button class="btn btn-sm btn-ghost">Rental</button>
+          <button class="btn btn-sm btn-ghost">API</button>
+        </div>
+        <div class="divider"></div>
+        <div class="chips">
+          <span class="chip selected"><span class="tic">✓</span>USDT</span>
+          <span class="chip"><span class="tic"></span>USDC</span>
+          <span class="chip"><span class="tic"></span>BTC</span>
+          <span class="chip"><span class="tic"></span>ETH</span>
+          <span class="chip"><span class="tic"></span>TRX</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Empty state -->
+    <div class="demo-card">
+      <header><span class="ttl">Empty · Loading · Error</span><span class="meta">conventions</span></header>
+      <div class="body" style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; padding: 16px;">
+        <div class="card" style="text-align:center; padding:20px;">
+          <div class="mono" style="font-size:32px; color:var(--ink-subtle);">∅</div>
+          <div class="small" style="margin-top:8px;">No orders yet</div>
+        </div>
+        <div class="card" style="text-align:center; padding:20px;">
+          <div class="receiving" style="justify-content:center; padding:6px 0;"><span class="dots"><i></i><i></i><i></i></span></div>
+          <div class="small" style="margin-top:8px;">Polling upstream…</div>
+        </div>
+        <div class="card" style="text-align:center; padding:20px; border-color: #F2C5C5; background: var(--danger-soft);">
+          <div class="mono" style="font-size:32px; color:var(--danger);">!</div>
+          <div class="small" style="margin-top:8px; color:var(--danger);">Provider unavailable</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     4 · DOMAIN COMPONENTS
+============================================================ -->
+<section id="domain" class="page section">
+  <div class="section-head">
+    <div class="left">
+      <div class="eyebrow">04 · Domain</div>
+      <h2 class="h2">Veridigits-specific components.</h2>
+      <p class="body">
+        Built on top of the primitives above. These are the patterns that show up across the dashboard, buy flow, and
+        order detail screens. Every name maps to a folder in <code class="mono">components/{wallet, purchase, orders}</code>.
+      </p>
+    </div>
+  </div>
+
+  <!-- Wallet card -->
+  <div class="g-3" style="margin-bottom: 40px;">
+    <div class="wallet">
+      <div class="lbl">WALLET BALANCE</div>
+      <div class="bal"><span class="cur">$</span>24<span class="cents">.35</span></div>
+      <div class="meta">
+        <div>Total topped up<b>$120.00</b></div>
+        <div>Spent this month<b>$95.65</b></div>
+        <div>Active orders<b>2</b></div>
+      </div>
+      <div class="actions">
+        <button class="btn btn-accent">Top up</button>
+        <button class="btn btn-on-dark">Transactions</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="eyebrow">FILE</div>
+      <h4 class="h4" style="margin: 6px 0 14px;">components/wallet/balance-card.tsx</h4>
+      <ul style="list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; font-size: 13px;">
+        <li><span class="caption">Props</span><br /><span class="mono small">balanceCents · totalSpent · totalToppedUp · activeOrders</span></li>
+        <li><span class="caption">Behavior</span><br /><span class="small">Subscribes to <code class="mono">profiles</code> via Supabase Realtime; animates the cents flip on credit.</span></li>
+        <li><span class="caption">Accessibility</span><br /><span class="small">Balance announced via <code class="mono">aria-live="polite"</code>.</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- OTP reveal + SMS bubble -->
+  <div class="g-2" style="margin-bottom: 40px;">
+    <div>
+      <div class="caption" style="margin-bottom: 8px;">OTP reveal · the screen everything in this product builds toward</div>
+      <div class="otp-reveal">
+        <button class="copy">copy</button>
+        <div class="lbl">CODE FROM TELEGRAM</div>
+        <div class="code">503 126</div>
+        <div class="src">received 4 seconds ago · +1 415 555 0142</div>
+      </div>
+    </div>
+    <div>
+      <div class="caption" style="margin-bottom: 8px;">SMS bubble · live feed</div>
+      <div class="col">
+        <div class="sms-bubble">
+          <div class="av svc-tg">tg</div>
+          <div>
+            <div style="display:flex; justify-content:space-between; align-items: baseline;"><span class="who">Telegram</span><span class="when">now</span></div>
+            <div class="msg">Login code: <code>503126</code>. Don't share it.</div>
+          </div>
+          <span class="badge badge-success">new</span>
+        </div>
+        <div class="sms-bubble">
+          <div class="av svc-wa">wa</div>
+          <div>
+            <div style="display:flex; justify-content:space-between; align-items: baseline;"><span class="who">WhatsApp</span><span class="when">2m</span></div>
+            <div class="msg">Your code is <code>847-291</code></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Service grid + Country list -->
+  <h3 class="h4" style="margin-bottom: 16px;">Service grid · country picker</h3>
+  <div class="g-2" style="margin-bottom: 40px;">
+    <div class="card" style="padding: 18px;">
+      <div class="eyebrow" style="margin-bottom: 12px;">02 · CHOOSE A SERVICE</div>
+      <div class="svc-grid">
+        <div class="svc-tile selected">
+          <div class="ico svc-tg">tg</div>
+          <div style="flex:1"><div class="nm">Telegram</div><div class="pr">from $0.18</div></div>
+        </div>
+        <div class="svc-tile">
+          <div class="ico svc-wa">wa</div>
+          <div style="flex:1"><div class="nm">WhatsApp</div><div class="pr">from $0.42</div></div>
+        </div>
+        <div class="svc-tile">
+          <div class="ico svc-go">G</div>
+          <div style="flex:1"><div class="nm">Google</div><div class="pr">from $0.30</div></div>
+        </div>
+        <div class="svc-tile">
+          <div class="ico svc-tk">tk</div>
+          <div style="flex:1"><div class="nm">TikTok</div><div class="pr">from $0.19</div></div>
+        </div>
+        <div class="svc-tile">
+          <div class="ico svc-di">di</div>
+          <div style="flex:1"><div class="nm">Discord</div><div class="pr">from $0.22</div></div>
+        </div>
+        <div class="svc-tile">
+          <div class="ico svc-ig">ig</div>
+          <div style="flex:1"><div class="nm">Instagram</div><div class="pr">from $0.28</div></div>
+        </div>
+        <div class="svc-tile">
+          <div class="ico" style="background: var(--subtle); color: var(--ink-muted);">+</div>
+          <div style="flex:1"><div class="nm">5,000+ more</div><div class="pr">browse all</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="padding: 18px;">
+      <div class="eyebrow" style="margin-bottom: 12px;">01 · CHOOSE A COUNTRY</div>
+      <input class="input" placeholder="Search · 180 countries" style="margin-bottom: 12px;" />
+      <div class="cty-list">
+        <div class="cty-row selected">
+          <div class="flag" style="background:#fff; color:#3C3C8E;">US</div>
+          <div>United States</div>
+          <div class="iso">+1</div>
+          <div class="pr">$0.18</div>
+        </div>
+        <div class="cty-row">
+          <div class="flag" style="background:#fff; color:#C8102E;">CA</div>
+          <div>Canada</div>
+          <div class="iso">+1</div>
+          <div class="pr">$0.22</div>
+        </div>
+        <div class="cty-row">
+          <div class="flag" style="background:#012169; color:#fff;">GB</div>
+          <div>United Kingdom</div>
+          <div class="iso">+44</div>
+          <div class="pr">$0.19</div>
+        </div>
+        <div class="cty-row">
+          <div class="flag" style="background:#FFD100; color:#000;">UA</div>
+          <div>Ukraine</div>
+          <div class="iso">+380</div>
+          <div class="pr">$0.08</div>
+        </div>
+        <div class="cty-row">
+          <div class="flag" style="background:#008751; color:#fff;">NG</div>
+          <div>Nigeria</div>
+          <div class="iso">+234</div>
+          <div class="pr">$0.12</div>
+        </div>
+        <div class="cty-row">
+          <div class="flag" style="background:#009639; color:#fff;">PK</div>
+          <div>Pakistan</div>
+          <div class="iso">+92</div>
+          <div class="pr">$0.10</div>
+        </div>
+        <div class="cty-row">
+          <div class="flag" style="background:#FF9933; color:#fff;">IN</div>
+          <div>India</div>
+          <div class="iso">+91</div>
+          <div class="pr">$0.14</div>
+        </div>
+        <div class="cty-row">
+          <div class="flag" style="background:#DA291C; color:#fff;">ID</div>
+          <div>Indonesia</div>
+          <div class="iso">+62</div>
+          <div class="pr">$0.16</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Order cards -->
+  <h3 class="h4" style="margin-bottom: 16px;">Order cards — three states</h3>
+  <div class="col" style="margin-bottom: 40px;">
+    <div class="order-card">
+      <div class="svc-ico svc-tg">tg</div>
+      <div class="meta">
+        <div class="top">
+          <span class="ttl">Telegram</span>
+          <span class="badge badge-success"><span class="pulse"></span>active</span>
+        </div>
+        <div class="num">+1 415 555 0142 · United States · order 7F2A·9C</div>
+      </div>
+      <div class="right">
+        <div class="price">$0.65</div>
+        <div class="countdown">expires in 16:42</div>
+      </div>
+    </div>
+    <div class="order-card">
+      <div class="svc-ico svc-wa">wa</div>
+      <div class="meta">
+        <div class="top">
+          <span class="ttl">WhatsApp</span>
+          <span class="badge badge-success">received</span>
+        </div>
+        <div class="num">+44 7700 900293 · United Kingdom · order 7F2A·8B</div>
+      </div>
+      <div class="right">
+        <div class="price">$0.42</div>
+        <div class="countdown" style="color: var(--vg-700);">code: 847291</div>
+      </div>
+    </div>
+    <div class="order-card" style="opacity: .85;">
+      <div class="svc-ico svc-go">G</div>
+      <div class="meta">
+        <div class="top">
+          <span class="ttl">Google</span>
+          <span class="badge badge-info">refunded</span>
+        </div>
+        <div class="num">+1 604 555 8901 · Canada · order 7F2A·7A</div>
+      </div>
+      <div class="right">
+        <div class="price" style="text-decoration: line-through; color: var(--ink-muted);">$0.30</div>
+        <div class="countdown">expired without SMS</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Top-up tiles -->
+  <h3 class="h4" style="margin-bottom: 16px;">Top-up amount tiles</h3>
+  <div class="topup-grid">
+    <div class="topup-tile">
+      <div class="lbl">QUICK</div>
+      <div class="amt">$10</div>
+    </div>
+    <div class="topup-tile">
+      <div class="lbl">POPULAR</div>
+      <div class="amt">$25</div>
+    </div>
+    <div class="topup-tile selected">
+      <div class="lbl">RECOMMENDED</div>
+      <div class="amt">$50</div>
+    </div>
+    <div class="topup-tile">
+      <div class="lbl">POWER USER</div>
+      <div class="amt">$100</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     5 · TEMPLATES
+============================================================ -->
+<section id="templates" class="page section">
+  <div class="section-head">
+    <div class="left">
+      <div class="eyebrow">05 · Templates</div>
+      <h2 class="h2">Page templates.</h2>
+      <p class="body">
+        Skeletons for the four screens that matter most: dashboard, buy flow, order detail (live SMS), and top-up.
+        These compose the components above — Claude Code should treat them as the canonical layout.
+      </p>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div style="margin-bottom: 64px;">
+    <div class="caption" style="margin-bottom: 12px;">app/(dashboard)/page.tsx</div>
+    <div class="frame">
+      <div class="chrome">
+        <div class="lights"><i></i><i></i><i></i></div>
+        <div class="url">veridigits.com/dashboard</div>
+        <div style="width:60px;"></div>
+      </div>
+      <div class="dash">
+        <aside class="side">
+          <a class="logo" href="#"><span class="mark">v.</span><span>veridigits<span class="dot">.</span></span></a>
+          <nav>
+            <a class="active" href="#">Dashboard <span class="k">⌘1</span></a>
+            <a href="#">Buy number <span class="k">⌘2</span></a>
+            <a href="#">Orders <span class="k">⌘3</span></a>
+            <a href="#">Top up <span class="k">⌘4</span></a>
+            <a href="#">Settings</a>
+          </nav>
+          <div class="group">PROVIDERS</div>
+          <nav>
+            <a href="#"><span class="dotline ok"><span class="d"></span>5SIM</span></a>
+            <a href="#"><span class="dotline ok"><span class="d"></span>SMSPool</span></a>
+            <a href="#"><span class="dotline warn"><span class="d"></span>HeroSMS</span></a>
+          </nav>
+        </aside>
+        <main class="main">
+          <div class="pageh">
+            <div>
+              <div class="eyebrow">DASHBOARD</div>
+              <h2 class="h2" style="margin-top: 6px;">Welcome back.</h2>
+            </div>
+            <button class="btn btn-primary"><span class="dot"></span>Buy a number</button>
+          </div>
+
+          <div class="g-3" style="margin-bottom: 24px;">
+            <div class="wallet">
+              <div class="lbl">WALLET BALANCE</div>
+              <div class="bal"><span class="cur">$</span>24<span class="cents">.35</span></div>
+              <div class="actions">
+                <button class="btn btn-accent">Top up</button>
+                <button class="btn btn-on-dark">History</button>
+              </div>
+            </div>
+            <div class="card">
+              <div class="eyebrow">THIS WEEK</div>
+              <div style="display:flex; align-items: end; justify-content: space-between; margin-top: 12px;">
+                <div class="mono" style="font-size: 36px; font-weight: 500; letter-spacing: -0.02em;">14</div>
+                <div class="small">orders · 100% delivery</div>
+              </div>
+              <div style="height:48px; margin-top: 16px; display:flex; align-items: end; gap: 4px;">
+                <i style="background:var(--vg-200); width:8px; height: 30%;"></i>
+                <i style="background:var(--vg-200); width:8px; height: 50%;"></i>
+                <i style="background:var(--vg-300); width:8px; height: 70%;"></i>
+                <i style="background:var(--vg-300); width:8px; height: 40%;"></i>
+                <i style="background:var(--vg-500); width:8px; height: 90%;"></i>
+                <i style="background:var(--vg-500); width:8px; height: 60%;"></i>
+                <i style="background:var(--vg-500); width:8px; height: 100%;"></i>
+              </div>
+            </div>
+          </div>
+
+          <h3 class="h4" style="margin-bottom: 12px;">Active orders</h3>
+          <div class="col">
+            <div class="order-card">
+              <div class="svc-ico svc-tg">tg</div>
+              <div class="meta">
+                <div class="top"><span class="ttl">Telegram</span><span class="badge badge-success"><span class="pulse"></span>active</span></div>
+                <div class="num">+1 415 555 0142 · United States</div>
+              </div>
+              <div class="right">
+                <div class="price">$0.65</div>
+                <div class="countdown">16:42</div>
+              </div>
+            </div>
+            <div class="order-card">
+              <div class="svc-ico svc-wa">wa</div>
+              <div class="meta">
+                <div class="top"><span class="ttl">WhatsApp</span><span class="badge badge-success">received</span></div>
+                <div class="num">+44 7700 900293 · United Kingdom</div>
+              </div>
+              <div class="right">
+                <div class="price">$0.42</div>
+                <div class="countdown" style="color: var(--vg-700);">code 847291</div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <!-- BUY FLOW -->
+  <div style="margin-bottom: 64px;">
+    <div class="caption" style="margin-bottom: 12px;">app/(dashboard)/buy/page.tsx</div>
+    <div class="frame">
+      <div class="chrome">
+        <div class="lights"><i></i><i></i><i></i></div>
+        <div class="url">veridigits.com/buy</div>
+        <div style="width:60px;"></div>
+      </div>
+      <div style="padding: 32px; background: var(--paper);">
+        <div class="pageh" style="display:flex; justify-content: space-between; align-items: end; margin-bottom: 24px;">
+          <div>
+            <div class="eyebrow">NEW ORDER</div>
+            <h2 class="h2" style="margin-top: 6px;">Buy a number.</h2>
+          </div>
+          <div style="display:inline-flex; padding:4px; background: var(--subtle); border-radius: var(--r-md);">
+            <button class="btn btn-sm" style="background: var(--surface); box-shadow: var(--sh-xs);">Activation · 20m</button>
+            <button class="btn btn-sm btn-ghost">Rental</button>
+          </div>
+        </div>
+
+        <div class="g-2">
+          <div class="card" style="padding: 18px;">
+            <div class="eyebrow" style="margin-bottom: 12px;">01 · COUNTRY</div>
+            <input class="input" placeholder="Search · 180 countries" style="margin-bottom: 12px;" />
+            <div class="cty-list" style="max-height: 240px;">
+              <div class="cty-row selected"><div class="flag" style="background:#fff; color:#3C3C8E;">US</div><div>United States</div><div class="iso">+1</div><div class="pr">$0.18</div></div>
+              <div class="cty-row"><div class="flag" style="background:#fff; color:#C8102E;">CA</div><div>Canada</div><div class="iso">+1</div><div class="pr">$0.22</div></div>
+              <div class="cty-row"><div class="flag" style="background:#012169; color:#fff;">GB</div><div>United Kingdom</div><div class="iso">+44</div><div class="pr">$0.19</div></div>
+              <div class="cty-row"><div class="flag" style="background:#FFD100; color:#000;">UA</div><div>Ukraine</div><div class="iso">+380</div><div class="pr">$0.08</div></div>
+            </div>
+          </div>
+          <div class="card" style="padding: 18px;">
+            <div class="eyebrow" style="margin-bottom: 12px;">02 · SERVICE</div>
+            <div class="svc-grid">
+              <div class="svc-tile selected"><div class="ico svc-tg">tg</div><div style="flex:1"><div class="nm">Telegram</div><div class="pr">$0.65</div></div></div>
+              <div class="svc-tile"><div class="ico svc-wa">wa</div><div style="flex:1"><div class="nm">WhatsApp</div><div class="pr">$0.42</div></div></div>
+              <div class="svc-tile"><div class="ico svc-go">G</div><div style="flex:1"><div class="nm">Google</div><div class="pr">$0.30</div></div></div>
+              <div class="svc-tile"><div class="ico svc-tk">tk</div><div style="flex:1"><div class="nm">TikTok</div><div class="pr">$0.19</div></div></div>
+              <div class="svc-tile"><div class="ico svc-di">di</div><div style="flex:1"><div class="nm">Discord</div><div class="pr">$0.22</div></div></div>
+              <div class="svc-tile"><div class="ico svc-ig">ig</div><div style="flex:1"><div class="nm">Instagram</div><div class="pr">$0.28</div></div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top: 20px; display: flex; align-items: center; justify-content: space-between; gap: 24px;">
+          <div>
+            <div class="eyebrow">QUOTE · LOCKED 23s</div>
+            <div class="h3" style="margin-top: 6px;">Telegram · United States · activation</div>
+            <div class="small" style="margin-top: 4px;">via 5SIM · 247 numbers in stock · expires 20 min from purchase</div>
+          </div>
+          <div style="text-align: right;">
+            <div class="mono" style="font-size: 32px; font-weight: 500; letter-spacing: -0.02em;">$0.65</div>
+            <button class="btn btn-primary btn-lg" style="margin-top: 10px;"><span class="dot"></span>Buy now</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ORDER DETAIL -->
+  <div style="margin-bottom: 64px;">
+    <div class="caption" style="margin-bottom: 12px;">app/(dashboard)/orders/[id]/page.tsx</div>
+    <div class="frame">
+      <div class="chrome">
+        <div class="lights"><i></i><i></i><i></i></div>
+        <div class="url">veridigits.com/orders/7F2A·9C</div>
+        <div style="width:60px;"></div>
+      </div>
+      <div style="padding: 32px; background: var(--paper);">
+        <div class="pageh" style="display:flex; justify-content: space-between; align-items: start; margin-bottom: 24px;">
+          <div>
+            <div class="eyebrow">ORDER · 7F2A·9C</div>
+            <h2 class="h2" style="margin-top: 6px;">+1 415 555 0142</h2>
+            <div class="small" style="margin-top: 6px;">Telegram · United States · activation · 5SIM</div>
+          </div>
+          <div style="display:flex; gap: 8px; align-items: center;">
+            <button class="btn btn-secondary">Copy number</button>
+            <button class="btn btn-danger btn-sm">Cancel</button>
+          </div>
+        </div>
+
+        <div class="g-2" style="margin-bottom: 20px;">
+          <div class="otp-reveal">
+            <button class="copy">copy</button>
+            <div class="lbl">CODE FROM TELEGRAM</div>
+            <div class="code">503 126</div>
+            <div class="src">received 4 seconds ago</div>
+          </div>
+          <div class="card">
+            <div class="row" style="justify-content:space-between;">
+              <div class="eyebrow">EXPIRES</div>
+              <span class="badge badge-success"><span class="pulse"></span>active</span>
+            </div>
+            <div class="mono" style="font-size: 56px; font-weight: 500; letter-spacing: -0.02em; margin-top: 8px; line-height: 1;">16:42</div>
+            <div class="small" style="margin-top: 8px;">Auto-refunds full $0.65 if no SMS arrives.</div>
+            <div class="divider"></div>
+            <div class="row" style="justify-content: space-between;"><span class="caption">Wholesale paid</span><span class="mono small">$0.50</span></div>
+            <div class="row" style="justify-content: space-between;"><span class="caption">Markup</span><span class="mono small">+30% · $0.15</span></div>
+            <div class="row" style="justify-content: space-between;"><span class="caption">Wallet charged</span><span class="mono small" style="color: var(--ink); font-weight: 600;">$0.65</span></div>
+          </div>
+        </div>
+
+        <h3 class="h4" style="margin-bottom: 12px;">Inbox</h3>
+        <div class="col">
+          <div class="sms-bubble">
+            <div class="av svc-tg">tg</div>
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items: baseline;"><span class="who">Telegram</span><span class="when">+1 800 858 0142 · now</span></div>
+              <div class="msg">Login code: <code>503126</code>. Don't share with anyone.</div>
+            </div>
+            <span class="badge badge-success">new</span>
+          </div>
+          <div style="display:flex; align-items:center; gap: 8px; padding: 14px 4px; color: var(--ink-muted);">
+            <span class="receiving" style="padding:0;"><span class="dots"><i></i><i></i><i></i></span></span>
+            <span class="caption">Waiting for next SMS · polling every 3s</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOP-UP -->
+  <div>
+    <div class="caption" style="margin-bottom: 12px;">app/(dashboard)/topup/page.tsx</div>
+    <div class="frame">
+      <div class="chrome">
+        <div class="lights"><i></i><i></i><i></i></div>
+        <div class="url">veridigits.com/topup</div>
+        <div style="width:60px;"></div>
+      </div>
+      <div style="padding: 32px; background: var(--paper);">
+        <div class="pageh" style="display:flex; justify-content: space-between; align-items: end; margin-bottom: 24px;">
+          <div>
+            <div class="eyebrow">WALLET</div>
+            <h2 class="h2" style="margin-top: 6px;">Top up.</h2>
+            <div class="small" style="margin-top: 6px;">Crypto only — Stripe and PayPal won't process this category.</div>
+          </div>
+          <div class="card" style="padding: 12px 18px; display: flex; align-items: center; gap: 16px;">
+            <div class="caption">Current balance</div>
+            <div class="mono" style="font-size: 24px; font-weight: 500;">$24.35</div>
+          </div>
+        </div>
+
+        <div class="g-2">
+          <div class="card">
+            <div class="eyebrow" style="margin-bottom: 12px;">01 · AMOUNT</div>
+            <div class="topup-grid">
+              <div class="topup-tile"><div class="lbl">QUICK</div><div class="amt">$10</div></div>
+              <div class="topup-tile"><div class="lbl">POPULAR</div><div class="amt">$25</div></div>
+              <div class="topup-tile selected"><div class="lbl">RECOMMENDED</div><div class="amt">$50</div></div>
+              <div class="topup-tile"><div class="lbl">BULK</div><div class="amt">$100</div></div>
+            </div>
+            <div style="margin-top: 16px;">
+              <label class="label">Custom amount</label>
+              <input class="input mono" value="$50.00" />
+              <div class="caption" style="margin-top: 6px;">Min $5.00 · 0.5% NOWPayments fee, no per-purchase fee</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="eyebrow" style="margin-bottom: 12px;">02 · CRYPTO</div>
+            <div class="chips" style="margin-bottom: 16px;">
+              <span class="chip selected"><span class="tic">✓</span>USDT (TRC-20)</span>
+              <span class="chip"><span class="tic"></span>USDC (SOL)</span>
+              <span class="chip"><span class="tic"></span>BTC</span>
+              <span class="chip"><span class="tic"></span>ETH</span>
+              <span class="chip"><span class="tic"></span>TRX</span>
+            </div>
+            <div class="card-flat" style="padding: 16px; background: var(--subtle); border: none;">
+              <div class="row" style="justify-content: space-between;"><span class="caption">You pay</span><span class="mono small">50.25 USDT</span></div>
+              <div class="row" style="justify-content: space-between;"><span class="caption">Network fee (TRC-20)</span><span class="mono small">~$1.00</span></div>
+              <div class="divider"></div>
+              <div class="row" style="justify-content: space-between;"><span class="small" style="color:var(--ink); font-weight: 500;">Wallet credit</span><span class="mono" style="font-weight: 600;">$50.00</span></div>
+            </div>
+            <button class="btn btn-primary btn-lg" style="margin-top: 16px; width: 100%; justify-content: center;"><span class="dot"></span>Generate payment address</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     6 · CLAUDE CODE HANDOVER
+============================================================ -->
+<section id="handover" class="page section">
+  <div class="section-head">
+    <div class="left">
+      <div class="eyebrow">06 · Implementation</div>
+      <h2 class="h2">Drop into Claude Code.</h2>
+      <p class="body">
+        Two files do all the work: <code class="mono">app/globals.css</code> for the CSS variable layer, and
+        <code class="mono">tailwind.config.ts</code> for the theme extension. The variable names follow the
+        <code class="mono">--background / --foreground / --primary</code> convention so any UI primitive library can consume them with no extra wiring.
+      </p>
+    </div>
+  </div>
+
+  <div class="g-2" style="margin-bottom: 24px;">
+    <div>
+      <div class="caption" style="margin-bottom: 8px;">app/globals.css</div>
+<pre class="code"><span class="c">/* Veridigits tokens — light only */</span>
+<span class="k">@layer</span> <span class="n">base</span> {
+  <span class="k">:root</span> {
+    <span class="c">/* surfaces */</span>
+    <span class="v">--background</span>: <span class="s">#FAF8F3</span>;   <span class="c">/* paper */</span>
+    <span class="v">--foreground</span>: <span class="s">#14110C</span>;   <span class="c">/* ink */</span>
+    <span class="v">--card</span>: <span class="s">#FFFFFF</span>;
+    <span class="v">--card-foreground</span>: <span class="s">#14110C</span>;
+    <span class="v">--popover</span>: <span class="s">#FFFFFF</span>;
+    <span class="v">--popover-foreground</span>: <span class="s">#14110C</span>;
+    <span class="v">--muted</span>: <span class="s">#F2EFE8</span>;
+    <span class="v">--muted-foreground</span>: <span class="s">#6B6558</span>;
+    <span class="v">--border</span>: <span class="s">#E2DED2</span>;
+    <span class="v">--input</span>: <span class="s">#C8C2B1</span>;
+
+    <span class="c">/* primary = verification green */</span>
+    <span class="v">--primary</span>: <span class="s">#00C46A</span>;
+    <span class="v">--primary-foreground</span>: <span class="s">#14110C</span>;
+
+    <span class="c">/* secondary = ink (high-contrast CTA) */</span>
+    <span class="v">--secondary</span>: <span class="s">#14110C</span>;
+    <span class="v">--secondary-foreground</span>: <span class="s">#FAF8F3</span>;
+
+    <span class="v">--accent</span>: <span class="s">#ECFAF0</span>;
+    <span class="v">--accent-foreground</span>: <span class="s">#00854A</span>;
+
+    <span class="v">--destructive</span>: <span class="s">#D43F3F</span>;
+    <span class="v">--destructive-foreground</span>: <span class="s">#FFFFFF</span>;
+
+    <span class="v">--ring</span>: <span class="s">#00C46A</span>;
+    <span class="v">--radius</span>: <span class="s">0.625rem</span>; <span class="c">/* 10px = md */</span>
+  }
+
+  <span class="n">html</span>, <span class="n">body</span> {
+    <span class="v">font-family</span>: <span class="s">"Aeonik"</span>, <span class="s">"General Sans"</span>, ui-sans-serif, system-ui;
+    <span class="v">font-feature-settings</span>: <span class="s">"ss01"</span>, <span class="s">"cv11"</span>;
+  }
+}
+</pre>
+    </div>
+    <div>
+      <div class="caption" style="margin-bottom: 8px;">tailwind.config.ts</div>
+<pre class="code"><span class="k">import type</span> { <span class="n">Config</span> } <span class="k">from</span> <span class="s">"tailwindcss"</span>;
+
+<span class="k">export default</span> {
+  <span class="n">content</span>: [<span class="s">"./app/**/*.{ts,tsx}"</span>, <span class="s">"./components/**/*.{ts,tsx}"</span>],
+  <span class="n">theme</span>: {
+    <span class="n">extend</span>: {
+      <span class="n">fontFamily</span>: {
+        <span class="n">sans</span>: [<span class="s">"Aeonik"</span>, <span class="s">"General Sans"</span>, <span class="s">"ui-sans-serif"</span>],
+        <span class="n">mono</span>: [<span class="s">"JetBrains Mono"</span>, <span class="s">"ui-monospace"</span>],
+      },
+      <span class="n">colors</span>: {
+        <span class="c">// semantic aliases — all reference --vars from globals.css</span>
+        <span class="n">background</span>: <span class="s">"hsl(var(--background))"</span>,
+        <span class="n">foreground</span>: <span class="s">"hsl(var(--foreground))"</span>,
+        <span class="n">primary</span>: {
+          <span class="n">DEFAULT</span>: <span class="s">"#00C46A"</span>,
+          <span class="n">foreground</span>: <span class="s">"#14110C"</span>,
+        },
+        <span class="c">// brand-specific scale, used in domain components</span>
+        <span class="n">vg</span>: {
+          <span class="s">50</span>: <span class="s">"#ECFAF0"</span>, <span class="s">100</span>: <span class="s">"#D5F4DF"</span>,
+          <span class="s">200</span>: <span class="s">"#A8E8BE"</span>, <span class="s">300</span>: <span class="s">"#6ED593"</span>,
+          <span class="s">500</span>: <span class="s">"#00C46A"</span>, <span class="s">600</span>: <span class="s">"#00A85B"</span>,
+          <span class="s">700</span>: <span class="s">"#00854A"</span>, <span class="s">900</span>: <span class="s">"#0A3D26"</span>,
+        },
+        <span class="n">paper</span>: <span class="s">"#FAF8F3"</span>,
+        <span class="n">ink</span>: { <span class="n">DEFAULT</span>: <span class="s">"#14110C"</span>, <span class="s">2</span>: <span class="s">"#3A3630"</span>, <span class="n">muted</span>: <span class="s">"#6B6558"</span> },
+      },
+      <span class="n">borderRadius</span>: {
+        <span class="n">md</span>: <span class="s">"10px"</span>, <span class="n">lg</span>: <span class="s">"14px"</span>, <span class="n">xl</span>: <span class="s">"20px"</span>,
+      },
+      <span class="n">boxShadow</span>: {
+        <span class="n">card</span>: <span class="s">"0 1px 0 rgba(20,17,12,.04), 0 1px 2px rgba(20,17,12,.04)"</span>,
+        <span class="n">glow</span>: <span class="s">"0 0 0 4px rgba(0,196,106,.14)"</span>,
+      },
+    },
+  },
+  <span class="n">plugins</span>: [<span class="k">require</span>(<span class="s">"tailwindcss-animate"</span>)],
+} <span class="k">satisfies</span> <span class="n">Config</span>;
+</pre>
+    </div>
+  </div>
+
+  <div class="g-2">
+    <div class="card">
+      <div class="eyebrow" style="margin-bottom: 12px;">RULES FOR CLAUDE CODE</div>
+      <ol style="margin:0; padding-left: 20px; display: flex; flex-direction: column; gap: 10px; color: var(--ink-2); font-size: 14px; line-height: 1.55;">
+        <li>Never put more than one accent (verification green) hue on the same screen. If everything is highlighted, nothing is.</li>
+        <li>All numbers — phone numbers, codes, balances, prices, countdowns, order IDs — render in <code class="mono">font-mono</code> with <code class="mono">tabular-nums</code>.</li>
+        <li>Use <code class="mono">paper</code> as page background, <code class="mono">surface</code> only for cards / dialogs / inputs. No gradients on surfaces.</li>
+        <li>The wallet balance card is the one place the dark <code class="mono">ink</code> background is allowed in user UI. Don't generalize it.</li>
+        <li>OTP code reveal uses dark background + <code class="mono">vg/300</code> code text — it's the screen everything builds toward, treat it as the visual climax.</li>
+        <li>Status uses <span class="badge badge-success" style="vertical-align: middle;">badges</span> + dot indicators. Never colored backgrounds on whole rows.</li>
+        <li>Border weight: 1px always. Never use 2px or thicker borders for emphasis — use shadow or contrast instead.</li>
+        <li>Sentence case for all UI labels. No title case. No emoji. No exclamation marks anywhere.</li>
+      </ol>
+    </div>
+    <div class="card">
+      <div class="eyebrow" style="margin-bottom: 12px;">FILE MAP</div>
+      <pre class="code" style="background: var(--subtle); color: var(--ink-2);">components/
+├── ui/                    <span class="c">// UI primitives, styled via tokens</span>
+│   ├── button.tsx
+│   ├── input.tsx
+│   ├── card.tsx
+│   ├── badge.tsx
+│   ├── dialog.tsx
+│   ├── table.tsx
+│   └── tabs.tsx
+├── brand/
+│   └── logo.tsx           <span class="c">// "v." mark + wordmark</span>
+├── wallet/
+│   ├── balance-card.tsx   <span class="c">// dark hero card</span>
+│   ├── transaction-row.tsx
+│   └── topup-tile.tsx
+├── purchase/
+│   ├── service-grid.tsx
+│   ├── service-tile.tsx
+│   ├── country-list.tsx
+│   ├── country-row.tsx
+│   └── quote-card.tsx     <span class="c">// 30s locked-quote bar</span>
+├── orders/
+│   ├── order-card.tsx
+│   ├── otp-reveal.tsx     <span class="c">// the dark code-display block</span>
+│   ├── sms-bubble.tsx
+│   └── countdown.tsx      <span class="c">// mono tabular timer</span>
+└── status/
+    ├── status-badge.tsx
+    └── provider-dot.tsx</pre>
+    </div>
+  </div>
+
+  <!-- Definition of done -->
+  <div class="card" style="margin-top: 24px;">
+    <div class="eyebrow" style="margin-bottom: 12px;">DEFINITION OF "VISUALLY DONE" FOR PHASE 1</div>
+    <div class="g-2">
+      <ul style="margin:0; padding-left: 20px; color: var(--ink-2); font-size: 14px; line-height: 1.6;">
+        <li>Brand sans loaded (Aeonik or General Sans) + JetBrains Mono.</li>
+        <li>All four core screens render with paper background and the file-map components above.</li>
+        <li>Wallet card uses ink background + verification-green accent.</li>
+        <li>OTP reveal screen exists and is visually the most prominent block in the order detail page.</li>
+        <li>Country &amp; service pickers use the two-column layout shown in the buy template.</li>
+      </ul>
+      <ul style="margin:0; padding-left: 20px; color: var(--ink-2); font-size: 14px; line-height: 1.6;">
+        <li>Status uses pill badges with a pulsing dot for live states.</li>
+        <li>All numbers render in mono with tabular numerals.</li>
+        <li>Empty / loading / error states follow the three-tile pattern.</li>
+        <li>No gradient backgrounds, no emoji, no decorative iconography.</li>
+        <li>Only one accent hue per screen. If unsure, leave it out.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     FOOTER
+============================================================ -->
+<footer class="page foot">
+  <span>Veridigits design system · v1.0 · 2026.05</span>
+  <span class="mono">paper · ink · verification green · monospace numbers</span>
+</footer>
+
+</body>
+</html>
