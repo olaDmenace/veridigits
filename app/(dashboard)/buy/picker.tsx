@@ -5,7 +5,9 @@ import {
   getCountriesForService,
   getQuote,
   purchaseAndRedirect,
+  RENTAL_DURATIONS,
   type CountryOption,
+  type OrderMode,
   type PurchaseError,
   type QuoteResult,
 } from "./actions";
@@ -47,6 +49,10 @@ function iconClassFor(slug: string): string {
 }
 
 export function BuyPicker({ services }: { services: ServiceOption[] }) {
+  const [mode, setMode] = useState<OrderMode>("activation");
+  const [durationHours, setDurationHours] = useState<number>(
+    RENTAL_DURATIONS[0].hours,
+  );
   const [serviceId, setServiceId] = useState<string | null>(null);
   const [countryId, setCountryId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -91,49 +97,148 @@ export function BuyPicker({ services }: { services: ServiceOption[] }) {
   function selectCountry(id: string) {
     if (!serviceId || id === countryId) return;
     setCountryId(id);
+    refetchQuote(id, mode, durationHours);
+    countryIdRef.current = id;
+  }
+
+  function refetchQuote(cid: string, m: OrderMode, hours: number) {
+    if (!serviceId) return;
     setQuote({ loading: true, data: null, error: null });
-
     startTransition(async () => {
-      const result = await getQuote(serviceId, id);
-      // Same staleness guard.
-      if (countryIdRef.current !== id) return;
-
+      const result = await getQuote(
+        serviceId,
+        cid,
+        m,
+        m === "rental" ? hours : undefined,
+      );
+      if (countryIdRef.current !== cid) return;
       if (result.ok) {
         setQuote({ loading: false, data: result, error: null });
       } else {
         setQuote({ loading: false, data: null, error: result.message });
       }
     });
+  }
 
-    countryIdRef.current = id;
+  function handleSetMode(m: OrderMode) {
+    if (m === mode) return;
+    setMode(m);
+    if (countryId) refetchQuote(countryId, m, durationHours);
+  }
+
+  function handleSetDuration(hours: number) {
+    if (hours === durationHours) return;
+    setDurationHours(hours);
+    if (countryId && mode === "rental") refetchQuote(countryId, mode, hours);
   }
 
   const selectedService = services.find((s) => s.id === serviceId) ?? null;
   const selectedCountry = countries.find((c) => c.countryId === countryId) ?? null;
 
   return (
-    <div className="buy-grid">
-      <ServicesPanel
-        services={filteredServices}
-        selectedId={serviceId}
-        onSelect={selectService}
-        search={search}
-        onSearch={setSearch}
+    <div className="flex flex-col gap-4">
+      <ModeBar
+        mode={mode}
+        onSetMode={handleSetMode}
+        durationHours={durationHours}
+        onSetDuration={handleSetDuration}
       />
 
-      <CountriesPanel
-        service={selectedService}
-        countries={countries}
-        loading={loadingCountries}
-        selectedId={countryId}
-        onSelect={selectCountry}
-      />
+      <div className="buy-grid">
+        <ServicesPanel
+          services={filteredServices}
+          selectedId={serviceId}
+          onSelect={selectService}
+          search={search}
+          onSearch={setSearch}
+        />
 
-      <QuotePanel
-        service={selectedService}
-        country={selectedCountry}
-        quote={quote}
-      />
+        <CountriesPanel
+          service={selectedService}
+          countries={countries}
+          loading={loadingCountries}
+          selectedId={countryId}
+          onSelect={selectCountry}
+        />
+
+        <QuotePanel
+          service={selectedService}
+          country={selectedCountry}
+          quote={quote}
+          mode={mode}
+          durationHours={durationHours}
+        />
+      </div>
+    </div>
+  );
+}
+
+function ModeBar({
+  mode,
+  onSetMode,
+  durationHours,
+  onSetDuration,
+}: {
+  mode: OrderMode;
+  onSetMode: (m: OrderMode) => void;
+  durationHours: number;
+  onSetDuration: (h: number) => void;
+}) {
+  return (
+    <div className="card flex flex-col gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <div className="eyebrow">Mode</div>
+          <p className="caption" style={{ marginTop: 6 }}>
+            Activation = one-time, ~20 minutes. Rental = unlimited SMS over the
+            duration.
+          </p>
+        </div>
+
+        <div className="mode-toggle" role="tablist" aria-label="Order mode">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === "activation"}
+            className={`mode-toggle-btn ${mode === "activation" ? "is-active" : ""}`}
+            onClick={() => onSetMode("activation")}
+          >
+            Activation
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === "rental"}
+            className={`mode-toggle-btn ${mode === "rental" ? "is-active" : ""}`}
+            onClick={() => onSetMode("rental")}
+          >
+            Rental
+          </button>
+        </div>
+      </div>
+
+      {mode === "rental" ? (
+        <div className="flex flex-col gap-2">
+          <div className="eyebrow">Duration</div>
+          <div className="chips">
+            {RENTAL_DURATIONS.map((d) => (
+              <button
+                key={d.hours}
+                type="button"
+                className={`chip ${durationHours === d.hours ? "selected" : ""}`}
+                onClick={() => onSetDuration(d.hours)}
+              >
+                <span className="tic">{durationHours === d.hours ? "✓" : ""}</span>
+                {d.label}
+              </button>
+            ))}
+          </div>
+          <p className="caption" style={{ marginTop: 4 }}>
+            Rental prices shown are estimates — final cost is set by the upstream
+            at purchase time, within a ±20% band of the estimate.
+          </p>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -264,10 +369,14 @@ function QuotePanel({
   service,
   country,
   quote,
+  mode,
+  durationHours,
 }: {
   service: ServiceOption | null;
   country: CountryOption | null;
   quote: QuoteState;
+  mode: OrderMode;
+  durationHours: number;
 }) {
   const [purchaseState, formAction, isPending] = useActionState<
     PurchaseError | undefined,
@@ -302,12 +411,16 @@ function QuotePanel({
   }
 
   const q = quote.data;
+  const durationLabel =
+    RENTAL_DURATIONS.find((d) => d.hours === durationHours)?.label ?? `${durationHours}h`;
 
   return (
     <div className="card flex flex-col gap-4" style={{ padding: 24, minHeight: 240 }}>
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <div className="eyebrow">Live quote</div>
+          <div className="eyebrow">
+            {mode === "rental" ? `Rental · ${durationLabel}` : "Live quote"}
+          </div>
           <h3 className="h3" style={{ marginTop: 4 }}>
             {service.name} · {country.name}
           </h3>
@@ -318,14 +431,21 @@ function QuotePanel({
         </div>
       </div>
 
-      <div className="flex items-baseline justify-between gap-3">
+      <div className="flex items-baseline justify-between gap-3 flex-wrap">
         <div>
-          <div className="eyebrow">You pay</div>
+          <div className="eyebrow">
+            {mode === "rental" ? "You pay (estimated)" : "You pay"}
+          </div>
           <div className="h2 mono" style={{ marginTop: 4 }}>
             {formatUsdCents(q.retailCents)}
           </div>
         </div>
-        <span className="caption">via {q.providerSlug}</span>
+        <div className="flex flex-col items-end gap-1">
+          <span className="caption">via {q.providerSlug}</span>
+          {q.estimated ? (
+            <span className="badge badge-warn">estimated</span>
+          ) : null}
+        </div>
       </div>
 
       {purchaseState && !purchaseState.ok ? (

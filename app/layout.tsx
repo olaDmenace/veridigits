@@ -1,10 +1,47 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+const DESCRIPTION =
+  "Anonymity-first SMS verification. Top up with crypto, receive codes from 5,000+ services across 180+ countries. No KYC, no questions.";
+
 export const metadata: Metadata = {
-  title: "Veridigits — Receive SMS without the trace",
-  description:
-    "Anonymity-first SMS verification. Top up with crypto, receive codes from 5,000+ services across 180+ countries. No KYC, no questions.",
+  metadataBase: new URL(APP_URL),
+  title: {
+    default: "Veridigits — Receive SMS without the trace",
+    template: "%s · Veridigits",
+  },
+  description: DESCRIPTION,
+  applicationName: "Veridigits",
+  keywords: [
+    "SMS verification",
+    "OTP",
+    "crypto payments",
+    "anonymous numbers",
+    "temporary phone number",
+  ],
+  openGraph: {
+    type: "website",
+    siteName: "Veridigits",
+    title: "Veridigits — Receive SMS without the trace",
+    description: DESCRIPTION,
+    url: APP_URL,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Veridigits — Receive SMS without the trace",
+    description: DESCRIPTION,
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#FAF8F3",
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({

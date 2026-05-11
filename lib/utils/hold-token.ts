@@ -24,6 +24,10 @@ export interface HoldTokenPayload {
   upstreamOperator: string;
   wholesaleCents: number;
   retailCents: number;
+  /** "activation" or "rental". Defaults to activation when omitted (legacy tokens). */
+  mode?: "activation" | "rental";
+  /** Only present when mode === "rental". */
+  durationHours?: number;
   /** Issued-at, unix seconds. */
   iat: number;
   /** Expires-at, unix seconds. */

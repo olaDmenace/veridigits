@@ -34,6 +34,7 @@ export default async function AdminLayout({
           { href: "/admin", label: "Overview" },
           { href: "/admin/users", label: "Users" },
           { href: "/admin/providers", label: "Providers" },
+          { href: "/admin/pricing-rules", label: "Pricing" },
           { href: "/dashboard", label: "Exit admin" },
         ]}
         primary={

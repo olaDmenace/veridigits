@@ -1,0 +1,9 @@
+.env.local
+.env.local.example
+*.test.ts
+tests/
+coverage/
+.next/
+node_modules/
+Veridigits Design System*.html
+.gstack/

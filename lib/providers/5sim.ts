@@ -125,9 +125,33 @@ export class FiveSimProvider implements OtpProvider {
     };
   }
 
-  async rentNumber(_params: RentalBuyParams): Promise<ProviderBuyResult> {
-    // Rental is Phase 2 per the handover doc.
-    throw new ProviderApiError(this.slug, "rentNumber not implemented (Phase 2)");
+  async rentNumber(params: RentalBuyParams): Promise<ProviderBuyResult> {
+    // 5SIM rental ("hosting") endpoint:
+    //   GET /v1/user/buy/hosting/{country}/{operator}/{durationProduct}
+    // Where durationProduct is a slug like "4hours", "1day", "3day", "7day",
+    // "30day". The catalog of available hosting durations comes from
+    // /v1/guest/products/{country}/{operator} — when wiring rental fully to
+    // production, validate the user's chosen durationHours against that.
+    const durationProduct = mapDurationToHostingSlug(params.durationHours);
+    const operator = DEFAULT_OPERATOR;
+    const path = `/user/buy/hosting/${encodeURIComponent(params.upstreamCountryCode)}/${encodeURIComponent(operator)}/${encodeURIComponent(durationProduct)}`;
+
+    const order = await this.authenticatedGet<FivesimOrder | { error?: string }>(path);
+
+    if (!isOrder(order)) {
+      const message = order.error ?? "rentNumber: unknown error";
+      if (/no free phones|out of stock|no_numbers/i.test(message)) {
+        throw new ProviderOutOfStockError(this.slug, message);
+      }
+      throw new ProviderApiError(this.slug, `rentNumber: ${message}`);
+    }
+
+    return {
+      upstreamOrderId: String(order.id),
+      phoneNumber: order.phone,
+      expiresAt: new Date(order.expires),
+      wholesaleCents: Math.round((order.price ?? 0) * 100),
+    };
   }
 
   async checkOrder(upstreamOrderId: string): Promise<ProviderOrderState> {
@@ -274,4 +298,17 @@ function humanize(slug: string): string {
     .filter(Boolean)
     .map((part) => part[0].toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+/**
+ * Maps a duration-in-hours request to 5SIM's hosting product slug.
+ * Picks the smallest 5SIM tier that covers the requested duration so the
+ * user never gets less than they paid for.
+ */
+function mapDurationToHostingSlug(durationHours: number): string {
+  if (durationHours <= 4) return "4hours";
+  if (durationHours <= 24) return "1day";
+  if (durationHours <= 72) return "3day";
+  if (durationHours <= 24 * 7) return "7day";
+  return "30day";
 }

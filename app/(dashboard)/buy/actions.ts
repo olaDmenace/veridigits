@@ -119,6 +119,9 @@ export interface QuoteResult {
   retailCents: number;
   availableCount: number;
   holdToken: string;
+  mode: OrderMode;
+  /** Only set on rental; signals price is an estimate. */
+  estimated?: boolean;
 }
 
 export type QuoteError =
@@ -126,7 +129,28 @@ export type QuoteError =
   | { ok: false; code: "out_of_stock"; message: string }
   | { ok: false; code: "internal"; message: string };
 
-const REQUOTE_DEVIATION_LIMIT = 0.1; // 10%
+const REQUOTE_DEVIATION_LIMIT = 0.1; // activation: 10% tolerance
+const RENTAL_DEVIATION_LIMIT = 0.2; // rental: 20% (upfront price is an estimate)
+
+export type OrderMode = "activation" | "rental";
+
+export const RENTAL_DURATIONS: ReadonlyArray<{
+  hours: number;
+  label: string;
+  multiplier: number;
+}> = [
+  { hours: 4, label: "4 hours", multiplier: 4 },
+  { hours: 24, label: "1 day", multiplier: 15 },
+  { hours: 72, label: "3 days", multiplier: 35 },
+  { hours: 168, label: "1 week", multiplier: 70 },
+  { hours: 720, label: "30 days", multiplier: 200 },
+];
+
+function rentalMultiplier(hours: number): number {
+  // Pick the multiplier for the closest tier; rentals are sold per tier.
+  const tier = RENTAL_DURATIONS.find((d) => d.hours >= hours);
+  return (tier ?? RENTAL_DURATIONS[RENTAL_DURATIONS.length - 1]).multiplier;
+}
 
 /**
  * Resolves a price for (service, country) by:
@@ -140,6 +164,8 @@ const REQUOTE_DEVIATION_LIMIT = 0.1; // 10%
 export async function getQuote(
   serviceId: string,
   countryId: string,
+  mode: OrderMode = "activation",
+  durationHours?: number,
 ): Promise<QuoteResult | QuoteError> {
   const supabase = await createClient();
   const {
@@ -215,10 +241,18 @@ export async function getQuote(
     markup_percent: Number(r.markup_percent),
   }));
 
+  // For rental, scale the activation wholesale by a duration multiplier as
+  // a rough estimate. Real price comes from upstream at purchase time;
+  // we use a wider deviation tolerance (20%) for rental.
+  const wholesaleForQuote =
+    mode === "rental" && durationHours
+      ? liveQuote.priceCents * rentalMultiplier(durationHours)
+      : liveQuote.priceCents;
+
   const { retailCents } = calculateRetailPrice({
     serviceId,
     countryId,
-    wholesaleCents: liveQuote.priceCents,
+    wholesaleCents: wholesaleForQuote,
     rules,
   });
 
@@ -230,8 +264,10 @@ export async function getQuote(
     upstreamServiceCode: top.upstream_service_code,
     upstreamCountryCode: top.upstream_country_code,
     upstreamOperator: top.upstream_operator ?? "any",
-    wholesaleCents: liveQuote.priceCents,
+    wholesaleCents: wholesaleForQuote,
     retailCents,
+    mode,
+    durationHours: mode === "rental" ? durationHours : undefined,
   });
 
   return {
@@ -240,6 +276,8 @@ export async function getQuote(
     retailCents,
     availableCount: liveQuote.availableCount,
     holdToken,
+    mode,
+    estimated: mode === "rental",
   };
 }
 
@@ -305,54 +343,81 @@ export async function purchase(
     };
   }
 
-  // Re-quote live so we don't sell at a price the upstream no longer offers.
-  let liveQuote;
-  try {
-    const provider = getProvider(payload.providerSlug);
-    liveQuote = await provider.getPriceAndAvailability({
-      upstreamServiceCode: payload.upstreamServiceCode,
-      upstreamCountryCode: payload.upstreamCountryCode,
-      upstreamOperator: payload.upstreamOperator,
-    });
-  } catch (err) {
-    if (err instanceof ProviderOutOfStockError) {
-      return { ok: false, code: "out_of_stock", message: err.message };
+  const mode = payload.mode ?? "activation";
+  const provider = getProvider(payload.providerSlug);
+
+  // Activation has a cheap pre-check via /guest/prices. Rental's upfront
+  // estimate is intentionally rough, so we skip the pre-check and let the
+  // upstream buy call surface the actual price.
+  if (mode === "activation") {
+    let liveQuote;
+    try {
+      liveQuote = await provider.getPriceAndAvailability({
+        upstreamServiceCode: payload.upstreamServiceCode,
+        upstreamCountryCode: payload.upstreamCountryCode,
+        upstreamOperator: payload.upstreamOperator,
+      });
+    } catch (err) {
+      if (err instanceof ProviderOutOfStockError) {
+        return { ok: false, code: "out_of_stock", message: err.message };
+      }
+      return {
+        ok: false,
+        code: "internal",
+        message: err instanceof Error ? err.message : "provider error",
+      };
     }
-    return {
-      ok: false,
-      code: "internal",
-      message: err instanceof Error ? err.message : "provider error",
-    };
+
+    if (liveQuote.availableCount <= 0) {
+      return {
+        ok: false,
+        code: "out_of_stock",
+        message: "Out of stock — try a different country.",
+      };
+    }
+
+    const deviation =
+      Math.abs(liveQuote.priceCents - payload.wholesaleCents) /
+      Math.max(payload.wholesaleCents, 1);
+    if (deviation > REQUOTE_DEVIATION_LIMIT) {
+      return {
+        ok: false,
+        code: "price_moved",
+        message: "Wholesale price changed by more than 10%. Please re-quote.",
+      };
+    }
   }
 
-  if (liveQuote.availableCount <= 0) {
-    return {
-      ok: false,
-      code: "out_of_stock",
-      message: "Out of stock — try a different country.",
-    };
-  }
-
-  const deviation =
-    Math.abs(liveQuote.priceCents - payload.wholesaleCents) /
-    Math.max(payload.wholesaleCents, 1);
-  if (deviation > REQUOTE_DEVIATION_LIMIT) {
-    return {
-      ok: false,
-      code: "price_moved",
-      message: "Wholesale price changed by more than 10%. Please re-quote.",
-    };
-  }
-
-  // Hit upstream.
+  // Hit upstream. Branch on mode.
   let buyResult;
   try {
-    const provider = getProvider(payload.providerSlug);
-    buyResult = await provider.buyActivation({
-      upstreamServiceCode: payload.upstreamServiceCode,
-      upstreamCountryCode: payload.upstreamCountryCode,
-      upstreamOperator: payload.upstreamOperator,
-    });
+    if (mode === "rental") {
+      buyResult = await provider.rentNumber({
+        upstreamServiceCode: payload.upstreamServiceCode,
+        upstreamCountryCode: payload.upstreamCountryCode,
+        durationHours: payload.durationHours ?? 24,
+      });
+
+      // For rental, the upstream price is authoritative. Verify it's within
+      // 20% of our estimate; refuse otherwise so we don't surprise the user.
+      const deviation =
+        Math.abs(buyResult.wholesaleCents - payload.wholesaleCents) /
+        Math.max(payload.wholesaleCents, 1);
+      if (deviation > RENTAL_DEVIATION_LIMIT) {
+        await safeCancelOrder(payload.providerSlug, buyResult.upstreamOrderId);
+        return {
+          ok: false,
+          code: "price_moved",
+          message: `Upstream rental price differed from our estimate by >${Math.round(RENTAL_DEVIATION_LIMIT * 100)}%. We cancelled and refunded — try again.`,
+        };
+      }
+    } else {
+      buyResult = await provider.buyActivation({
+        upstreamServiceCode: payload.upstreamServiceCode,
+        upstreamCountryCode: payload.upstreamCountryCode,
+        upstreamOperator: payload.upstreamOperator,
+      });
+    }
   } catch (err) {
     if (err instanceof ProviderOutOfStockError) {
       return { ok: false, code: "out_of_stock", message: err.message };
@@ -377,7 +442,7 @@ export async function purchase(
       phone_number: buyResult.phoneNumber,
       wholesale_paid_cents: buyResult.wholesaleCents || payload.wholesaleCents,
       retail_charged_cents: payload.retailCents,
-      mode: "activation",
+      mode,
       status: "active",
       expires_at: buyResult.expiresAt.toISOString(),
     })

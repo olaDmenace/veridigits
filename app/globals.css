@@ -900,6 +900,31 @@ button { font: inherit; cursor: pointer; }
 /* ============================================================
    BUY FLOW
 ============================================================ */
+.mode-toggle {
+  display: inline-flex;
+  background: var(--color-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  padding: 4px;
+  gap: 2px;
+}
+.mode-toggle-btn {
+  border: 0;
+  background: transparent;
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-ink-muted);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: background var(--duration-fast), color var(--duration-fast);
+}
+.mode-toggle-btn:hover { color: var(--color-ink); }
+.mode-toggle-btn.is-active {
+  background: var(--color-ink);
+  color: var(--color-paper);
+}
+
 .buy-grid {
   display: grid;
   grid-template-columns: 1.1fr 1fr;
