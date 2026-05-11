@@ -101,3 +101,56 @@ export async function logOut() {
   revalidatePath("/", "layout");
   redirect("/");
 }
+
+export interface ResetFormState {
+  ok: boolean;
+  email?: string;
+  error?: string;
+  sent?: boolean;
+}
+
+export async function requestPasswordReset(
+  _prev: ResetFormState | undefined,
+  formData: FormData,
+): Promise<ResetFormState> {
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  if (!EMAIL_RE.test(email)) {
+    return { ok: false, error: "Enter a valid email address.", email };
+  }
+
+  const supabase = await createClient();
+  const origin = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+
+  // Always return success — we don't leak whether an email exists.
+  // (Supabase also doesn't leak this; the underlying call is idempotent.)
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${origin}/reset-password`,
+  });
+
+  if (error) {
+    return { ok: false, error: error.message, email };
+  }
+  return { ok: true, sent: true, email };
+}
+
+export async function updatePassword(
+  _prev: ResetFormState | undefined,
+  formData: FormData,
+): Promise<ResetFormState> {
+  const password = String(formData.get("password") ?? "");
+  if (password.length < 8) {
+    return {
+      ok: false,
+      error: "Password must be at least 8 characters.",
+    };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) {
+    return { ok: false, error: error.message };
+  }
+
+  revalidatePath("/", "layout");
+  redirect("/dashboard");
+}

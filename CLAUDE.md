@@ -21,8 +21,9 @@ Treat the handover doc as binding architecture; do not deviate without flagging.
 - `npm run build` — production build
 - `npm run start` — run production build
 - `npm run lint` — eslint (uses `eslint-config-next` flat config, see `eslint.config.mjs`)
+- `npm test` — vitest, one-shot run. `npm run test:watch` for the watcher, `npm run test:coverage` for coverage.
 
-No test runner is wired up yet. The handover doc calls for unit tests on the provider abstraction (`lib/providers/`) — pick a runner when getting there.
+Tests live in `tests/`. Vitest uses Node environment (no DOM) — the suite covers pure logic: pricing math, hold-token signing, 5SIM API parsing (mocked fetch). UI/integration tests are intentionally not wired up yet.
 
 ## Stack notes that bite
 

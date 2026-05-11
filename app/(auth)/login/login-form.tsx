@@ -46,9 +46,18 @@ export function LoginForm({ initialRedirect, initialNotice }: Props) {
         </div>
 
         <div>
-          <label className="label" htmlFor="password">
-            Password
-          </label>
+          <div className="flex items-center justify-between gap-3" style={{ marginBottom: 6 }}>
+            <label className="label" htmlFor="password" style={{ marginBottom: 0 }}>
+              Password
+            </label>
+            <Link
+              href="/forgot-password"
+              className="caption"
+              style={{ textDecoration: "underline", textUnderlineOffset: 2 }}
+            >
+              Forgot?
+            </Link>
+          </div>
           <input
             id="password"
             className="input"

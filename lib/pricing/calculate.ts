@@ -81,7 +81,17 @@ export function calculateRetailPrice(
   }
 
   const rule = pickPricingRule(rules, serviceId, countryId);
-  const markedUp = Math.ceil(wholesaleCents * (1 + rule.markup_percent / 100));
+
+  // Exact integer arithmetic. markup_percent is numeric(5,2) in the DB —
+  // at most 2 decimal places — so scaling by 100 gives an integer "basis
+  // points × 100". Doing the math as `wholesale * (10000 + markup_bp_x100)
+  // / 10000` keeps every intermediate value an integer (modulo rounding)
+  // and avoids the 100 * 1.1 = 110.00000000000001 trap that bites
+  // Math.ceil.
+  const markupBpX100 = Math.round(rule.markup_percent * 100);
+  const numerator = wholesaleCents * (10_000 + markupBpX100);
+  const markedUp = Math.ceil(numerator / 10_000);
+
   const withFee = markedUp + rule.flat_fee_cents;
   const retailCents = Math.max(withFee, rule.min_retail_cents);
 

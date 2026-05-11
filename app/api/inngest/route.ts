@@ -4,6 +4,7 @@ import { syncCatalogFn } from "@/lib/inngest/sync-catalog";
 import { pollOrderFn } from "@/lib/inngest/poll-orders";
 import { expireOrdersFn } from "@/lib/inngest/expire-orders";
 import { abuseVelocityFn } from "@/lib/inngest/abuse-velocity";
+import { reconcileWalletsFn } from "@/lib/inngest/reconcile-wallets";
 
 /**
  * Inngest serves all registered functions over a single endpoint.
@@ -12,5 +13,11 @@ import { abuseVelocityFn } from "@/lib/inngest/abuse-velocity";
  */
 export const { GET, POST, PUT } = serve({
   client: inngest,
-  functions: [syncCatalogFn, pollOrderFn, expireOrdersFn, abuseVelocityFn],
+  functions: [
+    syncCatalogFn,
+    pollOrderFn,
+    expireOrdersFn,
+    abuseVelocityFn,
+    reconcileWalletsFn,
+  ],
 });

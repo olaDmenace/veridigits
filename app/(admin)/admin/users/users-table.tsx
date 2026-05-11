@@ -46,7 +46,8 @@ export function UsersTable({ users }: { users: AdminUserRow[] }) {
         <span className="caption mono">{filtered.length} users</span>
       </div>
 
-      <table className="table">
+      <div className="table-wrap">
+        <table className="table">
         <thead>
           <tr>
             <th>Email</th>
@@ -101,7 +102,8 @@ export function UsersTable({ users }: { users: AdminUserRow[] }) {
             </tr>
           ))}
         </tbody>
-      </table>
+        </table>
+      </div>
     </div>
   );
 }

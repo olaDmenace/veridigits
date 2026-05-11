@@ -78,6 +78,7 @@ export default async function AdminProvidersPage() {
         </div>
       ) : (
         <div className="card-flat" style={{ padding: 0 }}>
+          <div className="table-wrap">
           <table className="table">
             <thead>
               <tr>
@@ -112,6 +113,7 @@ export default async function AdminProvidersPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>
