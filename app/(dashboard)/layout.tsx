@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { logOut } from "@/app/(auth)/actions";
 import { createClient } from "@/lib/supabase/server";
 import { formatUsdCents } from "@/lib/utils/money";
+import { Topbar, type TopbarLink } from "@/components/topbar";
 
 export default async function DashboardLayout({
   children,
@@ -28,33 +28,28 @@ export default async function DashboardLayout({
 
   const balanceCents = profile?.wallet_balance_cents ?? 0;
 
+  const links: TopbarLink[] = [
+    { href: "/dashboard", label: "Wallet" },
+    { href: "/buy", label: "Buy" },
+    { href: "/orders", label: "Orders" },
+    { href: "/settings", label: "Settings" },
+  ];
+  if (profile?.is_admin) links.push({ href: "/admin", label: "Admin" });
+
   return (
     <>
-      <header className="topbar">
-        <div className="page topbar-inner">
-          <Link className="logo" href="/dashboard">
-            <span className="mark">v.</span>
-            <span>
-              veridigits<span className="dot">.</span>
-            </span>
-          </Link>
-          <nav>
-            <Link href="/dashboard">Wallet</Link>
-            <Link href="/buy">Buy</Link>
-            <Link href="/orders">Orders</Link>
-            <Link href="/settings">Settings</Link>
-            {profile?.is_admin ? <Link href="/admin">Admin</Link> : null}
-          </nav>
-          <div className="flex items-center gap-4">
-            <span className="meta">{formatUsdCents(balanceCents)}</span>
-            <form action={logOut}>
-              <button type="submit" className="btn btn-ghost btn-sm">
-                Sign out
-              </button>
-            </form>
-          </div>
-        </div>
-      </header>
+      <Topbar
+        brandHref="/dashboard"
+        links={links}
+        meta={<span className="meta">{formatUsdCents(balanceCents)}</span>}
+        primary={
+          <form action={logOut}>
+            <button type="submit" className="btn btn-ghost btn-sm">
+              Sign out
+            </button>
+          </form>
+        }
+      />
       <main className="page section">{children}</main>
     </>
   );

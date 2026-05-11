@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Topbar } from "@/components/topbar";
 
 export default function LegalLayout({
   children,
@@ -7,24 +8,18 @@ export default function LegalLayout({
 }) {
   return (
     <>
-      <header className="topbar">
-        <div className="page topbar-inner">
-          <Link className="logo" href="/">
-            <span className="mark">v.</span>
-            <span>
-              veridigits<span className="dot">.</span>
-            </span>
+      <Topbar
+        links={[
+          { href: "/legal/terms", label: "Terms" },
+          { href: "/legal/privacy", label: "Privacy" },
+          { href: "/legal/aup", label: "Acceptable use" },
+        ]}
+        primary={
+          <Link href="/login" className="btn btn-secondary btn-sm">
+            Sign in
           </Link>
-          <nav>
-            <Link href="/legal/terms">Terms</Link>
-            <Link href="/legal/privacy">Privacy</Link>
-            <Link href="/legal/aup">Acceptable use</Link>
-          </nav>
-          <span className="meta">
-            <Link href="/login">Sign in</Link>
-          </span>
-        </div>
-      </header>
+        }
+      />
 
       <main className="page section legal-prose">{children}</main>
     </>

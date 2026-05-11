@@ -1,27 +1,22 @@
 import Link from "next/link";
+import { Topbar } from "@/components/topbar";
 
 export default function Home() {
   return (
     <>
-      <header className="topbar">
-        <div className="page topbar-inner">
-          <Link className="logo" href="/">
-            <span className="mark">v.</span>
-            <span>
-              veridigits<span className="dot">.</span>
-            </span>
+      <Topbar
+        links={[
+          { href: "#how", label: "How it works", anchor: true },
+          { href: "#services", label: "Services", anchor: true },
+          { href: "#pricing", label: "Pricing", anchor: true },
+          { href: "#faq", label: "FAQ", anchor: true },
+        ]}
+        primary={
+          <Link href="/login" className="btn btn-secondary btn-sm">
+            Sign in
           </Link>
-          <nav>
-            <a href="#how">How it works</a>
-            <a href="#services">Services</a>
-            <a href="#pricing">Pricing</a>
-            <a href="#faq">FAQ</a>
-          </nav>
-          <span className="meta">
-            <Link href="/login">Sign in</Link>
-          </span>
-        </div>
-      </header>
+        }
+      />
 
       <main>
         <Hero />

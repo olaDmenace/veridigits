@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { logOut } from "@/app/(auth)/actions";
 import { createClient } from "@/lib/supabase/server";
+import { Topbar } from "@/components/topbar";
 
 export default async function AdminLayout({
   children,
@@ -27,32 +27,23 @@ export default async function AdminLayout({
 
   return (
     <>
-      <header className="topbar">
-        <div className="page topbar-inner">
-          <Link className="logo" href="/admin">
-            <span className="mark">v.</span>
-            <span>
-              veridigits<span className="dot">.</span>
-            </span>
-            <span className="meta" style={{ marginLeft: 12 }}>
-              ADMIN
-            </span>
-          </Link>
-          <nav>
-            <Link href="/admin">Overview</Link>
-            <Link href="/admin/users">Users</Link>
-            <Link href="/admin/providers">Providers</Link>
-            <Link href="/dashboard">Exit admin</Link>
-          </nav>
-          <div className="flex items-center gap-3">
-            <form action={logOut}>
-              <button type="submit" className="btn btn-ghost btn-sm">
-                Sign out
-              </button>
-            </form>
-          </div>
-        </div>
-      </header>
+      <Topbar
+        brandHref="/admin"
+        brandLabel="ADMIN"
+        links={[
+          { href: "/admin", label: "Overview" },
+          { href: "/admin/users", label: "Users" },
+          { href: "/admin/providers", label: "Providers" },
+          { href: "/dashboard", label: "Exit admin" },
+        ]}
+        primary={
+          <form action={logOut}>
+            <button type="submit" className="btn btn-ghost btn-sm">
+              Sign out
+            </button>
+          </form>
+        }
+      />
       <main className="page section">{children}</main>
     </>
   );

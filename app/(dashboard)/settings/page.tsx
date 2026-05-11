@@ -1,6 +1,11 @@
 import { redirect } from "next/navigation";
 import { logOut } from "@/app/(auth)/actions";
 import { createClient } from "@/lib/supabase/server";
+import {
+  ChangeEmailCard,
+  ChangePasswordCard,
+  DeleteAccountCard,
+} from "./settings-forms";
 
 export const metadata = { title: "Settings · Veridigits" };
 
@@ -29,21 +34,18 @@ export default async function SettingsPage() {
           <div className="label">Account ID</div>
           <div className="mono caption">{user.id}</div>
         </div>
-      </div>
-
-      <div className="card flex flex-col gap-4">
-        <div>
-          <div className="eyebrow">Sign out</div>
-          <p className="caption" style={{ marginTop: 4 }}>
-            Ends your session on this device.
-          </p>
-        </div>
         <form action={logOut}>
           <button type="submit" className="btn btn-secondary">
             Sign out
           </button>
         </form>
       </div>
+
+      <ChangePasswordCard />
+
+      <ChangeEmailCard currentEmail={user.email ?? ""} />
+
+      <DeleteAccountCard />
     </div>
   );
 }
