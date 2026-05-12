@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { getAppUrl } from "@/lib/utils/app-url";
 
 export interface AuthFormState {
   ok: boolean;
@@ -42,7 +43,7 @@ export async function signUp(
   }
 
   const supabase = await createClient();
-  const origin = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const origin = getAppUrl();
 
   const { data, error } = await supabase.auth.signUp({
     email,
@@ -119,7 +120,7 @@ export async function requestPasswordReset(
   }
 
   const supabase = await createClient();
-  const origin = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const origin = getAppUrl();
 
   // Always return success — we don't leak whether an email exists.
   // (Supabase also doesn't leak this; the underlying call is idempotent.)

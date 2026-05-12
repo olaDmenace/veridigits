@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { getProcessor, PaymentProcessorError } from "@/lib/payments";
+import { getAppUrl } from "@/lib/utils/app-url";
 
 export type CreateTopupResult =
   | {
@@ -83,8 +84,7 @@ export async function createTopup(formData: FormData): Promise<CreateTopupResult
   let invoice;
   try {
     const processor = getProcessor("nowpayments");
-    const origin =
-      process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    const origin = getAppUrl();
     invoice = await processor.createInvoice({
       amountUsdCents,
       payCurrency,

@@ -1,7 +1,8 @@
 import type { Metadata, Viewport } from "next";
+import { getAppUrl } from "@/lib/utils/app-url";
 import "./globals.css";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+const APP_URL = getAppUrl();
 const DESCRIPTION =
   "Anonymity-first SMS verification. Top up with crypto, receive codes from 5,000+ services across 180+ countries. No KYC, no questions.";
 
