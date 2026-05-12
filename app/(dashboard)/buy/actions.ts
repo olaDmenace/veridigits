@@ -181,6 +181,12 @@ export async function getCountriesForService(
     out.sort((a, b) => a.retailCents - b.retailCents);
     return { ok: true, countries: out };
   } catch (err) {
+    // Surface to Vercel logs so we don't have to guess at digests later.
+    console.error("getCountriesForService failed:", {
+      serviceId,
+      err,
+      stack: err instanceof Error ? err.stack : undefined,
+    });
     return {
       ok: false,
       where: "unexpected",
