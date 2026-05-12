@@ -56,6 +56,7 @@ export function BuyPicker({ services }: { services: ServiceOption[] }) {
   const [countryId, setCountryId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [countries, setCountries] = useState<CountryOption[]>([]);
+  const [countriesError, setCountriesError] = useState<string | null>(null);
   const [loadingCountries, setLoadingCountries] = useState(false);
   const [quote, setQuote] = useState<QuoteState>(EMPTY_QUOTE);
   const [, startTransition] = useTransition();
@@ -74,17 +75,29 @@ export function BuyPicker({ services }: { services: ServiceOption[] }) {
     setServiceId(id);
     setCountryId(null);
     setCountries([]);
+    setCountriesError(null);
     setQuote(EMPTY_QUOTE);
     setLoadingCountries(true);
 
     startTransition(async () => {
       try {
-        const data = await getCountriesForService(id);
+        const result = await getCountriesForService(id);
         // Guard against a stale response if the user has clicked another
         // service while this one was inflight.
-        setCountries((prev) => (serviceIdRef.current === id ? data : prev));
-      } catch {
+        if (serviceIdRef.current !== id) return;
+        if (result.ok) {
+          setCountries(result.countries);
+          setCountriesError(null);
+        } else {
+          setCountries([]);
+          setCountriesError(`${result.where}: ${result.error}`);
+        }
+      } catch (err) {
+        if (serviceIdRef.current !== id) return;
         setCountries([]);
+        setCountriesError(
+          err instanceof Error ? err.message : "Failed to load countries",
+        );
       } finally {
         setLoadingCountries(false);
       }
@@ -156,6 +169,7 @@ export function BuyPicker({ services }: { services: ServiceOption[] }) {
           service={selectedService}
           countries={countries}
           loading={loadingCountries}
+          error={countriesError}
           selectedId={countryId}
           onSelect={selectCountry}
         />
@@ -302,12 +316,14 @@ function CountriesPanel({
   service,
   countries,
   loading,
+  error,
   selectedId,
   onSelect,
 }: {
   service: ServiceOption | null;
   countries: CountryOption[];
   loading: boolean;
+  error: string | null;
   selectedId: string | null;
   onSelect: (id: string) => void;
 }) {
@@ -336,7 +352,23 @@ function CountriesPanel({
         </span>
       </div>
 
-      {!loading && countries.length === 0 ? (
+      {!loading && error ? (
+        <div
+          className="badge badge-danger"
+          style={{
+            height: "auto",
+            padding: "10px 12px",
+            textTransform: "none",
+            fontFamily: "var(--font-sans)",
+            fontSize: "13px",
+            letterSpacing: 0,
+            fontWeight: 500,
+            whiteSpace: "normal",
+          }}
+        >
+          {error}
+        </div>
+      ) : !loading && countries.length === 0 ? (
         <p className="caption">
           No upstream stock for this service right now. Try another.
         </p>

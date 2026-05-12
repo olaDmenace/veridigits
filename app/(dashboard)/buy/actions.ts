@@ -34,24 +34,40 @@ export interface CountryOption {
   availableCount: number;
 }
 
+export type CountriesResult =
+  | { ok: true; countries: CountryOption[] }
+  | { ok: false; error: string; where: string };
+
 /**
  * Returns the countries where this service has cached stock, with the
  * cheapest cached retail price per country. Used to populate the country
  * picker on /buy. Prices shown here are stale-by-minutes — the live
  * re-quote happens in getQuote when the user actually selects.
+ *
+ * Returns a discriminated union so errors surface in the client UI with
+ * a useful `where` label rather than turning into a generic 500.
  */
 export async function getCountriesForService(
   serviceId: string,
-): Promise<CountryOption[]> {
-  const supabase = await createClient();
-  // pricing_rules is admin-only at the RLS level, but it's global config
-  // not user data. The server-side pricing computation needs the rules to
-  // resolve a retail price; the rules themselves never go to the client.
-  // Read via the service-role admin client.
-  const admin = getAdminClient();
+): Promise<CountriesResult> {
+  try {
+    const supabase = await createClient();
+    // pricing_rules is admin-only at the RLS level, but it's global config
+    // not user data. The server-side pricing computation needs the rules
+    // to resolve a retail price; the rules themselves never go to the
+    // client. Read via the service-role admin client.
+    let admin;
+    try {
+      admin = getAdminClient();
+    } catch (err) {
+      return {
+        ok: false,
+        where: "admin-client",
+        error: err instanceof Error ? err.message : "admin client init failed",
+      };
+    }
 
-  const [{ data: psRows }, { data: rulesData }, { data: countryRows }] =
-    await Promise.all([
+    const [psResult, rulesResult, countriesResult] = await Promise.all([
       supabase
         .from("provider_services")
         .select("country_id, wholesale_price_cents, available_count")
@@ -71,55 +87,106 @@ export async function getCountriesForService(
         .eq("is_enabled", true),
     ]);
 
-  if (!psRows || psRows.length === 0) return [];
-
-  // Reduce to cheapest per country.
-  const cheapestPerCountry = new Map<
-    string,
-    { wholesaleCents: number; availableCount: number }
-  >();
-  for (const r of psRows) {
-    if (r.wholesale_price_cents == null || !r.country_id) continue;
-    const existing = cheapestPerCountry.get(r.country_id);
-    if (!existing || r.wholesale_price_cents < existing.wholesaleCents) {
-      cheapestPerCountry.set(r.country_id, {
-        wholesaleCents: r.wholesale_price_cents,
-        availableCount: r.available_count ?? 0,
-      });
+    if (psResult.error) {
+      return {
+        ok: false,
+        where: "provider_services",
+        error: psResult.error.message,
+      };
     }
+    if (rulesResult.error) {
+      return {
+        ok: false,
+        where: "pricing_rules",
+        error: rulesResult.error.message,
+      };
+    }
+    if (countriesResult.error) {
+      return {
+        ok: false,
+        where: "countries",
+        error: countriesResult.error.message,
+      };
+    }
+
+    const psRows = psResult.data;
+    const rulesData = rulesResult.data;
+    const countryRows = countriesResult.data;
+
+    if (!psRows || psRows.length === 0) return { ok: true, countries: [] };
+
+    // Reduce to cheapest per country.
+    const cheapestPerCountry = new Map<
+      string,
+      { wholesaleCents: number; availableCount: number }
+    >();
+    for (const r of psRows) {
+      if (r.wholesale_price_cents == null || !r.country_id) continue;
+      const existing = cheapestPerCountry.get(r.country_id);
+      if (!existing || r.wholesale_price_cents < existing.wholesaleCents) {
+        cheapestPerCountry.set(r.country_id, {
+          wholesaleCents: r.wholesale_price_cents,
+          availableCount: r.available_count ?? 0,
+        });
+      }
+    }
+
+    const rules: PricingRule[] = (rulesData ?? []).map((r) => ({
+      ...r,
+      markup_percent: Number(r.markup_percent),
+    }));
+
+    if (rules.length === 0) {
+      return {
+        ok: false,
+        where: "pricing_rules",
+        error:
+          "No active pricing rules found. The global default rule (service_id NULL, country_id NULL) must exist.",
+      };
+    }
+
+    const countryById = new Map(
+      (countryRows ?? []).map((c) => [c.id, c] as const),
+    );
+
+    const out: CountryOption[] = [];
+    for (const [countryId, info] of cheapestPerCountry) {
+      const country = countryById.get(countryId);
+      if (!country) continue;
+      try {
+        const { retailCents } = calculateRetailPrice({
+          serviceId,
+          countryId,
+          wholesaleCents: info.wholesaleCents,
+          rules,
+        });
+        out.push({
+          countryId,
+          isoCode: country.iso_code,
+          name: country.name,
+          flagEmoji: country.flag_emoji,
+          retailCents,
+          availableCount: info.availableCount,
+        });
+      } catch (err) {
+        // Skip individual countries that the pricing engine rejects, don't
+        // poison the whole list.
+        console.error(
+          `pricing failed for service=${serviceId} country=${countryId}:`,
+          err,
+        );
+      }
+    }
+
+    out.sort((a, b) => a.retailCents - b.retailCents);
+    return { ok: true, countries: out };
+  } catch (err) {
+    return {
+      ok: false,
+      where: "unexpected",
+      error: err instanceof Error ? err.message : "unknown error",
+    };
   }
-
-  const rules: PricingRule[] = (rulesData ?? []).map((r) => ({
-    ...r,
-    markup_percent: Number(r.markup_percent),
-  }));
-
-  const countryById = new Map(
-    (countryRows ?? []).map((c) => [c.id, c] as const),
-  );
-
-  const out: CountryOption[] = [];
-  for (const [countryId, info] of cheapestPerCountry) {
-    const country = countryById.get(countryId);
-    if (!country) continue;
-    const { retailCents } = calculateRetailPrice({
-      serviceId,
-      countryId,
-      wholesaleCents: info.wholesaleCents,
-      rules,
-    });
-    out.push({
-      countryId,
-      isoCode: country.iso_code,
-      name: country.name,
-      flagEmoji: country.flag_emoji,
-      retailCents,
-      availableCount: info.availableCount,
-    });
-  }
-
-  out.sort((a, b) => a.retailCents - b.retailCents);
-  return out;
 }
 
 export interface QuoteResult {
