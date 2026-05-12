@@ -21,7 +21,11 @@ const MAX_POLLS = 600; // safety cap: 600 × 3s = 30min
 export const pollOrderFn = inngest.createFunction(
   {
     id: "poll-order",
-    concurrency: { limit: 50 },
+    // Inngest free plan caps per-function concurrency at 5. Each poll
+    // step.sleeps for 3s between checks, so 5 simultaneous active orders
+    // is plenty for MVP volume. Bump this when on a paid plan: 50 lets a
+    // few hundred concurrent active orders be polled comfortably.
+    concurrency: { limit: 5 },
     triggers: [{ event: "app/order.poll-started" }],
   },
   async ({ event, step, logger }) => {
