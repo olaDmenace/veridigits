@@ -21,9 +21,10 @@ import {
   type HoldTokenPayload,
 } from "@/lib/utils/hold-token";
 import { rentalMultiplier, type OrderMode } from "./constants";
-
-// Re-export OrderMode for callers that still pull it from this module.
-export type { OrderMode };
+// Don't re-export OrderMode from here. `"use server"` files in Next 16 +
+// Turbopack only allow async-function exports — even `export type` gets
+// emitted as a runtime reference and crashes at module evaluation with
+// "OrderMode is not defined". Import the type directly from ./constants.
 
 export interface CountryOption {
   countryId: string;
