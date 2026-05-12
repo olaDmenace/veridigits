@@ -44,6 +44,11 @@ export async function getCountriesForService(
   serviceId: string,
 ): Promise<CountryOption[]> {
   const supabase = await createClient();
+  // pricing_rules is admin-only at the RLS level, but it's global config
+  // not user data. The server-side pricing computation needs the rules to
+  // resolve a retail price; the rules themselves never go to the client.
+  // Read via the service-role admin client.
+  const admin = getAdminClient();
 
   const [{ data: psRows }, { data: rulesData }, { data: countryRows }] =
     await Promise.all([
@@ -54,7 +59,7 @@ export async function getCountriesForService(
         .eq("is_enabled", true)
         .gt("available_count", 0)
         .not("wholesale_price_cents", "is", null),
-      supabase
+      admin
         .from("pricing_rules")
         .select(
           "id, service_id, country_id, markup_percent, flat_fee_cents, min_retail_cents, priority, is_active",
@@ -213,7 +218,10 @@ export async function getQuote(
     };
   }
 
-  const { data: rulesData } = await supabase
+  // Same RLS workaround as getCountriesForService — pricing_rules is
+  // admin-only at the DB level; server-side computation reads via the
+  // admin client.
+  const { data: rulesData } = await getAdminClient()
     .from("pricing_rules")
     .select(
       "id, service_id, country_id, markup_percent, flat_fee_cents, min_retail_cents, priority, is_active",
