@@ -93,16 +93,27 @@ button { font: inherit; cursor: pointer; }
 .page {
   max-width: 1280px;
   margin: 0 auto;
-  padding: 0 56px;
+  /* env() ensures notched iPhones in landscape don't bleed under the camera. */
+  padding-left: max(56px, env(safe-area-inset-left));
+  padding-right: max(56px, env(safe-area-inset-right));
 }
 @media (max-width: 1024px) {
-  .page { padding: 0 32px; }
+  .page {
+    padding-left: max(32px, env(safe-area-inset-left));
+    padding-right: max(32px, env(safe-area-inset-right));
+  }
 }
 @media (max-width: 760px) {
-  .page { padding: 0 20px; }
+  .page {
+    padding-left: max(24px, env(safe-area-inset-left));
+    padding-right: max(24px, env(safe-area-inset-right));
+  }
 }
 @media (max-width: 380px) {
-  .page { padding: 0 16px; }
+  .page {
+    padding-left: max(20px, env(safe-area-inset-left));
+    padding-right: max(20px, env(safe-area-inset-right));
+  }
 }
 
 .topbar {
@@ -167,12 +178,30 @@ button { font: inherit; cursor: pointer; }
   background: var(--color-paper);
   border-left: 1px solid var(--color-border);
   display: flex; flex-direction: column;
-  padding: 88px 24px 32px;
+  padding: 72px 24px 32px;
   gap: 24px;
   animation: drawer-slide var(--duration-base) var(--ease-out);
   box-shadow: var(--shadow-lg);
   overflow-y: auto;
 }
+
+/* Explicit close button — sits inside the panel so it stays above the
+   backdrop and is always findable. */
+.topbar-drawer-close {
+  position: absolute;
+  top: 18px; right: 18px;
+  width: 40px; height: 40px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border-radius: var(--radius-sm);
+  color: var(--color-ink);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out),
+              border-color var(--duration-fast) var(--ease-out);
+}
+.topbar-drawer-close:hover { background: var(--color-subtle); border-color: var(--color-border-strong); }
+.topbar-drawer-close:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
 @keyframes drawer-slide {
   from { transform: translateX(20px); opacity: 0; }
   to   { transform: translateX(0); opacity: 1; }

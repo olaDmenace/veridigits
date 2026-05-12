@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { BuyPicker, type ServiceOption } from "./picker";
 
@@ -8,6 +9,19 @@ export const metadata = {
 
 export default async function BuyPage() {
   const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  // Whether this user is an admin gates the technical empty-state message.
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("is_admin")
+    .eq("id", user.id)
+    .single();
+  const isAdmin = !!profile?.is_admin;
 
   // 1. Distinct service_ids that have at least one in-stock provider_services row.
   const { data: psRows } = await supabase
@@ -48,15 +62,35 @@ export default async function BuyPage() {
           className="card flex flex-col items-center gap-4 text-center"
           style={{ padding: 56 }}
         >
-          <div className="eyebrow">Catalog is empty</div>
+          <div className="eyebrow">We&apos;re refreshing inventory</div>
           <p className="body" style={{ maxWidth: 480 }}>
-            No upstream catalog has been synced yet. Trigger a{" "}
-            <span className="mono">sync-catalog</span> run from the Inngest
-            dashboard, then refresh this page.
+            Our number catalog is updating. This usually takes a couple of
+            minutes — come back shortly and you&apos;ll see services and
+            countries here.
           </p>
-          <Link href="/dashboard" className="btn btn-secondary">
-            Back to dashboard
-          </Link>
+
+          <div className="flex flex-wrap gap-3 justify-center">
+            <Link href="/dashboard" className="btn btn-secondary">
+              Back to dashboard
+            </Link>
+            {isAdmin ? (
+              <Link href="/admin/providers" className="btn btn-primary">
+                <span className="dot"></span>
+                Trigger sync (admin)
+              </Link>
+            ) : null}
+          </div>
+
+          {isAdmin ? (
+            <p
+              className="caption"
+              style={{ maxWidth: 480, marginTop: 12, opacity: 0.7 }}
+            >
+              Admin note: no <span className="mono">provider_services</span>{" "}
+              rows in stock. Run <span className="mono">sync-catalog</span> from{" "}
+              <span className="mono">/admin/providers</span> or wait for the 6-hour cron.
+            </p>
+          ) : null}
         </div>
       </div>
     );
