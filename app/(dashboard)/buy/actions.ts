@@ -20,6 +20,10 @@ import {
   HoldTokenError,
   type HoldTokenPayload,
 } from "@/lib/utils/hold-token";
+import { rentalMultiplier, type OrderMode } from "./constants";
+
+// Re-export OrderMode for callers that still pull it from this module.
+export type { OrderMode };
 
 export interface CountryOption {
   countryId: string;
@@ -131,26 +135,6 @@ export type QuoteError =
 
 const REQUOTE_DEVIATION_LIMIT = 0.1; // activation: 10% tolerance
 const RENTAL_DEVIATION_LIMIT = 0.2; // rental: 20% (upfront price is an estimate)
-
-export type OrderMode = "activation" | "rental";
-
-export const RENTAL_DURATIONS: ReadonlyArray<{
-  hours: number;
-  label: string;
-  multiplier: number;
-}> = [
-  { hours: 4, label: "4 hours", multiplier: 4 },
-  { hours: 24, label: "1 day", multiplier: 15 },
-  { hours: 72, label: "3 days", multiplier: 35 },
-  { hours: 168, label: "1 week", multiplier: 70 },
-  { hours: 720, label: "30 days", multiplier: 200 },
-];
-
-function rentalMultiplier(hours: number): number {
-  // Pick the multiplier for the closest tier; rentals are sold per tier.
-  const tier = RENTAL_DURATIONS.find((d) => d.hours >= hours);
-  return (tier ?? RENTAL_DURATIONS[RENTAL_DURATIONS.length - 1]).multiplier;
-}
 
 /**
  * Resolves a price for (service, country) by:

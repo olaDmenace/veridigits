@@ -5,12 +5,11 @@ import {
   getCountriesForService,
   getQuote,
   purchaseAndRedirect,
-  RENTAL_DURATIONS,
   type CountryOption,
-  type OrderMode,
   type PurchaseError,
   type QuoteResult,
 } from "./actions";
+import { RENTAL_DURATIONS, type OrderMode } from "./constants";
 import { formatUsdCents } from "@/lib/utils/money";
 
 export interface ServiceOption {
