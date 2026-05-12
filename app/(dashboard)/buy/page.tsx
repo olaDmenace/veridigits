@@ -23,30 +23,26 @@ export default async function BuyPage() {
     .single();
   const isAdmin = !!profile?.is_admin;
 
-  // 1. Distinct service_ids that have at least one in-stock provider_services row.
-  const { data: psRows } = await supabase
-    .from("provider_services")
-    .select("service_id")
+  // We deliberately don't pre-filter services by "has stock" here. The
+  // 5SIM catalog has 500+ services, and threading every in-stock service
+  // id through an `.in()` filter builds a ~20KB URL that fails at Vercel
+  // edge / PostgREST limits. Instead we show all enabled services; the
+  // country picker (getCountriesForService) does the per-service stock
+  // check live and renders "no stock right now" if the catalog is empty
+  // for that service.
+  const { data: rows } = await supabase
+    .from("services")
+    .select("id, slug, name")
     .eq("is_enabled", true)
-    .gt("available_count", 0)
-    .not("wholesale_price_cents", "is", null);
+    .order("display_order", { ascending: true })
+    .order("name", { ascending: true })
+    .limit(1000);
 
-  const serviceIdsWithStock = new Set<string>();
-  for (const r of psRows ?? []) {
-    if (r.service_id) serviceIdsWithStock.add(r.service_id);
-  }
-
-  let services: ServiceOption[] = [];
-  if (serviceIdsWithStock.size > 0) {
-    const { data: rows } = await supabase
-      .from("services")
-      .select("id, slug, name")
-      .eq("is_enabled", true)
-      .in("id", [...serviceIdsWithStock])
-      .order("name", { ascending: true });
-
-    services = (rows ?? []).map((r) => ({ id: r.id, slug: r.slug, name: r.name }));
-  }
+  const services: ServiceOption[] = (rows ?? []).map((r) => ({
+    id: r.id,
+    slug: r.slug,
+    name: r.name,
+  }));
 
   if (services.length === 0) {
     return (
