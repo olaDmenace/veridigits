@@ -47,19 +47,33 @@ function iconClassFor(slug: string): string {
   return ICON_PALETTE[Math.abs(h) % ICON_PALETTE.length];
 }
 
-export function BuyPicker({ services }: { services: ServiceOption[] }) {
+export function BuyPicker({
+  services,
+  initialServiceId = null,
+  initialCountries = [],
+}: {
+  services: ServiceOption[];
+  initialServiceId?: string | null;
+  initialCountries?: CountryOption[];
+}) {
   const [mode, setMode] = useState<OrderMode>("activation");
   const [durationHours, setDurationHours] = useState<number>(
     RENTAL_DURATIONS[0].hours,
   );
-  const [serviceId, setServiceId] = useState<string | null>(null);
+  const [serviceId, setServiceId] = useState<string | null>(initialServiceId);
   const [countryId, setCountryId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [countries, setCountries] = useState<CountryOption[]>([]);
+  const [countries, setCountries] = useState<CountryOption[]>(initialCountries);
   const [countriesError, setCountriesError] = useState<string | null>(null);
   const [loadingCountries, setLoadingCountries] = useState(false);
   const [quote, setQuote] = useState<QuoteState>(EMPTY_QUOTE);
   const [, startTransition] = useTransition();
+
+  // Seed the module-scoped staleness ref with the initial selection so the
+  // first user-triggered re-fetch doesn't get dropped as "stale".
+  if (initialServiceId && serviceIdRef.current === null) {
+    serviceIdRef.current = initialServiceId;
+  }
 
   const filteredServices = useMemo(() => {
     if (!search.trim()) return services;

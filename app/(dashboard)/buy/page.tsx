@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { BuyPicker, type ServiceOption } from "./picker";
+import { getCountriesForService, type CountryOption } from "./actions";
 
 export const metadata = {
   title: "Buy a number · Veridigits",
@@ -92,6 +93,21 @@ export default async function BuyPage() {
     );
   }
 
+  // Pre-pick the first service and load its countries server-side. The
+  // user lands on /buy and the country panel is already populated for
+  // the most prominent service. They can change service freely from
+  // there — the action re-fetches on every selection.
+  const initialServiceId = services[0]?.id ?? null;
+  let initialCountries: CountryOption[] = [];
+  if (initialServiceId) {
+    try {
+      const result = await getCountriesForService(initialServiceId);
+      if (result.ok) initialCountries = result.countries;
+    } catch {
+      // Non-fatal: picker will load via client action on first interaction.
+    }
+  }
+
   return (
     <div className="flex flex-col gap-8">
       <div>
@@ -105,7 +121,11 @@ export default async function BuyPage() {
         </p>
       </div>
 
-      <BuyPicker services={services} />
+      <BuyPicker
+        services={services}
+        initialServiceId={initialServiceId}
+        initialCountries={initialCountries}
+      />
     </div>
   );
 }
