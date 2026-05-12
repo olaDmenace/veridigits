@@ -99,7 +99,11 @@ export async function logIn(
 export async function logOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();
-  revalidatePath("/", "layout");
+  // Don't revalidatePath here — in Next 16 + React 19, a layout-wide
+  // revalidate combined with a redirect inside the same action can race
+  // when the form is fired from a portal-rendered drawer. The redirect
+  // to / naturally re-fetches the marketing page; protected routes
+  // re-check via middleware on the next request.
   redirect("/");
 }
 
