@@ -995,6 +995,16 @@ main,
 .services-list .svc-tile { border: 1px solid var(--color-border); }
 .services-list .svc-tile.selected { border-color: var(--color-ink); box-shadow: var(--shadow-glow); }
 
+/* Expandable picker dropdown inside its card (used by /buy country picker). */
+.picker-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+  padding-top: 14px;
+  border-top: 1px solid var(--color-border);
+}
+
 /* ============================================================
    MARKETING SECTIONS
 ============================================================ */

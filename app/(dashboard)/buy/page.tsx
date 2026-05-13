@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { BuyPicker, type ServiceOption } from "./picker";
-import { getCountriesForService, type CountryOption } from "./actions";
+import { BuyPicker, type CountryEntry } from "./picker";
+import { getServicesForCountry, type ServicePriceOption } from "./actions";
 
 export const metadata = {
   title: "Buy a number · Veridigits",
@@ -16,7 +16,7 @@ export default async function BuyPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  // Whether this user is an admin gates the technical empty-state message.
+  // Admin gates the technical empty-state message.
   const { data: profile } = await supabase
     .from("profiles")
     .select("is_admin")
@@ -24,34 +24,45 @@ export default async function BuyPage() {
     .single();
   const isAdmin = !!profile?.is_admin;
 
-  // We deliberately don't pre-filter services by "has stock" here. The
-  // 5SIM catalog has 500+ services, and threading every in-stock service
-  // id through an `.in()` filter builds a ~20KB URL that fails at Vercel
-  // edge / PostgREST limits. Instead we show all enabled services; the
-  // country picker (getCountriesForService) does the per-service stock
-  // check live and renders "no stock right now" if the catalog is empty
-  // for that service.
-  const { data: rows } = await supabase
-    .from("services")
-    .select("id, slug, name")
+  // Country-first flow: load the countries that have any in-stock listing.
+  // Distinct country_ids from provider_services. The 80-ish country count
+  // fits in a single query without the URL-length problem that bit us when
+  // we tried the same approach with services.
+  const { data: psRows } = await supabase
+    .from("provider_services")
+    .select("country_id")
     .eq("is_enabled", true)
-    .order("display_order", { ascending: true })
-    .order("name", { ascending: true })
-    .limit(1000);
+    .gt("available_count", 0)
+    .not("wholesale_price_cents", "is", null);
 
-  const services: ServiceOption[] = (rows ?? []).map((r) => ({
-    id: r.id,
-    slug: r.slug,
-    name: r.name,
-  }));
+  const countryIdsWithStock = new Set<string>();
+  for (const r of psRows ?? []) {
+    if (r.country_id) countryIdsWithStock.add(r.country_id);
+  }
 
-  if (services.length === 0) {
+  let countries: CountryEntry[] = [];
+  if (countryIdsWithStock.size > 0) {
+    const { data: rows } = await supabase
+      .from("countries")
+      .select("id, iso_code, name, flag_emoji")
+      .eq("is_enabled", true)
+      .in("id", [...countryIdsWithStock])
+      .order("name", { ascending: true });
+    countries = (rows ?? []).map((r) => ({
+      id: r.id,
+      isoCode: r.iso_code,
+      name: r.name,
+      flagEmoji: r.flag_emoji,
+    }));
+  }
+
+  if (countries.length === 0) {
     return (
       <div className="flex flex-col gap-8">
         <div>
           <div className="eyebrow">Buy</div>
           <h1 className="h2" style={{ marginTop: 8 }}>
-            Pick a service and country.
+            Pick a country and service.
           </h1>
         </div>
 
@@ -62,8 +73,8 @@ export default async function BuyPage() {
           <div className="eyebrow">We&apos;re refreshing inventory</div>
           <p className="body" style={{ maxWidth: 480 }}>
             Our number catalog is updating. This usually takes a couple of
-            minutes — come back shortly and you&apos;ll see services and
-            countries here.
+            minutes — come back shortly and you&apos;ll see countries and
+            services here.
           </p>
 
           <div className="flex flex-wrap gap-3 justify-center">
@@ -93,18 +104,16 @@ export default async function BuyPage() {
     );
   }
 
-  // Pre-pick the first service and load its countries server-side. The
-  // user lands on /buy and the country panel is already populated for
-  // the most prominent service. They can change service freely from
-  // there — the action re-fetches on every selection.
-  const initialServiceId = services[0]?.id ?? null;
-  let initialCountries: CountryOption[] = [];
-  if (initialServiceId) {
+  // Pre-pick the first country alphabetically and fetch its services so the
+  // user lands on /buy with the services list populated.
+  const initialCountryId = countries[0]?.id ?? null;
+  let initialServices: ServicePriceOption[] = [];
+  if (initialCountryId) {
     try {
-      const result = await getCountriesForService(initialServiceId);
-      if (result.ok) initialCountries = result.countries;
+      const result = await getServicesForCountry(initialCountryId);
+      if (result.ok) initialServices = result.services;
     } catch {
-      // Non-fatal: picker will load via client action on first interaction.
+      // Non-fatal — client will refetch when user interacts.
     }
   }
 
@@ -113,18 +122,18 @@ export default async function BuyPage() {
       <div>
         <div className="eyebrow">Buy</div>
         <h1 className="h2" style={{ marginTop: 8 }}>
-          Pick a service and country.
+          Pick a country and service.
         </h1>
         <p className="body" style={{ marginTop: 14, maxWidth: 640 }}>
-          Prices on the right are cached and re-quoted live the moment you
-          click buy. We never charge a stale price.
+          Choose a country first to see which services have stock there.
+          Prices below are cached and re-quoted live the moment you click buy.
         </p>
       </div>
 
       <BuyPicker
-        services={services}
-        initialServiceId={initialServiceId}
-        initialCountries={initialCountries}
+        countries={countries}
+        initialCountryId={initialCountryId}
+        initialServices={initialServices}
       />
     </div>
   );

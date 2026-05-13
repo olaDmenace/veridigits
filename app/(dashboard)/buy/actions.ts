@@ -39,6 +39,18 @@ export type CountriesResult =
   | { ok: true; countries: CountryOption[] }
   | { ok: false; error: string; where: string };
 
+export interface ServicePriceOption {
+  serviceId: string;
+  slug: string;
+  name: string;
+  retailCents: number;
+  availableCount: number;
+}
+
+export type ServicesResult =
+  | { ok: true; services: ServicePriceOption[] }
+  | { ok: false; error: string; where: string };
+
 /**
  * Returns the countries where this service has cached stock, with the
  * cheapest cached retail price per country. Used to populate the country
@@ -185,6 +197,136 @@ export async function getCountriesForService(
     // Surface to Vercel logs so we don't have to guess at digests later.
     console.error("getCountriesForService failed:", {
       serviceId,
+      err,
+      stack: err instanceof Error ? err.stack : undefined,
+    });
+    return {
+      ok: false,
+      where: "unexpected",
+      error: err instanceof Error ? err.message : "unknown error",
+    };
+  }
+}
+
+/**
+ * Returns the services that have in-stock listings for this country, each
+ * with the cheapest cached retail price. The user picks a country first
+ * on /buy, then this populates the service list. Prices are cached and
+ * re-quoted live during getQuote when the user actually selects a row.
+ */
+export async function getServicesForCountry(
+  countryId: string,
+): Promise<ServicesResult> {
+  try {
+    const supabase = await createClient();
+    let admin;
+    try {
+      admin = getAdminClient();
+    } catch (err) {
+      return {
+        ok: false,
+        where: "admin-client",
+        error: err instanceof Error ? err.message : "admin client init failed",
+      };
+    }
+
+    const [psResult, rulesResult, servicesResult] = await Promise.all([
+      supabase
+        .from("provider_services")
+        .select("service_id, wholesale_price_cents, available_count")
+        .eq("country_id", countryId)
+        .eq("is_enabled", true)
+        .gt("available_count", 0)
+        .not("wholesale_price_cents", "is", null),
+      admin
+        .from("pricing_rules")
+        .select(
+          "id, service_id, country_id, markup_percent, flat_fee_cents, min_retail_cents, priority, is_active",
+        )
+        .eq("is_active", true),
+      supabase
+        .from("services")
+        .select("id, slug, name")
+        .eq("is_enabled", true),
+    ]);
+
+    if (psResult.error) {
+      return { ok: false, where: "provider_services", error: psResult.error.message };
+    }
+    if (rulesResult.error) {
+      return { ok: false, where: "pricing_rules", error: rulesResult.error.message };
+    }
+    if (servicesResult.error) {
+      return { ok: false, where: "services", error: servicesResult.error.message };
+    }
+
+    const psRows = psResult.data ?? [];
+    if (psRows.length === 0) return { ok: true, services: [] };
+
+    // Reduce to cheapest wholesale per service for this country.
+    const cheapestPerService = new Map<
+      string,
+      { wholesaleCents: number; availableCount: number }
+    >();
+    for (const r of psRows) {
+      if (r.wholesale_price_cents == null || !r.service_id) continue;
+      const existing = cheapestPerService.get(r.service_id);
+      if (!existing || r.wholesale_price_cents < existing.wholesaleCents) {
+        cheapestPerService.set(r.service_id, {
+          wholesaleCents: r.wholesale_price_cents,
+          availableCount: r.available_count ?? 0,
+        });
+      }
+    }
+
+    const rules: PricingRule[] = (rulesResult.data ?? []).map((r) => ({
+      ...r,
+      markup_percent: Number(r.markup_percent),
+    }));
+    if (rules.length === 0) {
+      return {
+        ok: false,
+        where: "pricing_rules",
+        error:
+          "No active pricing rules found. The global default rule must exist.",
+      };
+    }
+
+    const serviceById = new Map(
+      (servicesResult.data ?? []).map((s) => [s.id, s] as const),
+    );
+
+    const out: ServicePriceOption[] = [];
+    for (const [serviceId, info] of cheapestPerService) {
+      const service = serviceById.get(serviceId);
+      if (!service) continue;
+      try {
+        const { retailCents } = calculateRetailPrice({
+          serviceId,
+          countryId,
+          wholesaleCents: info.wholesaleCents,
+          rules,
+        });
+        out.push({
+          serviceId,
+          slug: service.slug,
+          name: service.name,
+          retailCents,
+          availableCount: info.availableCount,
+        });
+      } catch (err) {
+        console.error(
+          `pricing failed for service=${serviceId} country=${countryId}:`,
+          err,
+        );
+      }
+    }
+
+    out.sort((a, b) => a.retailCents - b.retailCents);
+    return { ok: true, services: out };
+  } catch (err) {
+    console.error("getServicesForCountry failed:", {
+      countryId,
       err,
       stack: err instanceof Error ? err.stack : undefined,
     });
