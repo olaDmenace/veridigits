@@ -94,25 +94,25 @@ button { font: inherit; cursor: pointer; }
   max-width: 1280px;
   margin: 0 auto;
   /* env() ensures notched iPhones in landscape don't bleed under the camera. */
-  padding-left: max(56px, env(safe-area-inset-left));
-  padding-right: max(56px, env(safe-area-inset-right));
+  padding-left: max(64px, env(safe-area-inset-left));
+  padding-right: max(64px, env(safe-area-inset-right));
 }
 @media (max-width: 1024px) {
+  .page {
+    padding-left: max(40px, env(safe-area-inset-left));
+    padding-right: max(40px, env(safe-area-inset-right));
+  }
+}
+@media (max-width: 760px) {
   .page {
     padding-left: max(32px, env(safe-area-inset-left));
     padding-right: max(32px, env(safe-area-inset-right));
   }
 }
-@media (max-width: 760px) {
+@media (max-width: 380px) {
   .page {
     padding-left: max(24px, env(safe-area-inset-left));
     padding-right: max(24px, env(safe-area-inset-right));
-  }
-}
-@media (max-width: 380px) {
-  .page {
-    padding-left: max(20px, env(safe-area-inset-left));
-    padding-right: max(20px, env(safe-area-inset-right));
   }
 }
 
