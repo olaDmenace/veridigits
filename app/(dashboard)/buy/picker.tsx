@@ -486,7 +486,6 @@ function QuotePanel({
           </div>
         </div>
         <div className="flex flex-col items-end gap-1">
-          <span className="caption">via {q.providerSlug}</span>
           {q.estimated ? (
             <span className="badge badge-warn">estimated</span>
           ) : null}

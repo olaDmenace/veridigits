@@ -191,8 +191,8 @@ function HowItWorks() {
           <div className="eyebrow">How it works</div>
           <h2 className="h2">Three steps. No paperwork.</h2>
           <p className="body" style={{ marginTop: 14 }}>
-            We resell from the OTP aggregators that mainstream telcos won&apos;t
-            touch. The product is anonymity. The price is fair.
+            Buy a temporary number, receive the code, get on with your day. The
+            product is anonymity. The price is fair.
           </p>
         </div>
       </div>
@@ -340,7 +340,7 @@ const FAQ_ITEMS: Array<{ q: string; a: string }> = [
   },
   {
     q: "Where do the numbers come from?",
-    a: "We resell from established OTP aggregators (5SIM is our primary). We don't own SIM farms ourselves. The trade-off: prices are competitive, inventory is broad, but we don't control the underlying telco relationships.",
+    a: "We work with a network of established OTP providers. We don't own the underlying SIMs ourselves — we aggregate inventory so you get broad coverage and competitive pricing without us having to operate SIM farms.",
   },
   {
     q: "What if I don't receive my SMS?",

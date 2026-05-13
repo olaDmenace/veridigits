@@ -68,9 +68,9 @@ export default function PrivacyPage() {
           address and transaction hash are visible to them.
         </li>
         <li>
-          <strong>5SIM</strong> (and other OTP aggregators) provide the phone
-          numbers. They see the verification request from the target service;
-          they do not see your identity or our user mapping.
+          <strong>Our upstream network</strong> provides the phone numbers.
+          They see the verification request from the target service; they do
+          not see your identity or our user mapping.
         </li>
       </ul>
 

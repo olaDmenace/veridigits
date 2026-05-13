@@ -18,10 +18,10 @@ export default function TermsPage() {
 
       <h2>1. The Service</h2>
       <p>
-        Veridigits provides access to temporary phone numbers from third-party
-        OTP aggregators. We resell capacity — we do not own the underlying
-        SIMs or carrier infrastructure. Numbers are intended for receiving
-        SMS verification codes.
+        Veridigits provides access to temporary phone numbers for receiving
+        SMS verification codes. Numbers are sourced from third-party
+        telecommunications providers; we do not own the underlying SIMs or
+        carrier infrastructure.
       </p>
 
       <h2>2. Account &amp; anonymity</h2>

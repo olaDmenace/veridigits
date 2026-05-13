@@ -42,8 +42,8 @@ export default function AcceptableUsePage() {
           agreement.
         </li>
         <li>
-          <strong>Attacks on upstream providers.</strong> Patterns that put
-          our 5SIM / SMSPool / etc. accounts at risk: rapid-fire cancels,
+          <strong>Attacks on our upstream network.</strong> Patterns that put
+          our number-supply relationships at risk: rapid-fire cancels,
           ban-rate spikes, or coordinated abuse.
         </li>
       </ul>

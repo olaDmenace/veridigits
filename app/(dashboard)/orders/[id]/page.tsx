@@ -54,7 +54,6 @@ export default async function OrderDetailPage({
           expires_at: order.expires_at,
           created_at: order.created_at,
           retail_charged_cents: order.retail_charged_cents,
-          provider_slug: order.provider_slug,
           service,
           country,
         }}

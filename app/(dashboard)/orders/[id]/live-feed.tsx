@@ -19,7 +19,6 @@ export interface InitialOrder {
   expires_at: string;
   created_at: string;
   retail_charged_cents: number;
-  provider_slug: string;
   service: string;
   country: string;
 }
@@ -121,7 +120,7 @@ export function LiveOrderView({
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-2">
-        <div className="eyebrow">{order.provider_slug} · {order.country}</div>
+        <div className="eyebrow">{order.country}</div>
         <h1 className="h2">{order.service}</h1>
       </div>
 
