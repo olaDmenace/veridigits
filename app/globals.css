@@ -89,31 +89,35 @@ button { font: inherit; cursor: pointer; }
 
 /* ============================================================
    PAGE FRAME
+   --gutter-x is the single source of truth for horizontal page padding.
+   It's applied to <main>, .topbar-inner, and the footer wrappers — so
+   any layout in the app (dashboard, admin, legal, marketing) gets the
+   same content inset without remembering to add a class.
+   env(safe-area-inset-*) guards against notched iPhones in landscape.
 ============================================================ */
+:root {
+  --gutter-x: 64px;
+}
+@media (max-width: 1024px) { :root { --gutter-x: 40px; } }
+@media (max-width: 760px)  { :root { --gutter-x: 32px; } }
+@media (max-width: 380px)  { :root { --gutter-x: 24px; } }
+
+main,
+.topbar-inner,
+.site-footer-inner,
+.site-footer-bottom {
+  padding-left: max(var(--gutter-x), env(safe-area-inset-left));
+  padding-right: max(var(--gutter-x), env(safe-area-inset-right));
+}
+
+/* .page is now just a max-width centerer. Horizontal padding comes from
+   the parent (main / topbar / footer). Removing duplicate padding here
+   prevents the double-inset that was making content look narrower than
+   the topbar/footer chrome. */
 .page {
   max-width: 1280px;
-  margin: 0 auto;
-  /* env() ensures notched iPhones in landscape don't bleed under the camera. */
-  padding-left: max(64px, env(safe-area-inset-left));
-  padding-right: max(64px, env(safe-area-inset-right));
-}
-@media (max-width: 1024px) {
-  .page {
-    padding-left: max(40px, env(safe-area-inset-left));
-    padding-right: max(40px, env(safe-area-inset-right));
-  }
-}
-@media (max-width: 760px) {
-  .page {
-    padding-left: max(32px, env(safe-area-inset-left));
-    padding-right: max(32px, env(safe-area-inset-right));
-  }
-}
-@media (max-width: 380px) {
-  .page {
-    padding-left: max(24px, env(safe-area-inset-left));
-    padding-right: max(24px, env(safe-area-inset-right));
-  }
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .topbar {

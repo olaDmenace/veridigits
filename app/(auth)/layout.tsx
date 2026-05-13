@@ -7,7 +7,9 @@ export default function AuthLayout({
 }) {
   return (
     <main className="min-h-dvh flex flex-col">
-      <div className="flex-1 flex items-center justify-center px-6 py-12">
+      {/* main element gets the global gutter from globals.css; just need
+          vertical breathing room + centering here. */}
+      <div className="flex-1 flex items-center justify-center py-12">
         <div className="w-full max-w-[420px] flex flex-col items-stretch gap-8">
           <Link href="/" className="logo self-center">
             <span className="mark">v.</span>
