@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Analytics } from "@vercel/analytics/next";
 import { getAppUrl } from "@/lib/utils/app-url";
 import "./globals.css";
 
@@ -67,7 +68,10 @@ export default function RootLayout({
         />
         {/* eslint-enable @next/next/no-page-custom-font */}
       </head>
-      <body>{children}</body>
+      <body>
+        {children}
+        <Analytics />
+      </body>
     </html>
   );
 }
