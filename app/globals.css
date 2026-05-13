@@ -1005,6 +1005,19 @@ main,
   border-top: 1px solid var(--color-border);
 }
 
+/* Country + Service side-by-side on web; stack on mobile. The quote
+   panel sits above this grid, so the two-column layout is just for the
+   selection step. */
+.buy-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .buy-grid { grid-template-columns: 1fr; }
+}
+
 /* ============================================================
    MARKETING SECTIONS
 ============================================================ */

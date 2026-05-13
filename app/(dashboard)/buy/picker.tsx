@@ -183,27 +183,6 @@ export function BuyPicker({
         onSetDuration={handleSetDuration}
       />
 
-      <CountryPicker
-        countries={filteredCountries}
-        allCount={countries.length}
-        selected={selectedCountry}
-        search={countrySearch}
-        onSearch={setCountrySearch}
-        onSelect={selectCountry}
-      />
-
-      <ServicesPanel
-        country={selectedCountry}
-        services={filteredServices}
-        allCount={services.length}
-        loading={loadingServices}
-        error={servicesError}
-        search={serviceSearch}
-        onSearch={setServiceSearch}
-        selectedId={serviceId}
-        onSelect={selectService}
-      />
-
       <QuotePanel
         service={selectedService}
         country={selectedCountry}
@@ -211,6 +190,29 @@ export function BuyPicker({
         mode={mode}
         durationHours={durationHours}
       />
+
+      <div className="buy-grid">
+        <CountryPicker
+          countries={filteredCountries}
+          allCount={countries.length}
+          selected={selectedCountry}
+          search={countrySearch}
+          onSearch={setCountrySearch}
+          onSelect={selectCountry}
+        />
+
+        <ServicesPanel
+          country={selectedCountry}
+          services={filteredServices}
+          allCount={services.length}
+          loading={loadingServices}
+          error={servicesError}
+          search={serviceSearch}
+          onSearch={setServiceSearch}
+          selectedId={serviceId}
+          onSelect={selectService}
+        />
+      </div>
     </div>
   );
 }
