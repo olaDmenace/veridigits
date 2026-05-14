@@ -995,6 +995,46 @@ main,
 .services-list .svc-tile { border: 1px solid var(--color-border); }
 .services-list .svc-tile.selected { border-color: var(--color-ink); box-shadow: var(--shadow-glow); }
 
+/* Password field with show/hide toggle. */
+.password-wrap {
+  position: relative;
+}
+.password-wrap > .input {
+  padding-right: 44px;
+}
+.password-toggle {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px; height: 32px;
+  display: grid; place-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--color-ink-muted);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out),
+              color var(--duration-fast) var(--ease-out);
+}
+.password-toggle:hover { background: var(--color-subtle); color: var(--color-ink); }
+.password-toggle:focus-visible { outline: none; box-shadow: var(--shadow-glow); color: var(--color-ink); }
+
+/* Info notice — leading "i" icon + bold-ish text. For empty / hint
+   states inside cards. */
+.info-notice {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--color-ink-2);
+}
+.info-notice .info-notice-icon {
+  color: var(--color-ink-muted);
+  flex-shrink: 0;
+}
+
 /* Expandable picker dropdown inside its card (used by /buy country picker). */
 .picker-panel {
   display: flex;

@@ -7,6 +7,7 @@ import {
   deleteAccount,
   type SettingsFormState,
 } from "./actions";
+import { PasswordField } from "@/components/password-field";
 
 function FeedbackBadge({
   state,
@@ -58,27 +59,23 @@ export function ChangePasswordCard() {
           <label className="label" htmlFor="currentPassword">
             Current password
           </label>
-          <input
+          <PasswordField
             id="currentPassword"
             name="currentPassword"
-            type="password"
             autoComplete="current-password"
             required
-            className="input"
           />
         </div>
         <div>
           <label className="label" htmlFor="newPassword">
             New password
           </label>
-          <input
+          <PasswordField
             id="newPassword"
             name="newPassword"
-            type="password"
             autoComplete="new-password"
             required
             minLength={8}
-            className="input"
             placeholder="8+ characters"
           />
         </div>
@@ -134,13 +131,11 @@ export function ChangeEmailCard({ currentEmail }: { currentEmail: string }) {
           <label className="label" htmlFor="emailChangePassword">
             Password
           </label>
-          <input
+          <PasswordField
             id="emailChangePassword"
             name="password"
-            type="password"
             autoComplete="current-password"
             required
-            className="input"
           />
         </div>
         <FeedbackBadge state={state} />
@@ -187,13 +182,11 @@ export function DeleteAccountCard() {
           <label className="label" htmlFor="deletePassword">
             Password
           </label>
-          <input
+          <PasswordField
             id="deletePassword"
             name="password"
-            type="password"
             autoComplete="current-password"
             required
-            className="input"
           />
         </div>
         <div>

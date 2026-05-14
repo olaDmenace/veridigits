@@ -11,6 +11,7 @@ import {
 } from "./actions";
 import { RENTAL_DURATIONS, type OrderMode } from "./constants";
 import { formatUsdCents } from "@/lib/utils/money";
+import { InfoNotice } from "@/components/info-notice";
 
 export interface CountryEntry {
   id: string;
@@ -415,11 +416,9 @@ function ServicesPanel({
         className="card flex items-center justify-center text-center"
         style={{ minHeight: 240, padding: 32 }}
       >
-        <div>
-          <div className="eyebrow" style={{ marginBottom: 8 }}>
-            Service
-          </div>
-          <p className="caption">Pick a country first.</p>
+        <div className="flex flex-col items-center gap-3">
+          <div className="eyebrow">Service</div>
+          <InfoNotice>Pick a country first.</InfoNotice>
         </div>
       </div>
     );
@@ -455,9 +454,9 @@ function ServicesPanel({
           {error}
         </div>
       ) : !loading && services.length === 0 ? (
-        <p className="caption">
-          No upstream stock for this country right now. Try another.
-        </p>
+        <InfoNotice align="start">
+          No stock for this country right now. Try another.
+        </InfoNotice>
       ) : (
         <>
           <input
@@ -517,7 +516,7 @@ function QuotePanel({
         className="card flex items-center justify-center text-center"
         style={{ padding: 32, minHeight: 200 }}
       >
-        <p className="caption">Select a country + service to see a live price.</p>
+        <InfoNotice>Select a country and service to see a live price.</InfoNotice>
       </div>
     );
   }
@@ -528,7 +527,7 @@ function QuotePanel({
         className="card flex items-center justify-center text-center"
         style={{ padding: 32, minHeight: 200 }}
       >
-        <p className="caption">Re-quoting upstream…</p>
+        <InfoNotice>Re-quoting upstream…</InfoNotice>
       </div>
     );
   }

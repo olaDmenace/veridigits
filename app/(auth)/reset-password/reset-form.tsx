@@ -4,6 +4,7 @@ import { useEffect, useState, useActionState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { updatePassword, type ResetFormState } from "../actions";
+import { PasswordField } from "@/components/password-field";
 
 /**
  * Supabase delivers the recovery session as URL hash params
@@ -72,11 +73,9 @@ export function ResetPasswordForm() {
           <label className="label" htmlFor="password">
             New password
           </label>
-          <input
+          <PasswordField
             id="password"
-            className="input"
             name="password"
-            type="password"
             autoComplete="new-password"
             required
             minLength={8}

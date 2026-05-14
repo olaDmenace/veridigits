@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useActionState } from "react";
 import { signUp, type AuthFormState } from "../actions";
+import { PasswordField } from "@/components/password-field";
 
 export function SignupForm() {
   const [state, formAction, isPending] = useActionState<
@@ -60,11 +61,9 @@ export function SignupForm() {
           <label className="label" htmlFor="password">
             Password
           </label>
-          <input
+          <PasswordField
             id="password"
-            className="input"
             name="password"
-            type="password"
             autoComplete="new-password"
             required
             minLength={8}

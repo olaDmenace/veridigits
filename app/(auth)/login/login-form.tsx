@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useActionState } from "react";
 import { logIn, type AuthFormState } from "../actions";
+import { PasswordField } from "@/components/password-field";
 
 interface Props {
   initialRedirect?: string;
@@ -58,11 +59,9 @@ export function LoginForm({ initialRedirect, initialNotice }: Props) {
               Forgot?
             </Link>
           </div>
-          <input
+          <PasswordField
             id="password"
-            className="input"
             name="password"
-            type="password"
             autoComplete="current-password"
             required
             minLength={8}
