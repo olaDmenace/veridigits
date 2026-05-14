@@ -4,8 +4,12 @@ import { useState } from "react";
 
 /**
  * Drop-in replacement for <input type="password" className="input" />.
- * Adds a show/hide toggle on the right edge of the field. Same accessible
- * label semantics as a plain input — pair with a <label htmlFor={id}>.
+ * Adds a show/hide toggle on the right edge of the field.
+ *
+ * Positioning is done with inline styles so it's robust against CSS
+ * cache / load-order / specificity issues. The CSS class names are
+ * kept for hover / focus states (which need pseudo-classes), but the
+ * critical layout properties live in the component itself.
  */
 export function PasswordField({
   id,
@@ -27,7 +31,10 @@ export function PasswordField({
   const [shown, setShown] = useState(false);
 
   return (
-    <div className="password-wrap">
+    <div
+      className="password-wrap"
+      style={{ position: "relative", display: "block", width: "100%" }}
+    >
       <input
         id={id}
         name={name}
@@ -38,6 +45,7 @@ export function PasswordField({
         defaultValue={defaultValue}
         placeholder={placeholder}
         className="input"
+        style={{ paddingRight: 44 }}
       />
       <button
         type="button"
@@ -46,6 +54,21 @@ export function PasswordField({
         aria-pressed={shown}
         onClick={() => setShown((s) => !s)}
         tabIndex={-1}
+        style={{
+          position: "absolute",
+          right: 6,
+          top: "50%",
+          transform: "translateY(-50%)",
+          width: 32,
+          height: 32,
+          display: "grid",
+          placeItems: "center",
+          border: 0,
+          background: "transparent",
+          color: "var(--color-ink-muted)",
+          borderRadius: "var(--radius-sm)",
+          cursor: "pointer",
+        }}
       >
         {shown ? <EyeOffIcon /> : <EyeIcon />}
       </button>
