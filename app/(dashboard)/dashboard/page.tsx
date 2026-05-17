@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { splitUsdCents, formatUsdCents } from "@/lib/utils/money";
 import { getServiceDisplay } from "@/lib/services/display";
+import { BrandLogo } from "@/components/brand-logo";
 
 export const metadata = {
   title: "Wallet · Veridigits",
@@ -92,9 +93,11 @@ export default async function DashboardHome() {
                 : { name: "—", iconClass: "svc-tg", abbr: "??" };
               return (
                 <div key={o.id} className="order-card">
-                  <div className={`svc-ico ${display.iconClass}`}>
-                    {display.abbr}
-                  </div>
+                  <BrandLogo
+                    slug={svc?.slug ?? ""}
+                    abbr={display.abbr}
+                    size={36}
+                  />
                   <div className="meta">
                     <div className="top">
                       <span className="ttl">{display.name}</span>

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { formatUsdCents } from "@/lib/utils/money";
 import { getServiceDisplay } from "@/lib/services/display";
+import { BrandLogo } from "@/components/brand-logo";
 
 export const metadata = { title: "Orders · Veridigits" };
 
@@ -66,9 +67,11 @@ export default async function OrdersPage() {
                 className="order-card"
                 style={{ textDecoration: "none" }}
               >
-                <div className={`svc-ico ${display.iconClass}`}>
-                  {display.abbr}
-                </div>
+                <BrandLogo
+                  slug={svc?.slug ?? ""}
+                  abbr={display.abbr}
+                  size={36}
+                />
                 <div className="meta">
                   <div className="top">
                     <span className="ttl">{display.name}</span>

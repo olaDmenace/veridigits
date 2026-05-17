@@ -13,6 +13,7 @@ import { RENTAL_DURATIONS, type OrderMode } from "./constants";
 import { formatUsdCents } from "@/lib/utils/money";
 import { InfoNotice } from "@/components/info-notice";
 import { getServiceDisplay } from "@/lib/services/display";
+import { BrandLogo } from "@/components/brand-logo";
 
 export interface CountryEntry {
   id: string;
@@ -459,9 +460,7 @@ function ServicesPanel({
                   onClick={() => onSelect(s.serviceId)}
                   style={{ width: "100%" }}
                 >
-                  <div className={`ico ${display.iconClass}`}>
-                    {display.abbr}
-                  </div>
+                  <BrandLogo slug={s.slug} abbr={display.abbr} size={36} />
                   <div style={{ flex: 1, textAlign: "left" }}>
                     <div className="nm">{display.name}</div>
                     <div className="pr">{s.slug}</div>
