@@ -12,6 +12,7 @@ import {
 import { RENTAL_DURATIONS, type OrderMode } from "./constants";
 import { formatUsdCents } from "@/lib/utils/money";
 import { InfoNotice } from "@/components/info-notice";
+import { getServiceDisplay } from "@/lib/services/display";
 
 export interface CountryEntry {
   id: string;
@@ -29,25 +30,6 @@ interface QuoteState {
 }
 
 const EMPTY_QUOTE: QuoteState = { loading: false, data: null, error: null };
-
-const ICON_PALETTE = [
-  "svc-tg",
-  "svc-wa",
-  "svc-go",
-  "svc-tk",
-  "svc-di",
-  "svc-ig",
-];
-
-function abbrFor(slug: string): string {
-  return slug.replace(/[^a-z0-9]/gi, "").slice(0, 2).toLowerCase() || "??";
-}
-
-function iconClassFor(slug: string): string {
-  let h = 0;
-  for (let i = 0; i < slug.length; i++) h = (h * 31 + slug.charCodeAt(i)) | 0;
-  return ICON_PALETTE[Math.abs(h) % ICON_PALETTE.length];
-}
 
 // Module-scoped staleness refs — drop async results if the user has
 // already moved on to another country or service.
@@ -467,24 +449,27 @@ function ServicesPanel({
             onChange={(e) => onSearch(e.target.value)}
           />
           <div className="services-list">
-            {services.map((s) => (
-              <button
-                key={s.serviceId}
-                type="button"
-                className={`svc-tile ${selectedId === s.serviceId ? "selected" : ""}`}
-                onClick={() => onSelect(s.serviceId)}
-                style={{ width: "100%" }}
-              >
-                <div className={`ico ${iconClassFor(s.slug)}`}>
-                  {abbrFor(s.slug)}
-                </div>
-                <div style={{ flex: 1, textAlign: "left" }}>
-                  <div className="nm">{s.name}</div>
-                  <div className="pr">{s.slug}</div>
-                </div>
-                <div className="pr mono">{formatUsdCents(s.retailCents)}</div>
-              </button>
-            ))}
+            {services.map((s) => {
+              const display = getServiceDisplay(s.slug, s.name);
+              return (
+                <button
+                  key={s.serviceId}
+                  type="button"
+                  className={`svc-tile ${selectedId === s.serviceId ? "selected" : ""}`}
+                  onClick={() => onSelect(s.serviceId)}
+                  style={{ width: "100%" }}
+                >
+                  <div className={`ico ${display.iconClass}`}>
+                    {display.abbr}
+                  </div>
+                  <div style={{ flex: 1, textAlign: "left" }}>
+                    <div className="nm">{display.name}</div>
+                    <div className="pr">{s.slug}</div>
+                  </div>
+                  <div className="pr mono">{formatUsdCents(s.retailCents)}</div>
+                </button>
+              );
+            })}
           </div>
         </>
       )}

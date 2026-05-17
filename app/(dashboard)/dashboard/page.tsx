@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { splitUsdCents, formatUsdCents } from "@/lib/utils/money";
+import { getServiceDisplay } from "@/lib/services/display";
 
 export const metadata = {
   title: "Wallet · Veridigits",
@@ -22,7 +23,10 @@ export default async function DashboardHome() {
       .single(),
     supabase
       .from("orders")
-      .select("id, phone_number, status, retail_charged_cents, created_at, service_id, country_id")
+      .select(
+        "id, phone_number, status, retail_charged_cents, created_at, services(name, slug), countries(name)",
+      )
+      .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(5),
   ]);
@@ -80,28 +84,38 @@ export default async function DashboardHome() {
 
         {orders && orders.length > 0 ? (
           <div className="flex flex-col gap-3">
-            {orders.map((o) => (
-              <div key={o.id} className="order-card">
-                <div className="svc-ico svc-tg">{o.status[0].toUpperCase()}</div>
-                <div className="meta">
-                  <div className="top">
-                    <span className="ttl mono">{o.phone_number}</span>
-                    <span className="badge">{o.status}</span>
+            {orders.map((o) => {
+              const svc = o.services as { name: string; slug: string } | null;
+              const country = (o.countries as { name: string } | null)?.name;
+              const display = svc
+                ? getServiceDisplay(svc.slug, svc.name)
+                : { name: "—", iconClass: "svc-tg", abbr: "??" };
+              return (
+                <div key={o.id} className="order-card">
+                  <div className={`svc-ico ${display.iconClass}`}>
+                    {display.abbr}
                   </div>
-                  <div className="num">
-                    {new Date(o.created_at).toLocaleString()}
+                  <div className="meta">
+                    <div className="top">
+                      <span className="ttl">{display.name}</span>
+                      <span className="badge">{o.status}</span>
+                    </div>
+                    <div className="num">
+                      {o.phone_number}
+                      {country ? ` · ${country}` : ""}
+                    </div>
+                  </div>
+                  <div className="right">
+                    <span className="price">
+                      {formatUsdCents(o.retail_charged_cents)}
+                    </span>
+                    <Link href={`/orders/${o.id}`} className="caption">
+                      View →
+                    </Link>
                   </div>
                 </div>
-                <div className="right">
-                  <span className="price">
-                    {formatUsdCents(o.retail_charged_cents)}
-                  </span>
-                  <Link href={`/orders/${o.id}`} className="caption">
-                    View →
-                  </Link>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <div className="card flex flex-col items-center gap-4 text-center" style={{ padding: 48 }}>

@@ -554,13 +554,22 @@ main,
   30% { opacity: 1; transform: scale(1); }
 }
 
-/* — Service icon swatches (placeholder, no logos) — */
-.svc-tg { background: #E7F2FA; color: #1F86C9; }
-.svc-wa { background: #E4F6E7; color: #1FA850; }
-.svc-go { background: #FFE9E0; color: #C24A1F; }
-.svc-tk { background: #F4E1F0; color: #8B2A78; }
-.svc-di { background: #E6E8FF; color: #3F4BCC; }
-.svc-ig { background: #FCE6E1; color: #C4366A; }
+/* — Service icon swatches (brand-flavoured palette, no actual logos
+   to avoid trademark issues). Keyed by the lib/services/display.ts
+   mapping. — */
+.svc-tg { background: #E7F2FA; color: #1F86C9; }  /* Telegram blue */
+.svc-wa { background: #E4F6E7; color: #1FA850; }  /* WhatsApp green */
+.svc-go { background: #FFE9E0; color: #C24A1F; }  /* Google red-orange */
+.svc-tk { background: #F4E1F0; color: #8B2A78; }  /* TikTok pink */
+.svc-di { background: #E6E8FF; color: #3F4BCC; }  /* Discord indigo */
+.svc-ig { background: #FCE6E1; color: #C4366A; }  /* Instagram pink */
+.svc-fb { background: #E5EDFA; color: #1877F2; }  /* Facebook blue */
+.svc-x  { background: #ECEAE4; color: #0F1419; }  /* X / Twitter ink */
+.svc-sn { background: #FFF7CC; color: #8A6B00; }  /* Snapchat yellow */
+.svc-yt { background: #FCE6E6; color: #C4302B; }  /* YouTube red */
+.svc-rd { background: #FCE6DA; color: #C43A0B; }  /* Reddit orange */
+.svc-li { background: #E0EEF8; color: #0A66C2; }  /* LinkedIn blue */
+.svc-md { background: #F0EAFA; color: #6A4FBE; }  /* Match-style purple */
 
 /* ============================================================
    BUTTONS

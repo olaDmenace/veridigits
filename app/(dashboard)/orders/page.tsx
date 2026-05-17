@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { formatUsdCents } from "@/lib/utils/money";
+import { getServiceDisplay } from "@/lib/services/display";
 
 export const metadata = { title: "Orders · Veridigits" };
 
@@ -25,7 +26,7 @@ export default async function OrdersPage() {
   const { data: orders } = await supabase
     .from("orders")
     .select(
-      "id, phone_number, status, retail_charged_cents, mode, created_at, expires_at, services(name), countries(name, iso_code, flag_emoji)",
+      "id, phone_number, status, retail_charged_cents, mode, created_at, expires_at, services(name, slug), countries(name, iso_code, flag_emoji)",
     )
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
@@ -49,11 +50,14 @@ export default async function OrdersPage() {
       {orders && orders.length > 0 ? (
         <div className="flex flex-col gap-3">
           {orders.map((o) => {
-            const service = (o.services as { name: string } | null)?.name ?? "—";
+            const svc = o.services as { name: string; slug: string } | null;
             const country = o.countries as
               | { name: string; iso_code: string; flag_emoji: string | null }
               | null;
             const badgeClass = STATUS_BADGE[o.status] ?? "badge";
+            const display = svc
+              ? getServiceDisplay(svc.slug, svc.name)
+              : { name: "—", iconClass: "svc-tg", abbr: "??" };
 
             return (
               <Link
@@ -62,12 +66,12 @@ export default async function OrdersPage() {
                 className="order-card"
                 style={{ textDecoration: "none" }}
               >
-                <div className="svc-ico svc-tg">
-                  {service.slice(0, 2).toLowerCase()}
+                <div className={`svc-ico ${display.iconClass}`}>
+                  {display.abbr}
                 </div>
                 <div className="meta">
                   <div className="top">
-                    <span className="ttl">{service}</span>
+                    <span className="ttl">{display.name}</span>
                     <span className={`badge ${badgeClass}`}>{o.status}</span>
                   </div>
                   <div className="num">
