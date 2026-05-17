@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Topbar } from "@/components/topbar";
+import { BrandLogo } from "@/components/brand-logo";
 
 export default function Home() {
   return (
@@ -100,7 +101,7 @@ function Hero() {
                 </div>
 
                 <div className="sms-row new">
-                  <div className="ico svc-tg">tg</div>
+                  <BrandLogo slug="telegram" size={32} />
                   <div style={{ flex: 1 }}>
                     <div className="top">
                       <span className="name">Telegram</span>
@@ -112,7 +113,7 @@ function Hero() {
                   </div>
                 </div>
                 <div className="sms-row">
-                  <div className="ico svc-wa">wa</div>
+                  <BrandLogo slug="whatsapp" size={32} />
                   <div style={{ flex: 1 }}>
                     <div className="top">
                       <span className="name">WhatsApp</span>
@@ -124,7 +125,7 @@ function Hero() {
                   </div>
                 </div>
                 <div className="sms-row">
-                  <div className="ico svc-go">G</div>
+                  <BrandLogo slug="google" size={32} />
                   <div style={{ flex: 1 }}>
                     <div className="top">
                       <span className="name">Google</span>
@@ -136,7 +137,7 @@ function Hero() {
                   </div>
                 </div>
                 <div className="sms-row">
-                  <div className="ico svc-tk">tk</div>
+                  <BrandLogo slug="tiktok" size={32} />
                   <div style={{ flex: 1 }}>
                     <div className="top">
                       <span className="name">TikTok</span>
@@ -211,23 +212,23 @@ function HowItWorks() {
 }
 
 const POPULAR_SERVICES: Array<{
-  iconClass: string;
+  slug: string;
   abbr: string;
   name: string;
   fromCents: number;
 }> = [
-  { iconClass: "svc-tg", abbr: "tg", name: "Telegram", fromCents: 15 },
-  { iconClass: "svc-wa", abbr: "wa", name: "WhatsApp", fromCents: 25 },
-  { iconClass: "svc-go", abbr: "G", name: "Google", fromCents: 18 },
-  { iconClass: "svc-tk", abbr: "tk", name: "TikTok", fromCents: 22 },
-  { iconClass: "svc-di", abbr: "di", name: "Discord", fromCents: 12 },
-  { iconClass: "svc-ig", abbr: "ig", name: "Instagram", fromCents: 30 },
-  { iconClass: "svc-go", abbr: "fb", name: "Facebook", fromCents: 28 },
-  { iconClass: "svc-tg", abbr: "x", name: "X (Twitter)", fromCents: 20 },
-  { iconClass: "svc-tk", abbr: "sn", name: "Snapchat", fromCents: 22 },
-  { iconClass: "svc-wa", abbr: "ub", name: "Uber", fromCents: 35 },
-  { iconClass: "svc-di", abbr: "tn", name: "Tinder", fromCents: 38 },
-  { iconClass: "svc-ig", abbr: "+", name: "5,000+ more", fromCents: 5 },
+  { slug: "telegram", abbr: "tg", name: "Telegram", fromCents: 15 },
+  { slug: "whatsapp", abbr: "wa", name: "WhatsApp", fromCents: 25 },
+  { slug: "google", abbr: "G", name: "Google", fromCents: 18 },
+  { slug: "tiktok", abbr: "tk", name: "TikTok", fromCents: 22 },
+  { slug: "discord", abbr: "di", name: "Discord", fromCents: 12 },
+  { slug: "instagram", abbr: "ig", name: "Instagram", fromCents: 30 },
+  { slug: "facebook", abbr: "fb", name: "Facebook", fromCents: 28 },
+  { slug: "x", abbr: "x", name: "X (Twitter)", fromCents: 20 },
+  { slug: "snapchat", abbr: "sn", name: "Snapchat", fromCents: 22 },
+  { slug: "uber", abbr: "ub", name: "Uber", fromCents: 35 },
+  { slug: "tinder", abbr: "tn", name: "Tinder", fromCents: 38 },
+  { slug: "_more", abbr: "+", name: "5,000+ more", fromCents: 5 },
 ];
 
 function ServicesGrid() {
@@ -248,7 +249,7 @@ function ServicesGrid() {
       <div className="svc-grid">
         {POPULAR_SERVICES.map((s) => (
           <div key={s.name} className="svc-tile">
-            <div className={`ico ${s.iconClass}`}>{s.abbr}</div>
+            <BrandLogo slug={s.slug} abbr={s.abbr} size={36} />
             <div className="flex-1">
               <div className="nm">{s.name}</div>
               <div className="pr">from ${(s.fromCents / 100).toFixed(2)}</div>
