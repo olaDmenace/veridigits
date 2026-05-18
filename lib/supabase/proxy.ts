@@ -20,6 +20,14 @@ const PROTECTED_PREFIXES = [
   "/admin",
 ];
 
+/**
+ * Exact paths that bypass the protected prefix check above. Used for
+ * pages that LOOK like they're under a protected section but need to
+ * render when the user is signed out — e.g. payment-processor return
+ * URLs, where cross-domain redirects sometimes drop our session cookies.
+ */
+const PUBLIC_OVERRIDES = new Set<string>(["/topup/success"]);
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
@@ -49,9 +57,11 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const pathname = request.nextUrl.pathname;
-  const isProtected = PROTECTED_PREFIXES.some((prefix) =>
-    pathname === prefix || pathname.startsWith(`${prefix}/`),
-  );
+  const isProtected =
+    !PUBLIC_OVERRIDES.has(pathname) &&
+    PROTECTED_PREFIXES.some(
+      (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+    );
 
   if (!user && isProtected) {
     const url = request.nextUrl.clone();

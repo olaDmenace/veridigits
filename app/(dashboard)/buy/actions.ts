@@ -2,7 +2,8 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { getProvider, ProviderOutOfStockError } from "@/lib/providers";
+import { getProvider } from "@/lib/providers";
+import { sanitizeProviderError } from "@/lib/providers/sanitize-error";
 import {
   calculateRetailPrice,
   type PricingRule,
@@ -416,14 +417,7 @@ export async function getQuote(
       upstreamOperator: top.upstream_operator ?? undefined,
     });
   } catch (err) {
-    if (err instanceof ProviderOutOfStockError) {
-      return { ok: false, code: "out_of_stock", message: err.message };
-    }
-    return {
-      ok: false,
-      code: "internal",
-      message: err instanceof Error ? err.message : "provider error",
-    };
+    return { ok: false, ...sanitizeProviderError(err, "getQuote") };
   }
 
   if (liveQuote.availableCount <= 0 || liveQuote.priceCents <= 0) {
@@ -566,14 +560,7 @@ export async function purchase(
         upstreamOperator: payload.upstreamOperator,
       });
     } catch (err) {
-      if (err instanceof ProviderOutOfStockError) {
-        return { ok: false, code: "out_of_stock", message: err.message };
-      }
-      return {
-        ok: false,
-        code: "internal",
-        message: err instanceof Error ? err.message : "provider error",
-      };
+      return { ok: false, ...sanitizeProviderError(err, "purchase-requote") };
     }
 
     if (liveQuote.availableCount <= 0) {
@@ -627,14 +614,7 @@ export async function purchase(
       });
     }
   } catch (err) {
-    if (err instanceof ProviderOutOfStockError) {
-      return { ok: false, code: "out_of_stock", message: err.message };
-    }
-    return {
-      ok: false,
-      code: "internal",
-      message: err instanceof Error ? err.message : "provider error",
-    };
+    return { ok: false, ...sanitizeProviderError(err, "purchase-buy") };
   }
 
   // Insert local order row (admin client — bypasses RLS for inserts).
