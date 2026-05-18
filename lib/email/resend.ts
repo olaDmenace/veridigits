@@ -40,9 +40,12 @@ export async function sendEmail(
     return { ok: false, error: "no recipients" };
   }
 
-  // Default sender: Resend's sandbox address. Swap once veridigits.com
-  // DKIM/SPF clear in Resend → "Veridigits <noreply@veridigits.com>".
-  const from = params.from ?? "Veridigits <onboarding@resend.dev>";
+  // Default sender. Relies on veridigits.com being verified (DKIM/SPF)
+  // in the Resend dashboard. If verification ever lapses, sends will 4xx
+  // and the wallet-drift cron will log the error rather than retry — the
+  // alert just won't go out that night. Set RESEND_FROM env to override.
+  const from =
+    params.from ?? process.env.RESEND_FROM ?? "Veridigits <noreply@veridigits.com>";
 
   const body: Record<string, unknown> = {
     from,

@@ -170,7 +170,7 @@ const STEPS = [
   {
     num: "01",
     title: "Top up your wallet",
-    body: "Send USDT, USDC, BTC, or any of 200+ coins via NOWPayments. Funds land in your wallet in minutes. No card, no statements.",
+    body: "Pay in Naira (card, bank transfer, pay-with-bank) or in crypto (USDT, USDC, BTC, and 200+ coins). Funds land in your wallet in minutes. No statements.",
   },
   {
     num: "02",
@@ -337,7 +337,7 @@ const FAQ_ITEMS: Array<{ q: string; a: string }> = [
   },
   {
     q: "How do I pay?",
-    a: "Crypto only. USDT, USDC, BTC, ETH, and 200+ other coins via NOWPayments. You top up your wallet first, then deduct per number you buy. We never charge your wallet directly per purchase.",
+    a: "Naira or crypto. Pay in NGN with card, bank transfer, or pay-with-bank, or pay in USDT, USDC, BTC, ETH, and 200+ other coins. You top up your wallet first, then deduct per number you buy. We never charge your wallet directly per purchase.",
   },
   {
     q: "Where do the numbers come from?",
