@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project: Veridigits
 
-SMS verification (OTP-receive) platform. Users top up a wallet with crypto, then buy temporary phone numbers to receive SMS codes from services like Telegram, WhatsApp, Google. We **resell** from upstream OTP aggregators (5SIM, SMSPool) with a markup — we do not own numbers.
+SMS verification (OTP-receive) platform. Users top up a wallet (Naira via Korapay or crypto via NOWPayments), then buy temporary phone numbers to receive SMS codes from services like Telegram, WhatsApp, Google. We **resell** from upstream OTP aggregators (5SIM, SMSPool) with a markup — we do not own numbers. Wallet is USD-cents internally; NGN top-ups are FX-converted at quote time with a slippage buffer and the locked USD-cents value is credited on webhook confirmation.
 
 Status: **bootstrapped from `create-next-app`, no product code yet**. The `app/` directory holds only the default landing page. Two planning documents define the entire product and must be read before writing code:
 
@@ -37,7 +37,7 @@ Tests live in `tests/`. Vitest uses Node environment (no DOM) — the suite cove
 These are the constraints that, if violated, sink the product. Surface concerns before bypassing any of them:
 
 1. **No mainstream CPaaS.** Never integrate Twilio, Telnyx, Plivo, Bandwidth, Vonage. They terminate accounts on this use case. Upstream is OTP aggregators only (5SIM primary, SMSPool fallback at MVP).
-2. **No mainstream payment processors.** No Stripe, PayPal, Paystack, Flutterwave for end-user payments. Crypto-only via NOWPayments (primary) and Cryptomus (backup).
+2. **Limited payment processors.** Allowed: NOWPayments (crypto, primary) and Korapay (NGN, Nigerian customers). Never integrate Stripe, PayPal, Paystack, Flutterwave, Cryptomus, or any other end-user processor without re-litigating this. Korapay was added 2026-05 after a deliberate decision to accept termination risk in exchange for frictionless NGN top-ups; crypto remains the safety-net rail.
 3. **No KYC, no social logins.** Email + password auth only; anonymity is the product.
 4. **Wallet-based money flow.** All purchases debit a pre-funded wallet — never charge per-purchase through the payment processor.
 5. **DB-level locks on wallet operations** (`SELECT ... FOR UPDATE` inside a transaction). Race conditions here will be exploited.
@@ -46,7 +46,7 @@ These are the constraints that, if violated, sink the product. Surface concerns 
 
 ## Architecture in one paragraph
 
-Marketing pages and the dashboard live in route groups under `app/` (`(marketing)`, `(auth)`, `(dashboard)`, `(admin)`). Backend logic sits in `lib/`: `providers/` wraps each upstream OTP aggregator behind a single `OtpProvider` interface with `registry.ts` doing cheapest-first selection + fallback; `payments/` wraps the crypto processors; `wallet/` holds the locked credit/debit/refund operations against Supabase Postgres; `pricing/` resolves markup rules (most-specific match wins: service+country → service → country → global default); `inngest/` holds the polling, expiry, and catalog-sync background jobs. Supabase provides Postgres + Auth + Realtime; RLS is enforced on every table. Webhooks land at `app/api/webhooks/{nowpayments,cryptomus}` and Inngest at `app/api/inngest`. See the handover doc for the full data model and flow diagrams.
+Marketing pages and the dashboard live in route groups under `app/` (`(marketing)`, `(auth)`, `(dashboard)`, `(admin)`). Backend logic sits in `lib/`: `providers/` wraps each upstream OTP aggregator behind a single `OtpProvider` interface with `registry.ts` doing cheapest-first selection + fallback; `payments/` wraps the crypto processors; `wallet/` holds the locked credit/debit/refund operations against Supabase Postgres; `pricing/` resolves markup rules (most-specific match wins: service+country → service → country → global default); `inngest/` holds the polling, expiry, and catalog-sync background jobs. Supabase provides Postgres + Auth + Realtime; RLS is enforced on every table. Webhooks land at `app/api/webhooks/{nowpayments,korapay}` and Inngest at `app/api/inngest`. See the handover doc for the full data model and flow diagrams.
 
 ## Things to ask the user, not guess
 

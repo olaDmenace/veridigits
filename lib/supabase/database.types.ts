@@ -126,6 +126,59 @@ export type Database = {
           },
         ]
       }
+      ngn_payments: {
+        Row: {
+          amount_ngn: number
+          amount_usd_cents_credited: number
+          checkout_url: string | null
+          confirmed_at: string | null
+          created_at: string
+          fx_rate_ngn_per_usd: number
+          id: string
+          korapay_reference: string | null
+          reference: string
+          status: string
+          user_id: string
+          webhook_payload: Json | null
+        }
+        Insert: {
+          amount_ngn: number
+          amount_usd_cents_credited: number
+          checkout_url?: string | null
+          confirmed_at?: string | null
+          created_at?: string
+          fx_rate_ngn_per_usd: number
+          id?: string
+          korapay_reference?: string | null
+          reference: string
+          status: string
+          user_id: string
+          webhook_payload?: Json | null
+        }
+        Update: {
+          amount_ngn?: number
+          amount_usd_cents_credited?: number
+          checkout_url?: string | null
+          confirmed_at?: string | null
+          created_at?: string
+          fx_rate_ngn_per_usd?: number
+          id?: string
+          korapay_reference?: string | null
+          reference?: string
+          status?: string
+          user_id?: string
+          webhook_payload?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ngn_payments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orders: {
         Row: {
           cancelled_at: string | null

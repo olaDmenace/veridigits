@@ -5,7 +5,11 @@ export type WalletTxType =
   | "bonus"
   | "adjustment";
 
-export type WalletTxReferenceType = "crypto_payment" | "order" | "manual";
+export type WalletTxReferenceType =
+  | "crypto_payment"
+  | "ngn_payment"
+  | "order"
+  | "manual";
 
 export interface WalletTransaction {
   id: string;

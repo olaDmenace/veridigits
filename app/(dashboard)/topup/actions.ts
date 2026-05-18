@@ -3,6 +3,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { getProcessor, PaymentProcessorError } from "@/lib/payments";
+import { getKorapay, KorapayError } from "@/lib/payments/korapay";
+import { quoteNgnTopUp } from "@/lib/fx/rates";
 import { getAppUrl } from "@/lib/utils/app-url";
 
 export type CreateTopupResult =
@@ -131,4 +133,143 @@ export async function createTopup(formData: FormData): Promise<CreateTopupResult
     payCurrency: invoice.payCurrency,
     amountUsdCents,
   };
+}
+
+// ============================================================
+// NGN (Korapay)
+// ============================================================
+
+const MIN_NGN = 2_000;
+const MAX_NGN = 5_000_000;
+
+export type QuoteNgnResult =
+  | { ok: true; ngn: number; usdCents: number; rate: number; bufferBps: number }
+  | { ok: false; error: string };
+
+/**
+ * Returns the locked USD-cents and FX rate for a given NGN amount. The
+ * client calls this to show the user how many cents they'll get; the same
+ * helper is reused inside createNgnTopup so the displayed quote matches the
+ * row we insert.
+ */
+export async function quoteNgn(ngnRaw: number): Promise<QuoteNgnResult> {
+  const ngn = Math.floor(Number(ngnRaw));
+  if (!Number.isInteger(ngn) || ngn < MIN_NGN || ngn > MAX_NGN) {
+    return {
+      ok: false,
+      error: `Amount must be between ₦${MIN_NGN.toLocaleString()} and ₦${MAX_NGN.toLocaleString()}.`,
+    };
+  }
+  try {
+    const q = await quoteNgnTopUp(ngn);
+    return {
+      ok: true,
+      ngn: q.ngnAmount,
+      usdCents: q.usdCents,
+      rate: q.rateNgnPerUsd,
+      bufferBps: q.bufferBps,
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "FX rate unavailable",
+    };
+  }
+}
+
+export type CreateNgnTopupResult =
+  | { ok: true; checkoutUrl: string; reference: string }
+  | { ok: false; error: string };
+
+/**
+ * Creates a Korapay checkout for a NGN top-up.
+ *
+ * Inserts a `ngn_payments` row in `pending` status with the locked
+ * USD-cents-to-credit before talking to Korapay — so if Korapay's API
+ * crashes mid-call we can still reconcile via the webhook. The row's
+ * `amount_usd_cents_credited` is the source of truth at webhook time;
+ * the spot rate is never re-fetched on confirmation.
+ */
+export async function createNgnTopup(
+  formData: FormData,
+): Promise<CreateNgnTopupResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user || !user.email) return { ok: false, error: "Sign in to top up." };
+
+  const ngn = Math.floor(Number(formData.get("amountNgn") ?? 0));
+  if (!Number.isInteger(ngn) || ngn < MIN_NGN || ngn > MAX_NGN) {
+    return {
+      ok: false,
+      error: `Amount must be between ₦${MIN_NGN.toLocaleString()} and ₦${MAX_NGN.toLocaleString()}.`,
+    };
+  }
+
+  let quote;
+  try {
+    quote = await quoteNgnTopUp(ngn);
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "FX rate unavailable",
+    };
+  }
+
+  if (quote.usdCents < 1) {
+    return { ok: false, error: "Amount too small after FX conversion." };
+  }
+
+  const reference = `vd_${user.id.slice(0, 8)}_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
+  const admin = getAdminClient();
+
+  const { data: row, error: insertErr } = await admin
+    .from("ngn_payments")
+    .insert({
+      user_id: user.id,
+      reference,
+      amount_ngn: ngn,
+      amount_usd_cents_credited: quote.usdCents,
+      fx_rate_ngn_per_usd: quote.rateNgnPerUsd,
+      status: "pending",
+    })
+    .select("id")
+    .single();
+
+  if (insertErr || !row) {
+    return { ok: false, error: insertErr?.message ?? "couldn't queue top-up" };
+  }
+
+  let result;
+  try {
+    const korapay = getKorapay();
+    const origin = getAppUrl();
+    result = await korapay.initializeCharge({
+      amountNgn: ngn,
+      reference,
+      customer: { email: user.email },
+      notificationUrl: `${origin}/api/webhooks/korapay`,
+      redirectUrl: `${origin}/topup/success`,
+      narration: "Veridigits wallet top-up",
+      channels: ["card", "bank_transfer", "pay_with_bank"],
+    });
+  } catch (err) {
+    await admin.from("ngn_payments").delete().eq("id", row.id);
+    if (err instanceof KorapayError) return { ok: false, error: err.message };
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "payment processor unavailable",
+    };
+  }
+
+  await admin
+    .from("ngn_payments")
+    .update({
+      checkout_url: result.checkoutUrl,
+      korapay_reference: result.reference,
+    })
+    .eq("id", row.id);
+
+  return { ok: true, checkoutUrl: result.checkoutUrl, reference };
 }

@@ -16,12 +16,13 @@ export default async function TopUpPage() {
       <div>
         <div className="eyebrow">Top up</div>
         <h1 className="h2" style={{ marginTop: 8 }}>
-          Add crypto to your wallet
+          Add funds to your wallet
         </h1>
         <p className="body" style={{ marginTop: 14 }}>
-          Pick an amount in USD, choose a crypto, and we&apos;ll generate a
-          one-time deposit address. Once the network confirms, your wallet
-          credits automatically.
+          Pay in Naira (card, bank transfer, or pay-with-bank via Korapay) or
+          in crypto (USDT, USDC, BTC, ETH, and more). Your wallet balance is
+          always shown in USD; the amount you&apos;ll receive is locked when
+          you start the payment.
         </p>
       </div>
 
