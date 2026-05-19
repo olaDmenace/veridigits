@@ -32,6 +32,8 @@ export default async function AdminLayout({
         brandLabel="ADMIN"
         links={[
           { href: "/admin", label: "Overview" },
+          { href: "/admin/orders", label: "Orders" },
+          { href: "/admin/payments", label: "Payments" },
           { href: "/admin/users", label: "Users" },
           { href: "/admin/providers", label: "Providers" },
           { href: "/admin/pricing-rules", label: "Pricing" },
