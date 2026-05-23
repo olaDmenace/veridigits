@@ -190,9 +190,11 @@ export type Database = {
           mode: string
           phone_number: string
           provider_slug: string
+          refund_reason: string | null
           retail_charged_cents: number
           service_id: string | null
           status: string
+          upstream_operator: string | null
           upstream_order_id: string
           user_id: string
           wholesale_paid_cents: number
@@ -207,9 +209,11 @@ export type Database = {
           mode: string
           phone_number: string
           provider_slug: string
+          refund_reason?: string | null
           retail_charged_cents: number
           service_id?: string | null
           status: string
+          upstream_operator?: string | null
           upstream_order_id: string
           user_id: string
           wholesale_paid_cents: number
@@ -224,9 +228,11 @@ export type Database = {
           mode?: string
           phone_number?: string
           provider_slug?: string
+          refund_reason?: string | null
           retail_charged_cents?: number
           service_id?: string | null
           status?: string
+          upstream_operator?: string | null
           upstream_order_id?: string
           user_id?: string
           wholesale_paid_cents?: number
@@ -358,7 +364,10 @@ export type Database = {
           is_enabled: boolean
           last_synced_at: string | null
           provider_slug: string
+          recent_received_count: number
+          recent_total_count: number
           service_id: string | null
+          success_calculated_at: string | null
           upstream_country_code: string
           upstream_operator: string | null
           upstream_service_code: string
@@ -371,7 +380,10 @@ export type Database = {
           is_enabled?: boolean
           last_synced_at?: string | null
           provider_slug: string
+          recent_received_count?: number
+          recent_total_count?: number
           service_id?: string | null
+          success_calculated_at?: string | null
           upstream_country_code: string
           upstream_operator?: string | null
           upstream_service_code: string
@@ -384,7 +396,10 @@ export type Database = {
           is_enabled?: boolean
           last_synced_at?: string | null
           provider_slug?: string
+          recent_received_count?: number
+          recent_total_count?: number
           service_id?: string | null
+          success_calculated_at?: string | null
           upstream_country_code?: string
           upstream_operator?: string | null
           upstream_service_code?: string
@@ -522,6 +537,12 @@ export type Database = {
     }
     Functions: {
       is_admin: { Args: never; Returns: boolean }
+      recompute_operator_success_rates: {
+        Args: never
+        Returns: {
+          rows_updated: number
+        }[]
+      }
       wallet_apply: {
         Args: {
           p_amount_cents: number

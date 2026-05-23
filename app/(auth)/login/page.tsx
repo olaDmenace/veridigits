@@ -12,9 +12,15 @@ const NOTICES: Record<string, string> = {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ redirect?: string; error?: string }>;
+  searchParams: Promise<{ redirect?: string; error?: string; email?: string }>;
 }) {
-  const { redirect, error } = await searchParams;
+  const { redirect, error, email } = await searchParams;
   const notice = error && NOTICES[error] ? NOTICES[error] : undefined;
-  return <LoginForm initialRedirect={redirect} initialNotice={notice} />;
+  return (
+    <LoginForm
+      initialRedirect={redirect}
+      initialNotice={notice}
+      initialEmail={email}
+    />
+  );
 }

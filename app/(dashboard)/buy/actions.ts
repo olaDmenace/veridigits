@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getProvider } from "@/lib/providers";
+import { pickBestCandidate } from "@/lib/providers/scoring";
 import { sanitizeProviderError } from "@/lib/providers/sanitize-error";
 import {
   calculateRetailPrice,
@@ -381,11 +382,14 @@ export async function getQuote(
     return { ok: false, code: "internal", message: "not signed in" };
   }
 
-  // Pick cheapest enabled provider_services row for (service, country).
+  // Pull all enabled, in-stock provider_services rows for this (service, country).
+  // We pick from these using pickBestCandidate, which prefers reliable operators
+  // (good 7-day success rate, enough sample) over the absolute cheapest when both
+  // are available.
   const { data: candidates, error: candErr } = await supabase
     .from("provider_services")
     .select(
-      "provider_slug, upstream_service_code, upstream_country_code, upstream_operator, wholesale_price_cents",
+      "provider_slug, upstream_service_code, upstream_country_code, upstream_operator, wholesale_price_cents, recent_received_count, recent_total_count",
     )
     .eq("service_id", serviceId)
     .eq("country_id", countryId)
@@ -393,7 +397,7 @@ export async function getQuote(
     .gt("available_count", 0)
     .not("wholesale_price_cents", "is", null)
     .order("wholesale_price_cents", { ascending: true })
-    .limit(3);
+    .limit(10);
 
   if (candErr) {
     return { ok: false, code: "internal", message: candErr.message };
@@ -406,7 +410,14 @@ export async function getQuote(
     };
   }
 
-  const top = candidates[0];
+  const top = pickBestCandidate(candidates);
+  if (!top) {
+    return {
+      ok: false,
+      code: "no_provider",
+      message: "No upstream offers this service in this country.",
+    };
+  }
 
   let liveQuote;
   try {
@@ -627,6 +638,7 @@ export async function purchase(
       country_id: payload.countryId,
       provider_slug: payload.providerSlug,
       upstream_order_id: buyResult.upstreamOrderId,
+      upstream_operator: payload.upstreamOperator ?? null,
       phone_number: buyResult.phoneNumber,
       wholesale_paid_cents: buyResult.wholesaleCents || payload.wholesaleCents,
       retail_charged_cents: payload.retailCents,

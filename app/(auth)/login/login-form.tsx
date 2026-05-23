@@ -8,9 +8,14 @@ import { PasswordField } from "@/components/password-field";
 interface Props {
   initialRedirect?: string;
   initialNotice?: string;
+  initialEmail?: string;
 }
 
-export function LoginForm({ initialRedirect, initialNotice }: Props) {
+export function LoginForm({
+  initialRedirect,
+  initialNotice,
+  initialEmail,
+}: Props) {
   const [state, formAction, isPending] = useActionState<
     AuthFormState | undefined,
     FormData
@@ -41,8 +46,9 @@ export function LoginForm({ initialRedirect, initialNotice }: Props) {
             type="email"
             autoComplete="email"
             required
-            defaultValue={state?.email}
+            defaultValue={state?.email ?? initialEmail}
             placeholder="you@example.com"
+            autoFocus={!initialEmail}
           />
         </div>
 

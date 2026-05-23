@@ -2,6 +2,7 @@ import { inngest } from "./client";
 import { getProvider } from "@/lib/providers";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { refundOrder } from "@/lib/wallet/refund";
+import { senderMatchesService } from "@/lib/services/sender-patterns";
 
 const POLL_INTERVAL_MS = 3_000;
 const MAX_POLLS = 600; // safety cap: 600 × 3s = 30min
@@ -57,12 +58,15 @@ async function pollOnce(orderId: string): Promise<PollTick> {
   const { data: order } = await supabase
     .from("orders")
     .select(
-      "id, user_id, status, provider_slug, upstream_order_id, expires_at",
+      "id, user_id, status, provider_slug, upstream_order_id, expires_at, retail_charged_cents, services(slug)",
     )
     .eq("id", orderId)
     .single();
 
   if (!order) return { done: true, status: "missing" };
+
+  const serviceSlug =
+    (order.services as { slug: string } | null)?.slug ?? null;
 
   if (
     order.status === "completed" ||
@@ -119,8 +123,41 @@ async function pollOnce(orderId: string): Promise<PollTick> {
     }
   }
 
-  // Flip order status when upstream confirms received.
+  // Flip order status when upstream confirms received. Before committing to
+  // "received", check whether the SMS we got looks like it actually came from
+  // the service the user paid for. If the sender clearly doesn't match (e.g.
+  // a Telegram code on a number bought for WhatsApp), auto-refund instead.
+  // We swallow the wholesale loss in exchange for not making the user fight
+  // for a refund on what's plainly not their code.
   if (upstream.status === "received" && order.status !== "received") {
+    const decision = await classifyMessages(supabase, orderId, serviceSlug);
+
+    if (decision === "cross_service") {
+      await supabase
+        .from("orders")
+        .update({
+          status: "refunded",
+          refund_reason: "cross_service_sms",
+          cancelled_at: new Date().toISOString(),
+        })
+        .eq("id", orderId);
+
+      try {
+        if (order.retail_charged_cents > 0) {
+          await refundOrder({
+            userId: order.user_id,
+            amountCents: order.retail_charged_cents,
+            orderId,
+            note: "auto-refund: SMS sender did not match expected service",
+          });
+        }
+      } catch {
+        // Wallet apply failed. Reconciliation job will retry; leave the order
+        // marked refunded so the user UI reflects intent.
+      }
+      return { done: true, status: "refunded" };
+    }
+
     await supabase
       .from("orders")
       .update({ status: "received" })
@@ -156,6 +193,33 @@ function keyFor(
   receivedAt: string,
 ): string {
   return `${sender ?? ""}|${content}|${receivedAt}`;
+}
+
+/**
+ * Look at every SMS on the order and decide whether the batch is legit or a
+ * cross-service mismatch. Auto-refund fires only when at least one SMS is a
+ * confident mismatch AND no SMS is a match — i.e. we have positive evidence
+ * something's wrong and no contradictory evidence that the right code arrived.
+ */
+async function classifyMessages(
+  supabase: ReturnType<typeof getAdminClient>,
+  orderId: string,
+  serviceSlug: string | null,
+): Promise<"normal" | "cross_service"> {
+  const { data: msgs } = await supabase
+    .from("received_messages")
+    .select("sender")
+    .eq("order_id", orderId);
+
+  let anyMatch = false;
+  let anyMismatch = false;
+  for (const m of msgs ?? []) {
+    const d = senderMatchesService(serviceSlug, m.sender);
+    if (d.decision === "match") anyMatch = true;
+    if (d.decision === "mismatch") anyMismatch = true;
+  }
+  if (anyMismatch && !anyMatch) return "cross_service";
+  return "normal";
 }
 
 /**

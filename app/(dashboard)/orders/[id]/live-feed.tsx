@@ -19,6 +19,7 @@ export interface InitialOrder {
   expires_at: string;
   created_at: string;
   retail_charged_cents: number;
+  refund_reason: string | null;
   service: string;
   country: string;
 }
@@ -148,8 +149,26 @@ export function LiveOrderView({
         </div>
       </div>
 
+      {/* Auto-refund explainer for cross-service SMS */}
+      {status === "refunded" && order.refund_reason === "cross_service_sms" ? (
+        <div className="card" style={{ padding: 18 }}>
+          <div className="eyebrow" style={{ color: "var(--color-vg-700)" }}>
+            Auto-refunded
+          </div>
+          <p className="body" style={{ marginTop: 6 }}>
+            The SMS that arrived didn&apos;t look like a {order.service} code,
+            so we credited the charge back to your wallet automatically.
+            Incidental messages and codes for other services occasionally land
+            on these numbers — there&apos;s nothing for you to do.
+          </p>
+          <p className="caption" style={{ marginTop: 10 }}>
+            Want to try again? <a href="/buy">Buy a new number</a>.
+          </p>
+        </div>
+      ) : null}
+
       {/* Code reveal — once first SMS arrives */}
-      {extractedCode ? (
+      {extractedCode && status !== "refunded" ? (
         <div className="otp-reveal">
           <div className="lbl">Verification code</div>
           <div className="code">{extractedCode}</div>

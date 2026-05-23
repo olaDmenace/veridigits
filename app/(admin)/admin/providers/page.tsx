@@ -10,6 +10,8 @@ interface ProviderRow {
   totalRows: number;
   lastSyncedAt: string | null;
   cheapestCents: number | null;
+  received7d: number;
+  total7d: number;
 }
 
 export default async function AdminProvidersPage() {
@@ -18,7 +20,7 @@ export default async function AdminProvidersPage() {
   const { data: psRows } = await admin
     .from("provider_services")
     .select(
-      "provider_slug, is_enabled, last_synced_at, wholesale_price_cents",
+      "provider_slug, is_enabled, last_synced_at, wholesale_price_cents, recent_received_count, recent_total_count",
     );
 
   const grouped = new Map<string, ProviderRow>();
@@ -32,11 +34,15 @@ export default async function AdminProvidersPage() {
         totalRows: 0,
         lastSyncedAt: null,
         cheapestCents: null,
+        received7d: 0,
+        total7d: 0,
       };
       grouped.set(slug, row);
     }
     row.totalRows++;
     if (r.is_enabled) row.enabledRows++;
+    row.received7d += r.recent_received_count;
+    row.total7d += r.recent_total_count;
     if (
       r.last_synced_at &&
       (!row.lastSyncedAt || r.last_synced_at > row.lastSyncedAt)
@@ -85,32 +91,40 @@ export default async function AdminProvidersPage() {
                 <th>Provider</th>
                 <th>Enabled / total</th>
                 <th>Cheapest</th>
+                <th>7d success</th>
                 <th>Last synced</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
-                <tr key={r.slug}>
-                  <td style={{ fontWeight: 500 }}>{r.slug}</td>
-                  <td className="num">
-                    {r.enabledRows} / {r.totalRows}
-                  </td>
-                  <td className="num">
-                    {r.cheapestCents != null
-                      ? formatUsdCents(r.cheapestCents)
-                      : "—"}
-                  </td>
-                  <td>
-                    {r.lastSyncedAt
-                      ? new Date(r.lastSyncedAt).toLocaleString()
-                      : "—"}
-                  </td>
-                  <td>
-                    <SyncButton providerSlug={r.slug} />
-                  </td>
-                </tr>
-              ))}
+              {rows.map((r) => {
+                const rate =
+                  r.total7d > 0
+                    ? `${((r.received7d / r.total7d) * 100).toFixed(0)}% (${r.received7d}/${r.total7d})`
+                    : "—";
+                return (
+                  <tr key={r.slug}>
+                    <td style={{ fontWeight: 500 }}>{r.slug}</td>
+                    <td className="num">
+                      {r.enabledRows} / {r.totalRows}
+                    </td>
+                    <td className="num">
+                      {r.cheapestCents != null
+                        ? formatUsdCents(r.cheapestCents)
+                        : "—"}
+                    </td>
+                    <td className="num">{rate}</td>
+                    <td>
+                      {r.lastSyncedAt
+                        ? new Date(r.lastSyncedAt).toLocaleString()
+                        : "—"}
+                    </td>
+                    <td>
+                      <SyncButton providerSlug={r.slug} />
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
           </div>

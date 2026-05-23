@@ -92,7 +92,7 @@ export async function createTopup(formData: FormData): Promise<CreateTopupResult
       payCurrency,
       externalReference: row.id,
       ipnCallbackUrl: `${origin}/api/webhooks/nowpayments`,
-      successUrl: `${origin}/topup/success`,
+      successUrl: `${origin}/topup/success?rail=crypto&ref=${row.id}`,
       cancelUrl: `${origin}/topup`,
     });
   } catch (err) {
@@ -250,7 +250,7 @@ export async function createNgnTopup(
       reference,
       customer: { email: user.email },
       notificationUrl: `${origin}/api/webhooks/korapay`,
-      redirectUrl: `${origin}/topup/success`,
+      redirectUrl: `${origin}/topup/success?rail=ngn&ref=${encodeURIComponent(reference)}`,
       narration: "Veridigits wallet top-up",
       channels: ["card", "bank_transfer", "pay_with_bank"],
     });

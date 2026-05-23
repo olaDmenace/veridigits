@@ -20,7 +20,7 @@ export default async function OrderDetailPage({
   const { data: order } = await supabase
     .from("orders")
     .select(
-      "id, user_id, status, phone_number, expires_at, created_at, retail_charged_cents, provider_slug, services(name), countries(name)",
+      "id, user_id, status, phone_number, expires_at, created_at, retail_charged_cents, refund_reason, provider_slug, services(name), countries(name)",
     )
     .eq("id", id)
     .single();
@@ -54,6 +54,7 @@ export default async function OrderDetailPage({
           expires_at: order.expires_at,
           created_at: order.created_at,
           retail_charged_cents: order.retail_charged_cents,
+          refund_reason: order.refund_reason,
           service,
           country,
         }}
