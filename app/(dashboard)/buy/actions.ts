@@ -24,6 +24,10 @@ import { rentalMultiplier, type OrderMode } from "./constants";
 // emitted as a runtime reference and crashes at module evaluation with
 // "OrderMode is not defined". Import the type directly from ./constants.
 
+// Defer-debit guardrail: cap simultaneously-held unpaid numbers per user.
+// 0 disables the cap. Tune to taste; small is safer.
+const MAX_CONCURRENT_ACTIVE = 3;
+
 export interface CountryOption {
   countryId: string;
   isoCode: string;
@@ -550,6 +554,21 @@ export async function purchase(
       code: "insufficient_balance",
       message: "Top up your wallet to cover this purchase.",
     };
+  }
+
+  if (MAX_CONCURRENT_ACTIVE > 0) {
+    const { count: activeCount } = await getAdminClient()
+      .from("orders")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .in("status", ["pending", "active"]);
+    if ((activeCount ?? 0) >= MAX_CONCURRENT_ACTIVE) {
+      return {
+        ok: false,
+        code: "internal",
+        message: `You can hold up to ${MAX_CONCURRENT_ACTIVE} active numbers at once. Wait for one to receive a code or expire.`,
+      };
+    }
   }
 
   const mode = payload.mode ?? "activation";
