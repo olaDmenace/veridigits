@@ -1,7 +1,6 @@
 import { inngest } from "./client";
 import { getProvider } from "@/lib/providers";
 import { getAdminClient } from "@/lib/supabase/admin";
-import { refundOrder } from "@/lib/wallet/refund";
 
 /**
  * Sweeps for orders that passed expires_at while still in pending/active.
@@ -22,7 +21,7 @@ export const expireOrdersFn = inngest.createFunction(
     const { data: orders } = await supabase
       .from("orders")
       .select(
-        "id, user_id, provider_slug, upstream_order_id, retail_charged_cents, status",
+        "id, user_id, provider_slug, upstream_order_id, status",
       )
       .lt("expires_at", nowIso)
       .in("status", ["pending", "active"]);
@@ -54,7 +53,6 @@ interface ExpiringOrder {
   user_id: string;
   provider_slug: string;
   upstream_order_id: string;
-  retail_charged_cents: number;
   status: string;
 }
 
@@ -68,7 +66,7 @@ async function processExpired(order: ExpiringOrder): Promise<void> {
     .eq("order_id", order.id);
 
   if ((count ?? 0) > 0) {
-    // SMS received but order wasn't marked completed — flip to completed.
+    // SMS arrived (poll should have captured the charge already) — finalize.
     await supabase
       .from("orders")
       .update({ status: "completed", completed_at: new Date().toISOString() })
@@ -76,24 +74,17 @@ async function processExpired(order: ExpiringOrder): Promise<void> {
     return;
   }
 
-  // No SMS — cancel upstream + refund.
+  // No SMS — defer-debit means nothing was charged, so there is nothing to
+  // refund. Cancel upstream to recover our wholesale cost, then mark expired.
   try {
     await getProvider(order.provider_slug).cancelOrder(order.upstream_order_id);
   } catch {
-    // Upstream cancel failure is non-fatal: still mark and refund. The
-    // wholesale cost may stay committed at upstream — reconciliation job
-    // catches mismatches.
+    // Non-fatal: the reconciliation job catches a stuck upstream cancel.
   }
 
   await supabase
     .from("orders")
     .update({ status: "expired", cancelled_at: new Date().toISOString() })
-    .eq("id", order.id);
-
-  await refundOrder({
-    userId: order.user_id,
-    amountCents: order.retail_charged_cents,
-    orderId: order.id,
-    note: "expired without SMS",
-  });
+    .eq("id", order.id)
+    .in("status", ["pending", "active"]);
 }
