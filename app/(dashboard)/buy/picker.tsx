@@ -312,10 +312,7 @@ function CountryPicker({
       </div>
 
       {selected ? (
-        <div
-          className="cty-row selected"
-          style={{ border: "1px solid var(--color-ink)" }}
-        >
+        <div className="cty-row selected">
           <span className="flag">
             {selected.flagEmoji ?? selected.isoCode.slice(0, 2).toUpperCase()}
           </span>

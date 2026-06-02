@@ -856,6 +856,14 @@ main,
 .input::placeholder { color: var(--color-ink-subtle); font-weight: 400; }
 .input:focus { outline: none; border-color: var(--color-ink); box-shadow: var(--shadow-glow); }
 .input.mono { font-family: var(--font-mono); }
+/* iOS Safari zooms the page in when a focused form control has a
+   font-size < 16px (e.g. tapping the country picker's autofocused
+   search). Bump controls to 16px on small screens to suppress that
+   zoom — which also stops the post-zoom "panel wider than the
+   viewport" effect. Accessibility-safe: we never disable user zoom. */
+@media (max-width: 760px) {
+  .input, select.input, textarea.input { font-size: 16px; }
+}
 
 .label {
   display: block; font-size: 13px; font-weight: 500;
@@ -978,12 +986,17 @@ main,
 .cty-list { display: grid; gap: 4px; max-height: 320px; overflow: auto; padding-right: 4px; }
 .cty-row {
   display: grid;
-  grid-template-columns: 32px 1fr auto auto;
+  /* minmax(0,1fr) lets the name column shrink below its content width;
+     a plain 1fr (= minmax(auto,1fr)) can't, so a long country name would
+     push the row wider than the panel on narrow screens. */
+  grid-template-columns: 32px minmax(0, 1fr) auto auto;
   gap: 12px; align-items: center;
   padding: 10px 12px; border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: 14px;
 }
+/* the name cell (2nd child) wraps instead of overflowing */
+.cty-row > span:nth-child(2) { min-width: 0; overflow-wrap: anywhere; }
 .cty-row:hover { background: var(--color-subtle); }
 .cty-row.selected { background: var(--color-ink); color: var(--color-paper); }
 .cty-row.selected .iso, .cty-row.selected .pr { color: var(--color-vg-300); }
