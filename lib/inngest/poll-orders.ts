@@ -1,8 +1,10 @@
 import { inngest } from "./client";
 import { getProvider } from "@/lib/providers";
 import { getAdminClient } from "@/lib/supabase/admin";
-import { refundOrder } from "@/lib/wallet/refund";
+import { debitWalletForOrder } from "@/lib/wallet/debit";
+import { InsufficientBalanceError } from "@/lib/wallet/types";
 import { senderMatchesService } from "@/lib/services/sender-patterns";
+import { decideSmsOutcome } from "@/lib/orders/sms-outcome";
 
 const POLL_INTERVAL_MS = 3_000;
 const MAX_POLLS = 600; // safety cap: 600 × 3s = 30min
@@ -78,7 +80,7 @@ async function pollOnce(orderId: string): Promise<PollTick> {
   }
 
   if (new Date(order.expires_at).getTime() < Date.now()) {
-    // Past expiry — let expire-orders handle the refund. Stop polling.
+    // Past expiry — let expire-orders handle the wind-down. Stop polling.
     return { done: true, status: "expired" };
   }
 
@@ -123,64 +125,97 @@ async function pollOnce(orderId: string): Promise<PollTick> {
     }
   }
 
-  // Flip order status when upstream confirms received. Before committing to
-  // "received", check whether the SMS we got looks like it actually came from
-  // the service the user paid for. If the sender clearly doesn't match (e.g.
-  // a Telegram code on a number bought for WhatsApp), auto-refund instead.
-  // We swallow the wholesale loss in exchange for not making the user fight
-  // for a refund on what's plainly not their code.
-  if (upstream.status === "received" && order.status !== "received") {
-    const decision = await classifyMessages(supabase, orderId, serviceSlug);
+  // Classify any received SMS, then decide the outcome. Under defer-debit we
+  // charge ONLY on a valid capture; cross-service and upstream-cancel paths
+  // move no money (nothing was charged up front).
+  const evidence =
+    upstream.status === "received"
+      ? await classifyEvidence(supabase, orderId, serviceSlug)
+      : { anyMatch: false, anyMismatch: false };
 
-    if (decision === "cross_service") {
-      await supabase
-        .from("orders")
-        .update({
-          status: "refunded",
-          refund_reason: "cross_service_sms",
-          cancelled_at: new Date().toISOString(),
-        })
-        .eq("id", orderId);
+  const outcome = decideSmsOutcome({
+    upstreamStatus: upstream.status,
+    currentStatus: order.status,
+    anyMatch: evidence.anyMatch,
+    anyMismatch: evidence.anyMismatch,
+  });
 
+  if (outcome === "cross_service") {
+    // Latch active -> cancelled (cross-service). No charge ever happened.
+    const { data: claimed } = await supabase
+      .from("orders")
+      .update({
+        status: "cancelled",
+        refund_reason: "cross_service_sms",
+        cancelled_at: new Date().toISOString(),
+      })
+      .eq("id", orderId)
+      .in("status", ["pending", "active"])
+      .select("id");
+    if (claimed && claimed.length > 0) {
+      // Free the upstream number so our wholesale cost is recovered.
+      try {
+        await getProvider(order.provider_slug).cancelOrder(
+          order.upstream_order_id,
+        );
+      } catch {
+        /* reconciliation job catches a stuck upstream cancel */
+      }
+    }
+    return { done: true, status: "cancelled" };
+  }
+
+  if (outcome === "capture") {
+    // The status flip is the idempotency latch — only one poll/expire run
+    // can transition active -> received, and only that winner debits.
+    const { data: claimed } = await supabase
+      .from("orders")
+      .update({ status: "received" })
+      .eq("id", orderId)
+      .in("status", ["pending", "active"])
+      .select("id");
+
+    if (claimed && claimed.length === 1) {
       try {
         if (order.retail_charged_cents > 0) {
-          await refundOrder({
+          await debitWalletForOrder({
             userId: order.user_id,
             amountCents: order.retail_charged_cents,
             orderId,
-            note: "auto-refund: SMS sender did not match expected service",
+            note: `sms-received · ${order.provider_slug}:${order.upstream_order_id}`,
           });
+          await supabase
+            .from("orders")
+            .update({ charged_at: new Date().toISOString() })
+            .eq("id", orderId);
         }
-      } catch {
-        // Wallet apply failed. Reconciliation job will retry; leave the order
-        // marked refunded so the user UI reflects intent.
+      } catch (err) {
+        if (err instanceof InsufficientBalanceError) {
+          // Accepted defer-debit risk: code delivered but the wallet can't
+          // cover it (balance spent elsewhere). Leave status 'received',
+          // charged_at null; orders_uncharged_received_idx surfaces it.
+        } else {
+          // Transient wallet/DB error — undo the latch so the next poll tick
+          // re-attempts the capture instead of silently losing the charge.
+          console.error("capture debit failed — will retry", { orderId, err });
+          await supabase
+            .from("orders")
+            .update({ status: "active" })
+            .eq("id", orderId)
+            .eq("status", "received");
+          return { done: false, status: "active" };
+        }
       }
-      return { done: true, status: "refunded" };
     }
-
-    await supabase
-      .from("orders")
-      .update({ status: "received" })
-      .eq("id", orderId);
     return { done: true, status: "received" };
   }
 
-  if (upstream.status === "cancelled") {
-    // Cancelled upstream-side without our action — refund and mark.
+  if (outcome === "upstream_cancelled") {
     await supabase
       .from("orders")
       .update({ status: "cancelled", cancelled_at: new Date().toISOString() })
-      .eq("id", orderId);
-    try {
-      await refundOrder({
-        userId: order.user_id,
-        amountCents: 0, // Don't refund without knowing the original retail price here.
-        orderId,
-        note: "upstream cancelled",
-      });
-    } catch {
-      /* refund handled elsewhere or not applicable */
-    }
+      .eq("id", orderId)
+      .in("status", ["pending", "active"]);
     return { done: true, status: "cancelled" };
   }
 
@@ -196,16 +231,15 @@ function keyFor(
 }
 
 /**
- * Look at every SMS on the order and decide whether the batch is legit or a
- * cross-service mismatch. Auto-refund fires only when at least one SMS is a
- * confident mismatch AND no SMS is a match — i.e. we have positive evidence
- * something's wrong and no contradictory evidence that the right code arrived.
+ * Returns whether the order's SMS batch contains any confident match and/or
+ * any confident mismatch against the expected service. The capture decision
+ * itself lives in decideSmsOutcome (pure, unit-tested).
  */
-async function classifyMessages(
+async function classifyEvidence(
   supabase: ReturnType<typeof getAdminClient>,
   orderId: string,
   serviceSlug: string | null,
-): Promise<"normal" | "cross_service"> {
+): Promise<{ anyMatch: boolean; anyMismatch: boolean }> {
   const { data: msgs } = await supabase
     .from("received_messages")
     .select("sender")
@@ -218,8 +252,7 @@ async function classifyMessages(
     if (d.decision === "match") anyMatch = true;
     if (d.decision === "mismatch") anyMismatch = true;
   }
-  if (anyMismatch && !anyMatch) return "cross_service";
-  return "normal";
+  return { anyMatch, anyMismatch };
 }
 
 /**

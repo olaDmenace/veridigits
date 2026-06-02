@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { cancelOrderAction } from "./actions";
+import { canCancelOrder, MIN_CANCEL_AGE_MS } from "@/lib/orders/cancel-eligibility";
 
 export interface InitialMessage {
   id: string;
@@ -24,7 +25,6 @@ export interface InitialOrder {
   country: string;
 }
 
-const CANCEL_WINDOW_MS = 2 * 60 * 1000;
 
 export function LiveOrderView({
   order,
@@ -93,12 +93,22 @@ export function LiveOrderView({
   }, [order.id]);
 
   const expiresAtMs = new Date(order.expires_at).getTime();
+  const createdAtMs = new Date(order.created_at).getTime();
   const remainingMs = Math.max(0, expiresAtMs - now);
-  const ageMs = now - new Date(order.created_at).getTime();
-  const cancelable =
-    (status === "pending" || status === "active") &&
-    messages.length === 0 &&
-    ageMs < CANCEL_WINDOW_MS;
+  const eligibility = canCancelOrder({
+    status,
+    createdAtMs,
+    expiresAtMs,
+    hasSms: messages.length > 0,
+    nowMs: now,
+  });
+  const cancelable = eligibility.ok;
+  // Show a "waiting for the 2-min floor" hint while the number is fresh.
+  const tooEarly =
+    !eligibility.ok &&
+    eligibility.reason === "too_early" &&
+    messages.length === 0;
+  const msUntilCancelable = Math.max(0, createdAtMs + MIN_CANCEL_AGE_MS - now);
 
   function copyPhone() {
     navigator.clipboard.writeText(order.phone_number).then(() => {
@@ -149,17 +159,18 @@ export function LiveOrderView({
         </div>
       </div>
 
-      {/* Auto-refund explainer for cross-service SMS */}
-      {status === "refunded" && order.refund_reason === "cross_service_sms" ? (
+      {/* Cross-service explainer — we never charged for this number */}
+      {(status === "cancelled" || status === "refunded") &&
+      order.refund_reason === "cross_service_sms" ? (
         <div className="card" style={{ padding: 18 }}>
           <div className="eyebrow" style={{ color: "var(--color-vg-700)" }}>
-            Auto-refunded
+            Not charged
           </div>
           <p className="body" style={{ marginTop: 6 }}>
             The SMS that arrived didn&apos;t look like a {order.service} code,
-            so we credited the charge back to your wallet automatically.
-            Incidental messages and codes for other services occasionally land
-            on these numbers — there&apos;s nothing for you to do.
+            so we closed this number without charging you. Incidental messages
+            and codes for other services occasionally land on these numbers —
+            there&apos;s nothing for you to do.
           </p>
           <p className="caption" style={{ marginTop: 10 }}>
             Want to try again? <a href="/buy">Buy a new number</a>.
@@ -214,25 +225,34 @@ export function LiveOrderView({
         )}
       </div>
 
-      {/* Cancel control */}
+      {/* Cancel control — stacks under the text on mobile */}
       {cancelable ? (
-        <div className="card flex items-center justify-between gap-4">
+        <div className="card flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <div className="eyebrow">Cancel window</div>
+            <div className="eyebrow">Not getting a code?</div>
             <p className="caption" style={{ marginTop: 4 }}>
-              You have {formatRemaining(CANCEL_WINDOW_MS - ageMs)} to cancel for
-              a full refund. After that, you keep the number for the rest of
-              its 20-minute window.
+              You weren&apos;t charged for this number — you&apos;re only billed
+              when a valid code arrives. Cancel it now to free it up, or just
+              let it expire.
             </p>
           </div>
           <button
             type="button"
-            className="btn btn-secondary"
+            className="btn btn-secondary w-full sm:w-auto"
             onClick={onCancel}
             disabled={isPendingCancel}
           >
-            {isPendingCancel ? "Cancelling…" : "Cancel & refund"}
+            {isPendingCancel ? "Cancelling…" : "Cancel number"}
           </button>
+        </div>
+      ) : tooEarly ? (
+        <div className="card">
+          <div className="eyebrow">Cancel</div>
+          <p className="caption" style={{ marginTop: 4 }}>
+            You can cancel in {formatRemaining(msUntilCancelable)} if no code
+            arrives. You haven&apos;t been charged — billing only happens when a
+            valid code lands.
+          </p>
         </div>
       ) : null}
 
