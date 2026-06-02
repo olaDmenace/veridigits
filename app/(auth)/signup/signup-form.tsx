@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { signUp, type AuthFormState } from "../actions";
 import { PasswordField } from "@/components/password-field";
 
@@ -10,6 +10,10 @@ export function SignupForm() {
     AuthFormState | undefined,
     FormData
   >(signUp, undefined);
+
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const mismatch = confirm.length > 0 && password !== confirm;
 
   if (state?.ok && state.needsConfirmation) {
     return (
@@ -37,7 +41,7 @@ export function SignupForm() {
     <div className="card flex flex-col gap-6">
       <div className="flex flex-col gap-2 text-center">
         <h1 className="h3">Create an account</h1>
-        <p className="caption">Email + password. That&apos;s it.</p>
+        <p className="caption">No real name needed. Pick a handle and go.</p>
       </div>
 
       <form action={formAction} className="flex flex-col gap-4">
@@ -58,6 +62,41 @@ export function SignupForm() {
         </div>
 
         <div>
+          <label className="label" htmlFor="username">
+            Username
+          </label>
+          <input
+            id="username"
+            className="input"
+            name="username"
+            type="text"
+            autoComplete="username"
+            required
+            minLength={3}
+            maxLength={20}
+            pattern="[a-zA-Z][a-zA-Z0-9_]{2,19}"
+            defaultValue={state?.username}
+            placeholder="e.g. nightowl_42"
+          />
+        </div>
+
+        <div>
+          <label className="label" htmlFor="display_name">
+            Display name <span className="caption">(optional)</span>
+          </label>
+          <input
+            id="display_name"
+            className="input"
+            name="display_name"
+            type="text"
+            autoComplete="off"
+            maxLength={60}
+            defaultValue={state?.displayName}
+            placeholder="Shown in your dashboard"
+          />
+        </div>
+
+        <div>
           <label className="label" htmlFor="password">
             Password
           </label>
@@ -68,6 +107,46 @@ export function SignupForm() {
             required
             minLength={8}
             placeholder="8+ characters"
+            onChange={setPassword}
+          />
+        </div>
+
+        <div>
+          <label className="label" htmlFor="confirm_password">
+            Confirm password
+          </label>
+          <PasswordField
+            id="confirm_password"
+            name="confirm_password"
+            autoComplete="new-password"
+            required
+            minLength={8}
+            placeholder="Re-enter your password"
+            onChange={setConfirm}
+          />
+          {mismatch ? (
+            <p
+              className="caption"
+              style={{ marginTop: 6, color: "var(--color-danger)" }}
+            >
+              Passwords don&apos;t match.
+            </p>
+          ) : null}
+        </div>
+
+        <div>
+          <label className="label" htmlFor="referral_code">
+            Referral code <span className="caption">(optional)</span>
+          </label>
+          <input
+            id="referral_code"
+            className="input"
+            name="referral_code"
+            type="text"
+            autoComplete="off"
+            maxLength={32}
+            defaultValue={state?.referralCode}
+            placeholder="If a friend invited you"
           />
         </div>
 
@@ -91,7 +170,7 @@ export function SignupForm() {
         <button
           type="submit"
           className="btn btn-primary btn-lg"
-          disabled={isPending}
+          disabled={isPending || mismatch}
         >
           <span className="dot"></span>
           {isPending ? "Creating…" : "Create account"}

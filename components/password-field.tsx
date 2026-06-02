@@ -19,6 +19,7 @@ export function PasswordField({
   minLength,
   defaultValue,
   placeholder,
+  onChange,
 }: {
   id: string;
   name: string;
@@ -27,6 +28,7 @@ export function PasswordField({
   minLength?: number;
   defaultValue?: string;
   placeholder?: string;
+  onChange?: (value: string) => void;
 }) {
   const [shown, setShown] = useState(false);
 
@@ -44,6 +46,7 @@ export function PasswordField({
         minLength={minLength}
         defaultValue={defaultValue}
         placeholder={placeholder}
+        onChange={onChange ? (e) => onChange(e.target.value) : undefined}
         className="input"
         style={{ paddingRight: 44 }}
       />

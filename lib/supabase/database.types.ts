@@ -315,6 +315,7 @@ export type Database = {
       profiles: {
         Row: {
           created_at: string
+          display_name: string | null
           id: string
           is_admin: boolean
           is_banned: boolean
@@ -322,10 +323,12 @@ export type Database = {
           referred_by: string | null
           total_spent_cents: number
           total_topped_up_cents: number
+          username: string | null
           wallet_balance_cents: number
         }
         Insert: {
           created_at?: string
+          display_name?: string | null
           id: string
           is_admin?: boolean
           is_banned?: boolean
@@ -333,10 +336,12 @@ export type Database = {
           referred_by?: string | null
           total_spent_cents?: number
           total_topped_up_cents?: number
+          username?: string | null
           wallet_balance_cents?: number
         }
         Update: {
           created_at?: string
+          display_name?: string | null
           id?: string
           is_admin?: boolean
           is_banned?: boolean
@@ -344,6 +349,7 @@ export type Database = {
           referred_by?: string | null
           total_spent_cents?: number
           total_topped_up_cents?: number
+          username?: string | null
           wallet_balance_cents?: number
         }
         Relationships: [
@@ -537,6 +543,12 @@ export type Database = {
     }
     Functions: {
       is_admin: { Args: never; Returns: boolean }
+      username_available: {
+        Args: {
+          candidate: string
+        }
+        Returns: boolean
+      }
       recompute_operator_success_rates: {
         Args: never
         Returns: {

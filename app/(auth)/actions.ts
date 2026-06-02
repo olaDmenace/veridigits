@@ -4,63 +4,72 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getAppUrl } from "@/lib/utils/app-url";
+import { EMAIL_RE, validateCredentials, validateSignup } from "./validation";
 
 export interface AuthFormState {
   ok: boolean;
   error?: string;
   email?: string;
+  /** Echoed back so the form can repopulate after a validation error. */
+  displayName?: string;
+  username?: string;
+  referralCode?: string;
   /** Set on signup when Supabase requires email confirmation. */
   needsConfirmation?: boolean;
-}
-
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-function validateCredentials(formData: FormData): {
-  email: string;
-  password: string;
-  error?: string;
-} {
-  const email = String(formData.get("email") ?? "").trim().toLowerCase();
-  const password = String(formData.get("password") ?? "");
-
-  if (!EMAIL_RE.test(email)) {
-    return { email, password, error: "Enter a valid email address." };
-  }
-  if (password.length < 8) {
-    return { email, password, error: "Password must be at least 8 characters." };
-  }
-  return { email, password };
 }
 
 export async function signUp(
   _prev: AuthFormState | undefined,
   formData: FormData,
 ): Promise<AuthFormState> {
-  const { email, password, error: validationError } =
-    validateCredentials(formData);
-  if (validationError) {
-    return { ok: false, error: validationError, email };
+  const { email, password, displayName, username, referralCode, error } =
+    validateSignup(formData);
+
+  const echo = {
+    email,
+    displayName,
+    username,
+    referralCode,
+  };
+
+  if (error) {
+    return { ok: false, error, ...echo };
   }
 
   const supabase = await createClient();
   const origin = getAppUrl();
 
-  const { data, error } = await supabase.auth.signUp({
+  // Friendly pre-check for username collisions. The DB unique index is the
+  // real guarantee; this just avoids a cryptic Postgres error in the common case.
+  const { data: available } = await supabase.rpc("username_available", {
+    candidate: username,
+  });
+  if (available === false) {
+    return { ok: false, error: "That username is taken.", ...echo };
+  }
+
+  const { data, error: signUpError } = await supabase.auth.signUp({
     email,
     password,
     options: {
       emailRedirectTo: `${origin}/auth/callback`,
+      // Read by the handle_new_user() trigger to populate the profile row.
+      data: {
+        display_name: displayName || null,
+        username,
+        referral_code: referralCode || null,
+      },
     },
   });
 
-  if (error) {
-    return { ok: false, error: error.message, email };
+  if (signUpError) {
+    return { ok: false, error: signUpError.message, ...echo };
   }
 
   // If the project requires email confirmation, Supabase returns a user with
   // no session. Show a "check your email" state instead of redirecting.
   if (!data.session) {
-    return { ok: true, email, needsConfirmation: true };
+    return { ok: true, needsConfirmation: true, ...echo };
   }
 
   revalidatePath("/", "layout");
