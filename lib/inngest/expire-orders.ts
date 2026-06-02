@@ -4,7 +4,8 @@ import { getAdminClient } from "@/lib/supabase/admin";
 
 /**
  * Sweeps for orders that passed expires_at while still in pending/active.
- *   - If no SMS was received: cancel upstream + refund the user.
+ *   - If no SMS was received: cancel upstream + mark expired (defer-debit
+ *     means nothing was charged, so there is nothing to refund).
  *   - If SMS was received but the order wasn't finished: mark completed.
  *
  * Runs every minute as a backstop for the per-order poll function.
@@ -66,11 +67,15 @@ async function processExpired(order: ExpiringOrder): Promise<void> {
     .eq("order_id", order.id);
 
   if ((count ?? 0) > 0) {
-    // SMS arrived (poll should have captured the charge already) — finalize.
+    // SMS arrived and the poll already captured+charged it (status 'received').
+    // Finalize ONLY from 'received' — never complete a still-'active' order,
+    // which would mark it done without ever charging. A rare active+SMS order
+    // at expiry is left for the poll; this stays a cosmetic finalization.
     await supabase
       .from("orders")
       .update({ status: "completed", completed_at: new Date().toISOString() })
-      .eq("id", order.id);
+      .eq("id", order.id)
+      .eq("status", "received");
     return;
   }
 

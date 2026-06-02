@@ -80,7 +80,7 @@ async function pollOnce(orderId: string): Promise<PollTick> {
   }
 
   if (new Date(order.expires_at).getTime() < Date.now()) {
-    // Past expiry — let expire-orders handle the refund. Stop polling.
+    // Past expiry — let expire-orders handle the wind-down. Stop polling.
     return { done: true, status: "expired" };
   }
 
@@ -190,12 +190,20 @@ async function pollOnce(orderId: string): Promise<PollTick> {
             .eq("id", orderId);
         }
       } catch (err) {
-        // Delivered but uncharged (e.g. balance spent elsewhere — the
-        // accepted defer-debit risk). Leave status 'received', charged_at
-        // null; the orders_uncharged_received_idx surfaces it for reconcile.
-        if (!(err instanceof InsufficientBalanceError)) {
-          // Unexpected wallet error: log, still leave received.
-          console.error("capture debit failed", { orderId, err });
+        if (err instanceof InsufficientBalanceError) {
+          // Accepted defer-debit risk: code delivered but the wallet can't
+          // cover it (balance spent elsewhere). Leave status 'received',
+          // charged_at null; orders_uncharged_received_idx surfaces it.
+        } else {
+          // Transient wallet/DB error — undo the latch so the next poll tick
+          // re-attempts the capture instead of silently losing the charge.
+          console.error("capture debit failed — will retry", { orderId, err });
+          await supabase
+            .from("orders")
+            .update({ status: "active" })
+            .eq("id", orderId)
+            .eq("status", "received");
+          return { done: false, status: "active" };
         }
       }
     }
