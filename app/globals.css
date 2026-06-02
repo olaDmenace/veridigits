@@ -40,26 +40,31 @@
   --color-info:          #2563EB;
   --color-info-soft:     #E5EDFD;
 
-  /* — Type families — */
-  --font-sans: "General Sans", "Aeonik", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* — Type families —
+     Fraunces: variable serif w/ italic optical sizing — display + headings.
+     Inter: body, UI labels, buttons.
+     JetBrains Mono: numerics, OTP codes, technical micro-copy. */
+  --font-display: "Fraunces", "Times New Roman", Georgia, serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
   /* — Radii — */
   --radius-xs:   4px;
-  --radius-sm:   6px;
-  --radius-md:   10px;
-  --radius-lg:   14px;
-  --radius-xl:   20px;
-  --radius-2xl:  28px;
+  --radius-sm:   8px;
+  --radius-md:   12px;
+  --radius-lg:   16px;
+  --radius-xl:   22px;
+  --radius-2xl:  32px;
   --radius-full: 999px;
 
   /* — Shadows (warm-tinted) — */
-  --shadow-xs:   0 1px 0 rgba(20,17,12,.04);
-  --shadow-sm:   0 1px 2px rgba(20,17,12,.06), 0 1px 0 rgba(20,17,12,.03);
-  --shadow-md:   0 4px 12px -4px rgba(20,17,12,.08), 0 2px 4px -2px rgba(20,17,12,.05);
-  --shadow-lg:   0 16px 40px -12px rgba(20,17,12,.12), 0 4px 12px -4px rgba(20,17,12,.06);
-  --shadow-card: 0 1px 0 rgba(20,17,12,.04), 0 1px 2px rgba(20,17,12,.04);
-  --shadow-glow: 0 0 0 4px rgba(0, 196, 106, .14);
+  --shadow-xs:    0 1px 0 rgba(20,17,12,.04);
+  --shadow-sm:    0 2px 6px -2px rgba(20,17,12,.08), 0 1px 2px rgba(20,17,12,.04);
+  --shadow-md:    0 8px 24px -8px rgba(20,17,12,.10), 0 2px 6px -2px rgba(20,17,12,.06);
+  --shadow-lg:    0 24px 60px -20px rgba(20,17,12,.14), 0 6px 16px -4px rgba(20,17,12,.08);
+  --shadow-card:  0 1px 0 rgba(20,17,12,.04), 0 1px 2px rgba(20,17,12,.04);
+  --shadow-float: 0 30px 60px -28px rgba(20,17,12,.25), 0 12px 24px -12px rgba(20,17,12,.12);
+  --shadow-glow:  0 0 0 4px rgba(0, 196, 106, .18);
 
   /* — Motion — */
   --ease-out:    cubic-bezier(.2,.8,.2,1);
@@ -251,51 +256,94 @@ main,
    LOGO
 ============================================================ */
 .logo {
-  display: inline-flex; align-items: center; gap: 10px;
-  font-family: var(--font-sans);
-  font-weight: 600;
-  font-size: 19px;
-  letter-spacing: -0.012em;
+  display: inline-flex; align-items: center; gap: 12px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 21px;
+  letter-spacing: -0.018em;
   color: var(--color-ink);
 }
 .logo .mark {
-  width: 26px; height: 26px;
+  width: 30px; height: 30px;
   display: grid; place-items: center;
   background: var(--color-ink);
   color: var(--color-vg-500);
-  border-radius: 6px;
-  font-family: var(--font-mono);
-  font-size: 13px;
-  font-weight: 600;
+  border-radius: 8px;
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  font-style: italic;
   letter-spacing: -0.04em;
+  box-shadow: inset 0 -2px 0 rgba(255,255,255,.06);
 }
-.logo .dot { color: var(--color-vg-500); }
+.logo .dot { color: var(--color-vg-500); font-style: italic; }
 
 /* ============================================================
    TYPE
 ============================================================ */
 .display, .h1, .h2, .h3, .h4 {
-  font-family: var(--font-sans);
+  font-family: var(--font-display);
   letter-spacing: -0.022em;
   color: var(--color-ink);
   margin: 0;
+  font-weight: 700;
   text-wrap: balance;
+  line-height: 1.06;
 }
-.display { font-size: clamp(40px, 6vw, 80px); line-height: 1.02; font-weight: 600; letter-spacing: -0.035em; }
-.h1 { font-size: clamp(32px, 4.5vw, 52px); line-height: 1.05; font-weight: 600; letter-spacing: -0.028em; }
-.h2 { font-size: clamp(26px, 4vw, 36px); line-height: 1.15; font-weight: 600; letter-spacing: -0.022em; }
-.h3 { font-size: clamp(20px, 2.5vw, 24px); line-height: 1.25; font-weight: 600; letter-spacing: -0.014em; }
-.h4 { font-size: 18px; line-height: 1.3; font-weight: 600; letter-spacing: -0.008em; }
-.body  { font-size: 16px; line-height: 1.55; color: var(--color-ink-2); }
+.display { font-size: clamp(48px, 7vw, 96px); line-height: 0.98; letter-spacing: -0.04em; font-variation-settings: "opsz" 144; }
+.h1 { font-size: clamp(36px, 4.4vw, 60px); letter-spacing: -0.028em; font-variation-settings: "opsz" 96; }
+.h2 { font-size: clamp(28px, 3.4vw, 42px); line-height: 1.08; font-variation-settings: "opsz" 72; }
+.h3 { font-size: clamp(20px, 2.5vw, 24px); line-height: 1.2; letter-spacing: -0.012em; font-variation-settings: "opsz" 48; }
+.h4 { font-size: 18px; line-height: 1.3; letter-spacing: -0.006em; font-variation-settings: "opsz" 36; }
+
+/* Serif italic accents — slow the eye where verification happens. */
+.italic-green      { font-style: italic; color: var(--color-vg-500); font-weight: 500; }
+.italic-green-deep { font-style: italic; color: var(--color-vg-700); font-weight: 500; }
+.italic-ink        { font-style: italic; color: var(--color-ink); font-weight: 500; }
+
+.body  { font-size: 16px; line-height: 1.6; color: var(--color-ink-2); }
 .body-lg { font-size: 19px; line-height: 1.55; color: var(--color-ink-2); text-wrap: pretty; }
 .small { font-size: 14px; line-height: 1.5; color: var(--color-ink-muted); }
 .caption { font-size: 13px; line-height: 1.45; color: var(--color-ink-muted); }
+
+/* Eyebrow — tracked uppercase Inter with a leading green dash. */
 .eyebrow {
-  font-family: var(--font-mono);
-  font-size: 12px; font-weight: 500;
+  display: inline-flex; align-items: center; gap: 10px;
+  font-family: var(--font-sans);
+  font-size: 12px; font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.10em;
-  color: var(--color-ink-muted);
+  letter-spacing: 0.14em;
+  color: var(--color-vg-700);
+}
+.eyebrow::before {
+  content: ""; width: 28px; height: 2px;
+  background: var(--color-vg-500); border-radius: 2px;
+}
+.eyebrow.muted { color: var(--color-ink-muted); }
+.eyebrow.muted::before { background: var(--color-ink-subtle); }
+
+/* Eyebrow pill — rounded chip with a live pulse dot. */
+.eyebrow-pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  height: 32px; padding: 0 14px;
+  font-family: var(--font-sans);
+  font-size: 12px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.12em;
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  color: var(--color-vg-700);
+  border: 1px solid var(--color-vg-100);
+  box-shadow: var(--shadow-xs);
+}
+.eyebrow-pill .pulse {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--color-vg-500);
+  box-shadow: 0 0 0 3px rgba(0,196,106,.22);
+  animation: pulse-soft 1.8s var(--ease-out) infinite;
+}
+@keyframes pulse-soft {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(0,196,106,.22); }
+  50%      { box-shadow: 0 0 0 7px rgba(0,196,106,0); }
 }
 .mono { font-family: var(--font-mono); }
 
@@ -332,6 +380,128 @@ main,
    longhand so any future composition with main / .page doesn't reset
    horizontal gutter. */
 .hero { padding-top: 96px; padding-bottom: 120px; position: relative; }
+
+/* ── Dark, modern hero band ──────────────────────────────────────
+   Full-bleed dark section with a green glow, a faint masked grid,
+   and a constellation of real brand chips floating behind the copy
+   and around the phone. <main> owns the horizontal gutter, so the
+   band breaks out of that padding to reach the screen edges, then
+   re-applies the gutter so inner content stays aligned with the
+   rest of the page. The page below stays warm paper. */
+.hero-dark {
+  padding-top: 120px;
+  padding-bottom: 140px;
+  margin-left: calc(-1 * max(var(--gutter-x), env(safe-area-inset-left)));
+  margin-right: calc(-1 * max(var(--gutter-x), env(safe-area-inset-right)));
+  padding-left: max(var(--gutter-x), env(safe-area-inset-left));
+  padding-right: max(var(--gutter-x), env(safe-area-inset-right));
+  color: var(--color-paper);
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    radial-gradient(72% 60% at 80% 28%, rgba(0,196,106,.20), transparent 62%),
+    radial-gradient(48% 50% at 6% 92%, rgba(0,196,106,.10), transparent 60%),
+    linear-gradient(180deg, #100E0A 0%, #14110C 52%, #16120E 100%);
+}
+.hero-inner { position: relative; z-index: 2; }
+
+/* faint masked grid for depth */
+.hero-orbit { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+.hero-orbit::before {
+  content: ""; position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px);
+  background-size: 54px 54px;
+  -webkit-mask-image: radial-gradient(68% 60% at 72% 34%, #000 28%, transparent 76%);
+          mask-image: radial-gradient(68% 60% at 72% 34%, #000 28%, transparent 76%);
+}
+.hero-glow {
+  position: absolute; z-index: 0;
+  top: 16%; right: 8%; width: 460px; height: 460px;
+  background: radial-gradient(circle, rgba(0,196,106,.28), transparent 65%);
+  filter: blur(20px);
+  pointer-events: none;
+}
+
+/* floating brand chips */
+.fi {
+  position: absolute; z-index: 1;
+  display: grid; place-items: center;
+  filter: drop-shadow(0 18px 34px rgba(0,0,0,.55));
+  animation: float-y 7s ease-in-out infinite;
+  will-change: transform;
+}
+.fi-chip { box-shadow: inset 0 0 0 1px rgba(255,255,255,.16); }
+@keyframes float-y {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50%      { transform: translateY(-15px) rotate(-2.5deg); }
+}
+
+/* right-side sharp constellation around the phone */
+.fi-1 { top: 13%;    right: 9%;   animation-duration: 7.5s; }
+.fi-2 { top: 5%;     right: 29%;  opacity: .82; animation-duration: 8.5s; animation-delay: -2s; }
+.fi-3 { bottom: 19%; right: 6%;   opacity: .92; animation-duration: 6.8s; animation-delay: -1s; }
+.fi-4 { bottom: 9%;  right: 27%;  opacity: .82; animation-duration: 9s;   animation-delay: -3s; }
+.fi-5 { top: 39%;    right: 1.5%; opacity: .9;  animation-duration: 7.8s; animation-delay: -0.5s; }
+.fi-6 { top: 29%;    right: 39%;  opacity: .5;  animation-duration: 8.2s; animation-delay: -4s;
+        filter: blur(.5px) drop-shadow(0 14px 26px rgba(0,0,0,.5)); }
+.fi-7 { bottom: 33%; right: 37%;  opacity: .46; animation-duration: 9.4s; animation-delay: -1.5s;
+        filter: blur(1px) drop-shadow(0 14px 26px rgba(0,0,0,.5)); }
+
+/* left / behind-copy bokeh — heavily blurred, low opacity for depth */
+.fi-8  { top: 11%;    left: 3%;  opacity: .24; filter: blur(3px); animation-duration: 10s;   animation-delay: -2.5s; }
+.fi-9  { bottom: 15%; left: 2%;  opacity: .22; filter: blur(3px); animation-duration: 11s;   animation-delay: -5s; }
+.fi-10 { top: 61%;    left: 13%; opacity: .16; filter: blur(4px); animation-duration: 12s;   animation-delay: -3.5s; }
+.fi-11 { top: 4%;     left: 28%; opacity: .18; filter: blur(3px); animation-duration: 10.5s; animation-delay: -6s; }
+.fi-12 { bottom: 6%;  left: 21%; opacity: .15; filter: blur(4px); animation-duration: 12.5s; animation-delay: -4.5s; }
+
+@media (max-width: 900px) {
+  .fi-6, .fi-7, .fi-10, .fi-11, .fi-12 { display: none; }
+}
+@media (max-width: 760px) {
+  .hero-orbit .fi { display: none; }
+  .hero-glow { top: 2%; right: 50%; transform: translateX(50%); width: 320px; height: 320px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fi { animation: none; }
+}
+
+/* on-dark copy treatments */
+.hero-dark .eyebrow-pill {
+  background: rgba(255,255,255,.06);
+  color: var(--color-vg-300);
+  border-color: rgba(0,196,106,.30);
+  -webkit-backdrop-filter: blur(8px);
+          backdrop-filter: blur(8px);
+}
+.hero-dark .hero-copy h1 { color: var(--color-paper); }
+.hero-accent {
+  font-style: italic;
+  font-weight: 500;
+  color: var(--color-vg-300);
+  text-shadow: 0 0 30px rgba(0,196,106,.45);
+}
+.hero-dark p.lead { color: rgba(250,248,243,.70); }
+.hero-dark .hero-stats {
+  background: rgba(255,255,255,.05);
+  border-color: rgba(255,255,255,.10);
+  box-shadow: 0 26px 54px -30px rgba(0,0,0,.65);
+}
+.hero-dark .hero-stats .stat { border-right-color: rgba(255,255,255,.10); }
+.hero-dark .hero-stats .num { color: var(--color-vg-300); }
+.hero-dark .hero-stats .lbl { color: rgba(250,248,243,.55); }
+.hero-dark .phone {
+  background: #0C0A07;
+  box-shadow:
+    0 60px 100px -40px rgba(0,0,0,.7),
+    0 0 0 1px rgba(255,255,255,.06),
+    0 0 90px -18px rgba(0,196,106,.30);
+}
+.hero-dark .phone-stage::before {
+  background: radial-gradient(55% 45% at 55% 45%, rgba(0,196,106,.22), transparent 70%);
+}
+
 .hero-grid {
   display: grid;
   grid-template-columns: 1.2fr 1fr;
@@ -346,12 +516,15 @@ main,
   .hero-grid { gap: 32px; }
 }
 .hero h1 {
+  font-family: var(--font-display);
   font-size: clamp(36px, 8vw, 96px);
-  line-height: 1;
-  letter-spacing: -0.035em;
-  font-weight: 600;
+  line-height: 0.98;
+  letter-spacing: -0.04em;
+  font-weight: 700;
+  font-variation-settings: "opsz" 144;
   margin: 14px 0 20px;
   color: var(--color-ink);
+  text-wrap: balance;
 }
 @media (max-width: 380px) {
   .hero h1 { font-size: 32px; }
@@ -386,17 +559,24 @@ main,
   grid-template-columns: repeat(3, 1fr);
   gap: 0;
   margin-top: 48px;
-  border-top: 1px solid var(--color-border);
-  padding-top: 28px;
+  padding: 24px 28px;
+  background: color-mix(in oklab, var(--color-surface) 80%, transparent);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-2xl);
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow-sm);
+  max-width: 600px;
 }
-.hero-stats .stat { padding-right: 16px; border-right: 1px solid var(--color-border); }
-.hero-stats .stat:last-child { border-right: 0; padding-right: 0; }
+.hero-stats .stat { padding: 0 20px; border-right: 1px solid var(--color-border); }
+.hero-stats .stat:first-child { padding-left: 0; }
+.hero-stats .stat:last-child { border-right: 0; }
 .hero-stats .num {
-  font-family: var(--font-mono);
-  font-size: clamp(22px, 4vw, 36px);
-  font-weight: 500;
-  letter-spacing: -0.03em;
-  color: var(--color-ink);
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: clamp(26px, 4vw, 38px);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  color: var(--color-vg-700);
   line-height: 1;
 }
 .hero-stats .lbl {
@@ -406,7 +586,7 @@ main,
   letter-spacing: 0.01em;
 }
 @media (max-width: 760px) {
-  .hero-stats { margin-top: 32px; padding-top: 20px; }
+  .hero-stats { margin-top: 32px; padding: 20px; }
 }
 
 /* — Phone mockup — */
@@ -576,12 +756,12 @@ main,
 ============================================================ */
 .btn {
   display: inline-flex; align-items: center; gap: 8px;
-  height: 44px; padding: 0 18px;
+  height: 48px; padding: 0 22px;
   font-family: var(--font-sans);
-  font-size: 14px; font-weight: 500;
+  font-size: 14px; font-weight: 600;
   letter-spacing: -0.005em;
-  border-radius: var(--radius-md);
-  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  border: 1.5px solid transparent;
   background: transparent;
   color: var(--color-ink);
   transition: background var(--duration-fast) var(--ease-out),
@@ -593,15 +773,26 @@ main,
 .btn:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
 .btn:active { transform: translateY(0.5px); }
 
-.btn-primary { background: var(--color-ink); color: var(--color-paper); }
-.btn-primary:hover { background: #2A2620; }
-.btn-primary .dot { width: 6px; height: 6px; background: var(--color-vg-500); border-radius: 50%; }
+/* Primary is the verification green — the one place the accent goes loud. */
+.btn-primary {
+  background: var(--color-vg-500); color: var(--color-ink);
+  box-shadow: 0 6px 16px -4px rgba(0,196,106,.40), inset 0 -2px 0 rgba(0,0,0,.08);
+}
+.btn-primary:hover { background: var(--color-vg-600); }
 
+/* Ink — the quiet, dark CTA (was the old primary). */
+.btn-ink { background: var(--color-ink); color: var(--color-paper); box-shadow: 0 4px 12px -2px rgba(20,17,12,.30); }
+.btn-ink:hover { background: #2A2620; }
+
+/* Kept as an alias of primary for any older markup that used .btn-accent. */
 .btn-accent { background: var(--color-vg-500); color: var(--color-ink); }
 .btn-accent:hover { background: var(--color-vg-600); }
 
 .btn-secondary { background: var(--color-surface); color: var(--color-ink); border-color: var(--color-border-strong); box-shadow: var(--shadow-xs); }
-.btn-secondary:hover { background: var(--color-subtle); }
+.btn-secondary:hover { background: var(--color-subtle); border-color: var(--color-ink-subtle); }
+
+.btn-outline { background: transparent; color: var(--color-vg-700); border-color: var(--color-vg-500); }
+.btn-outline:hover { background: var(--color-vg-50); }
 
 .btn-ghost { color: var(--color-ink-2); }
 .btn-ghost:hover { background: var(--color-subtle); color: var(--color-ink); }
@@ -609,8 +800,25 @@ main,
 .btn-danger { background: var(--color-danger); color: #fff; }
 .btn-danger:hover { background: #B83434; }
 
-.btn-sm { height: 34px; padding: 0 12px; font-size: 13px; border-radius: var(--radius-sm); }
-.btn-lg { height: 52px; padding: 0 22px; font-size: 15px; border-radius: var(--radius-md); }
+.btn-on-dark { background: rgba(255,255,255,.10); color: var(--color-paper); border: 1.5px solid rgba(255,255,255,.18); }
+.btn-on-dark:hover { background: rgba(255,255,255,.16); }
+
+.btn-sm { height: 38px; padding: 0 16px; font-size: 13px; }
+.btn-lg { height: 56px; padding: 0 28px; font-size: 15px; }
+
+/* Icon-only square button. */
+.btn-icon { width: 40px; height: 40px; padding: 0; display: inline-grid; place-items: center; border-radius: var(--radius-md); }
+
+/* Affordances: trailing arrow that nudges on hover, and a small status dot. */
+.btn .arr {
+  display: inline-grid; place-items: center;
+  width: 18px; height: 18px;
+  font-family: var(--font-mono); font-size: 16px;
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+.btn:hover .arr { transform: translateX(2px); }
+.btn .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--color-vg-500); }
+.btn-primary .dot, .btn-ink .dot { background: var(--color-vg-300); }
 
 /* ============================================================
    CARDS, INPUTS, BADGES, TABLES
@@ -725,13 +933,13 @@ main,
   color: var(--color-ink-subtle);
 }
 .wallet .bal {
-  font-family: var(--font-mono);
-  font-size: clamp(40px, 8vw, 56px); font-weight: 500; line-height: 1;
+  font-family: var(--font-display); font-style: italic;
+  font-size: clamp(40px, 8vw, 56px); font-weight: 600; line-height: 1;
   letter-spacing: -0.025em; margin-top: 8px;
   font-variant-numeric: tabular-nums;
 }
-.wallet .bal .cents { color: var(--color-ink-subtle); }
-.wallet .bal .cur { color: var(--color-vg-300); margin-right: 8px; font-size: 28px; vertical-align: top; line-height: 1.5; font-weight: 500; }
+.wallet .bal .cents { color: var(--color-ink-subtle); font-style: italic; }
+.wallet .bal .cur { color: var(--color-vg-300); margin-right: 8px; font-size: 28px; vertical-align: top; line-height: 1.5; font-weight: 500; font-style: italic; }
 .wallet .meta { display: flex; gap: 24px; margin-top: 24px; flex-wrap: wrap; }
 .wallet .meta div { font-size: 13px; color: var(--color-ink-subtle); }
 .wallet .meta div b { display: block; color: var(--color-paper); font-family: var(--font-mono); font-size: 16px; margin-top: 4px; font-weight: 500; }
@@ -818,7 +1026,7 @@ main,
   font-variant-numeric: tabular-nums;
 }
 .order-card .right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
-.order-card .right .price { font-family: var(--font-mono); font-weight: 500; font-size: 14px; }
+.order-card .right .price { font-family: var(--font-display); font-style: italic; font-weight: 600; font-size: 18px; color: var(--color-vg-700); }
 .order-card .countdown {
   font-family: var(--font-mono); font-size: 13px; color: var(--color-ink-muted);
 }
@@ -913,7 +1121,7 @@ main,
 }
 .topup-tile.selected .lbl { color: var(--color-ink-subtle); }
 .topup-tile .lbl { font-family: var(--font-mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-ink-muted); }
-.topup-tile .amt { font-family: var(--font-mono); font-size: 24px; font-weight: 500; margin-top: 6px; font-variant-numeric: tabular-nums; }
+.topup-tile .amt { font-family: var(--font-display); font-style: italic; font-size: 26px; font-weight: 600; margin-top: 6px; }
 
 /* Chip group (crypto) */
 .chips { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -1108,6 +1316,105 @@ main,
 }
 @media (max-width: 900px) { .pricing-grid { grid-template-columns: 1fr; } }
 
+/* Trust strip — honest "top up with" rail row (no fabricated customers). */
+.trusted-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: 28px 40px;
+  box-shadow: var(--shadow-sm);
+  display: flex; flex-direction: column; gap: 16px; align-items: center;
+}
+.trusted-card .ttl {
+  font-family: var(--font-sans);
+  font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.16em;
+  color: var(--color-ink-muted);
+}
+.trusted-card .logos {
+  display: flex; gap: 48px; flex-wrap: wrap; align-items: center; justify-content: center;
+  font-family: var(--font-display); font-weight: 700; font-size: 18px;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--color-ink-subtle);
+}
+.trusted-card .logos span { transition: color var(--duration-fast) var(--ease-out); }
+.trusted-card .logos span:hover { color: var(--color-vg-700); }
+
+/* Steps (how it works) — big faded serif numeral + accent icon square */
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; }
+@media (max-width: 900px) { .steps { grid-template-columns: 1fr; } }
+.step { padding: 32px; border-right: 1px solid var(--color-border); position: relative; }
+.step:first-child { padding-left: 0; }
+.step:last-child { border-right: 0; padding-right: 0; }
+@media (max-width: 900px) {
+  .step { padding: 28px 0; border-right: 0; border-bottom: 1px solid var(--color-border); }
+  .step:last-child { border-bottom: 0; }
+}
+.step .num {
+  font-family: var(--font-display); font-style: italic; font-weight: 600;
+  font-size: 96px; line-height: 1; letter-spacing: -0.035em;
+  color: rgba(0,196,106,0.12); margin: 0 0 8px;
+  font-variation-settings: "opsz" 144;
+}
+.step .ico-sq {
+  width: 48px; height: 48px; border-radius: 12px;
+  background: var(--color-vg-500); color: var(--color-ink);
+  display: grid; place-items: center; margin-bottom: 20px;
+  box-shadow: 0 6px 14px -4px rgba(0,196,106,.40);
+}
+.step .ico-sq svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.step h3 { font-family: var(--font-display); color: var(--color-ink); font-size: 24px; font-weight: 700; margin: 0 0 8px; letter-spacing: -0.014em; }
+.step p { margin: 0; color: var(--color-ink-muted); font-size: 15px; line-height: 1.55; }
+
+/* Pricing cards — serif name, italic serif price, green-check feats */
+.price-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: 28px;
+  display: flex; flex-direction: column; gap: 18px;
+  position: relative;
+  transition: border-color var(--duration-fast), box-shadow var(--duration-fast), transform var(--duration-fast);
+}
+.price-card:hover { border-color: var(--color-vg-200); box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.price-card.featured { background: var(--color-ink); color: var(--color-paper); border-color: var(--color-ink); box-shadow: var(--shadow-lg); }
+.price-card .tag {
+  display: inline-flex; align-self: flex-start;
+  font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--color-vg-700); background: var(--color-vg-50);
+  padding: 4px 10px; border-radius: var(--radius-full);
+}
+.price-card.featured .tag { color: var(--color-ink); background: var(--color-vg-500); }
+.price-card .svc { font-family: var(--font-display); font-weight: 700; font-size: 24px; line-height: 1.15; color: inherit; }
+.price-card .price {
+  font-family: var(--font-display); font-style: italic;
+  font-size: 46px; font-weight: 700; letter-spacing: -0.025em;
+  color: var(--color-vg-700); line-height: 1;
+}
+.price-card.featured .price { color: var(--color-vg-300); }
+.price-card .price small {
+  font-family: var(--font-sans); font-size: 13px; font-weight: 500; font-style: normal;
+  color: var(--color-ink-muted); display: block; margin-top: 6px;
+}
+.price-card.featured .price small { color: var(--color-ink-subtle); }
+.price-card .feats {
+  list-style: none; padding: 0; margin: 0;
+  display: flex; flex-direction: column; gap: 8px;
+  font-size: 14px; color: var(--color-ink-2);
+}
+.price-card.featured .feats { color: rgba(250,248,243,0.85); }
+.price-card .feats li { display: flex; align-items: flex-start; gap: 8px; }
+.price-card .feats li::before { content: "✓"; color: var(--color-vg-500); font-weight: 700; flex-shrink: 0; }
+.price-card.featured .feats li::before { color: var(--color-vg-300); }
+.price-card .pop {
+  position: absolute; top: -12px; right: 20px;
+  background: var(--color-vg-500); color: var(--color-ink);
+  font-family: var(--font-mono); font-size: 11px; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 5px 12px; border-radius: var(--radius-full);
+}
+
 /* FAQ accordion (uses native <details>) */
 .faq-list {
   display: flex;
@@ -1195,3 +1502,147 @@ main,
   padding: 24px 0 32px;
   border-top: 1px solid var(--color-border);
 }
+
+/* ============================================================
+   MARKETING — DARK + GLOW THEME (scoped to the landing page)
+   The Topbar / SiteFooter are shared with light surfaces
+   (dashboard, admin, legal), so the dark treatment lives under
+   the .marketing scope only and never leaks out.
+============================================================ */
+.marketing {
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  background: #16120E;
+  color: var(--color-paper);
+}
+/* down-page green glow language — soft radials anchored at a few
+   scroll depths so the accent breathes through every section. */
+.marketing::before {
+  content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
+  background:
+    radial-gradient(46% 20% at 86% 32%, rgba(0,196,106,.10), transparent 62%),
+    radial-gradient(42% 18% at 8% 60%, rgba(0,196,106,.08), transparent 62%),
+    radial-gradient(48% 18% at 92% 84%, rgba(0,196,106,.07), transparent 62%);
+}
+.marketing > main,
+.marketing > .site-footer { position: relative; z-index: 1; }
+
+/* — Navbar — */
+.marketing .topbar {
+  background: color-mix(in oklab, #16120E 74%, transparent);
+  border-bottom-color: rgba(255,255,255,.08);
+}
+.marketing .topbar-nav a { color: rgba(250,248,243,.62); }
+.marketing .topbar-nav a:hover { color: var(--color-paper); }
+.marketing .topbar .meta { color: rgba(250,248,243,.40); }
+.marketing .topbar-toggle {
+  background: rgba(255,255,255,.06);
+  border-color: rgba(255,255,255,.14);
+  color: var(--color-paper);
+}
+.marketing .topbar-toggle:hover { background: rgba(255,255,255,.10); border-color: rgba(255,255,255,.22); }
+.marketing .logo { color: var(--color-paper); }
+/* ink mark would vanish on the dark bar — flip it to the green chip */
+.marketing .logo .mark { background: var(--color-vg-500); color: var(--color-ink); }
+
+/* mobile drawer (DOM child of .marketing even though position:fixed) */
+.marketing .topbar-drawer-panel { background: #1A1611; border-left-color: rgba(255,255,255,.08); }
+.marketing .topbar-drawer-links { border-top-color: rgba(255,255,255,.08); }
+.marketing .topbar-drawer-links li { border-bottom-color: rgba(255,255,255,.08); }
+.marketing .topbar-drawer-links a { color: var(--color-paper); }
+.marketing .topbar-drawer-links a:hover { color: var(--color-vg-300); }
+.marketing .topbar-drawer-close {
+  background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.14); color: var(--color-paper);
+}
+.marketing .topbar-drawer-actions { border-top-color: rgba(255,255,255,.08); }
+.marketing .topbar-drawer-meta { color: rgba(250,248,243,.5); }
+
+/* — Type on dark — */
+.marketing .section { border-top-color: rgba(255,255,255,.07); }
+.marketing .display,
+.marketing .h1, .marketing .h2, .marketing .h3, .marketing .h4 { color: var(--color-paper); }
+.marketing .body { color: rgba(250,248,243,.66); }
+.marketing .eyebrow { color: var(--color-vg-300); }
+.marketing .italic-green { color: var(--color-vg-300); }
+
+/* — Trust strip — */
+.marketing .trusted-card {
+  background: rgba(255,255,255,.04);
+  border-color: rgba(255,255,255,.09);
+  box-shadow: 0 24px 50px -34px rgba(0,0,0,.6);
+  -webkit-backdrop-filter: blur(8px);
+          backdrop-filter: blur(8px);
+}
+.marketing .trusted-card .ttl { color: rgba(250,248,243,.5); }
+.marketing .trusted-card .logos { color: rgba(250,248,243,.56); }
+.marketing .trusted-card .logos span:hover { color: var(--color-vg-300); }
+
+/* — Steps — */
+.marketing .step { border-right-color: rgba(255,255,255,.08); }
+@media (max-width: 900px) {
+  .marketing .step { border-bottom-color: rgba(255,255,255,.08); }
+}
+.marketing .step .num { color: rgba(0,196,106,.18); }
+.marketing .step h3 { color: var(--color-paper); }
+.marketing .step p { color: rgba(250,248,243,.6); }
+
+/* — Services grid — */
+.marketing .svc-tile {
+  background: rgba(255,255,255,.04);
+  border-color: rgba(255,255,255,.08);
+}
+.marketing .svc-tile:hover {
+  border-color: rgba(0,196,106,.45);
+  background: rgba(255,255,255,.06);
+  box-shadow: 0 0 0 1px rgba(0,196,106,.22), 0 18px 36px -22px rgba(0,0,0,.7);
+}
+.marketing .svc-tile .nm { color: var(--color-paper); }
+.marketing .svc-tile .pr { color: rgba(250,248,243,.5); }
+
+/* — Pricing — */
+.marketing .price-card {
+  background: rgba(255,255,255,.04);
+  border-color: rgba(255,255,255,.09);
+}
+.marketing .price-card:hover {
+  border-color: rgba(0,196,106,.45);
+  box-shadow: 0 22px 44px -26px rgba(0,0,0,.7);
+}
+.marketing .price-card .tag { color: var(--color-vg-300); background: rgba(0,196,106,.12); }
+.marketing .price-card .svc { color: var(--color-paper); }
+.marketing .price-card .price { color: var(--color-vg-300); }
+.marketing .price-card .price small { color: rgba(250,248,243,.5); }
+.marketing .price-card .feats { color: rgba(250,248,243,.72); }
+/* featured tier: ink card would disappear on dark — make it the glow card */
+.marketing .price-card.featured {
+  background: linear-gradient(180deg, rgba(0,196,106,.14), rgba(0,196,106,.035));
+  border-color: rgba(0,196,106,.40);
+  box-shadow:
+    0 0 0 1px rgba(0,196,106,.28),
+    0 30px 60px -30px rgba(0,196,106,.35),
+    0 30px 60px -34px rgba(0,0,0,.7);
+}
+.marketing .price-card.featured .tag { color: var(--color-ink); background: var(--color-vg-500); }
+.marketing .price-card.featured .svc { color: var(--color-paper); }
+.marketing .price-card.featured .price small { color: rgba(250,248,243,.6); }
+.marketing .price-card.featured .feats { color: rgba(250,248,243,.85); }
+
+/* — FAQ — */
+.marketing .faq-list { border-top-color: rgba(255,255,255,.10); }
+.marketing .faq-item { border-bottom-color: rgba(255,255,255,.10); }
+.marketing .faq-item .faq-q { color: var(--color-paper); }
+.marketing .faq-item .faq-toggle { color: var(--color-vg-300); }
+.marketing .faq-item .faq-a { color: rgba(250,248,243,.64); }
+
+/* — Footer — */
+.marketing .site-footer {
+  border-top-color: rgba(255,255,255,.08);
+  background: linear-gradient(180deg, transparent, rgba(0,0,0,.28));
+}
+.marketing .site-footer .logo { color: var(--color-paper); }
+.marketing .site-footer .caption { color: rgba(250,248,243,.5); }
+.marketing .site-footer .eyebrow { color: rgba(250,248,243,.5); }
+.marketing .footer-list a { color: rgba(250,248,243,.6); }
+.marketing .footer-list a:hover { color: var(--color-paper); }
+.marketing .site-footer-bottom { border-top-color: rgba(255,255,255,.08); }

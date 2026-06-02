@@ -4,7 +4,7 @@ import { BrandLogo } from "@/components/brand-logo";
 
 export default function Home() {
   return (
-    <>
+    <div className="marketing">
       <Topbar
         links={[
           { href: "#how", label: "How it works", anchor: true },
@@ -13,7 +13,7 @@ export default function Home() {
           { href: "#faq", label: "FAQ", anchor: true },
         ]}
         primary={
-          <Link href="/login" className="btn btn-secondary btn-sm">
+          <Link href="/login" className="btn btn-on-dark btn-sm">
             Sign in
           </Link>
         }
@@ -21,6 +21,7 @@ export default function Home() {
 
       <main>
         <Hero />
+        <TrustStrip />
         <HowItWorks />
         <ServicesGrid />
         <Pricing />
@@ -28,20 +29,24 @@ export default function Home() {
       </main>
 
       <SiteFooter />
-    </>
+    </div>
   );
 }
 
 function Hero() {
   return (
-    <section className="page hero">
-      <div className="hero-grid">
-        <div>
-          <div className="eyebrow">SMS verification · no KYC</div>
-          <h1>
-            Receive SMS<br />
-            <span className="accent">without the trace.</span>
-          </h1>
+    <section className="hero hero-dark">
+      <FloatingIcons />
+      <div className="page hero-inner">
+        <div className="hero-grid">
+          <div className="hero-copy">
+            <span className="eyebrow-pill">
+              <span className="pulse"></span>SMS verification · no KYC
+            </span>
+            <h1>
+              Receive SMS<br />
+              without <span className="hero-accent">the trace.</span>
+            </h1>
           <p className="lead">
             Top up with crypto, pick a service and country, receive your
             verification code in seconds. 5,000+ services, 180+ countries,
@@ -52,7 +57,7 @@ function Hero() {
               <span className="dot"></span>
               Get started
             </Link>
-            <a className="btn btn-secondary btn-lg" href="#how">
+            <a className="btn btn-on-dark btn-lg" href="#how">
               How it works
             </a>
           </div>
@@ -162,6 +167,58 @@ function Hero() {
           </div>
         </div>
       </div>
+      </div>
+    </section>
+  );
+}
+
+const FLOATERS: Array<{ slug: string; size: number; cls: string }> = [
+  { slug: "telegram", size: 56, cls: "fi-1" },
+  { slug: "whatsapp", size: 46, cls: "fi-2" },
+  { slug: "google", size: 52, cls: "fi-3" },
+  { slug: "discord", size: 44, cls: "fi-4" },
+  { slug: "instagram", size: 58, cls: "fi-5" },
+  { slug: "x", size: 40, cls: "fi-6" },
+  { slug: "spotify", size: 44, cls: "fi-7" },
+  { slug: "tiktok", size: 50, cls: "fi-8" },
+  { slug: "youtube", size: 46, cls: "fi-9" },
+  { slug: "snapchat", size: 40, cls: "fi-10" },
+  { slug: "reddit", size: 38, cls: "fi-11" },
+  { slug: "uber", size: 42, cls: "fi-12" },
+];
+
+function FloatingIcons() {
+  return (
+    <div className="hero-orbit" aria-hidden>
+      <div className="hero-glow" />
+      {FLOATERS.map((f) => (
+        <span key={f.slug} className={`fi ${f.cls}`}>
+          <BrandLogo
+            slug={f.slug}
+            size={f.size}
+            radius={Math.round(f.size * 0.3)}
+            className="fi-chip"
+          />
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function TrustStrip() {
+  return (
+    <section className="page" style={{ paddingTop: 0, paddingBottom: 8 }}>
+      <div className="trusted-card">
+        <div className="ttl">Top up with crypto or Naira</div>
+        <div className="logos">
+          <span>USDT</span>
+          <span>USDC</span>
+          <span>BTC</span>
+          <span>ETH</span>
+          <span>Naira</span>
+          <span>+200 coins</span>
+        </div>
+      </div>
     </section>
   );
 }
@@ -169,16 +226,19 @@ function Hero() {
 const STEPS = [
   {
     num: "01",
+    icon: <WalletIcon />,
     title: "Top up your wallet",
     body: "Pay in Naira (card, bank transfer, pay-with-bank) or in crypto (USDT, USDC, BTC, and 200+ coins). Funds land in your wallet in minutes. No statements.",
   },
   {
     num: "02",
+    icon: <SearchIcon />,
     title: "Pick a service and country",
     body: "Browse 5,000+ services across 180+ countries. We re-quote the wholesale price the moment you click buy — what you see is what you pay.",
   },
   {
     num: "03",
+    icon: <CheckIcon />,
     title: "Receive your code, copy, done",
     body: "The number is yours for ~20 minutes (or rent for hours/days). The code lands in your dashboard the moment SMS arrives.",
   },
@@ -190,7 +250,9 @@ function HowItWorks() {
       <div className="section-head">
         <div className="left">
           <div className="eyebrow">How it works</div>
-          <h2 className="h2">Three steps. No paperwork.</h2>
+          <h2 className="h2">
+            Three steps. <span className="italic-green">No paperwork.</span>
+          </h2>
           <p className="body" style={{ marginTop: 14 }}>
             Buy a temporary number, receive the code, get on with your day. The
             product is anonymity. The price is fair.
@@ -198,16 +260,45 @@ function HowItWorks() {
         </div>
       </div>
 
-      <div className="how-grid">
+      <div className="steps">
         {STEPS.map((s) => (
-          <div key={s.num} className="card flex flex-col gap-4">
-            <div className="eyebrow mono">{s.num}</div>
-            <h3 className="h3">{s.title}</h3>
-            <p className="body">{s.body}</p>
+          <div key={s.num} className="step">
+            <div className="num">{s.num}</div>
+            <div className="ico-sq">{s.icon}</div>
+            <h3>{s.title}</h3>
+            <p>{s.body}</p>
           </div>
         ))}
       </div>
     </section>
+  );
+}
+
+function WalletIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden>
+      <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" />
+      <path d="M3 5v14a2 2 0 0 0 2 2h16v-5" />
+      <path d="M18 12a2 2 0 0 0 0 4h4v-4Z" />
+    </svg>
+  );
+}
+
+function SearchIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden>
+      <circle cx="11" cy="11" r="8" />
+      <path d="m21 21-4.3-4.3" />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden>
+      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+      <path d="m9 11 3 3L22 4" />
+    </svg>
   );
 }
 
@@ -237,7 +328,10 @@ function ServicesGrid() {
       <div className="section-head">
         <div className="left">
           <div className="eyebrow">Services</div>
-          <h2 className="h2">Verify any service that takes a phone number.</h2>
+          <h2 className="h2">
+            Verify any service that{" "}
+            <span className="italic-green">takes a number.</span>
+          </h2>
           <p className="body" style={{ marginTop: 14 }}>
             From mainstream apps to crypto exchanges, dating sites, and ride-share
             platforms. Prices below are starting points — actual price depends on
@@ -267,7 +361,9 @@ function Pricing() {
       <div className="section-head">
         <div className="left">
           <div className="eyebrow">Pricing</div>
-          <h2 className="h2">Pay-as-you-go. No subscriptions, no minimums.</h2>
+          <h2 className="h2">
+            Pay-as-you-go. <span className="italic-green">No minimums.</span>
+          </h2>
           <p className="body" style={{ marginTop: 14 }}>
             Top up your wallet with crypto, then deduct per activation or rental.
             Real-time wholesale pricing, transparent markup.
@@ -276,53 +372,43 @@ function Pricing() {
       </div>
 
       <div className="pricing-grid">
-        <div className="card flex flex-col gap-3">
-          <div className="eyebrow">Activation</div>
-          <div className="flex items-baseline gap-2">
-            <span className="h2 mono">$0.05</span>
-            <span className="caption">+ per number</span>
+        <div className="price-card">
+          <span className="tag">Activation</span>
+          <div className="svc">Pay per number</div>
+          <div className="price">
+            $0.05<small>from, one-time use</small>
           </div>
-          <p className="small">
-            One-time use. Number expires after first SMS or 20 minutes,
-            whichever comes first. Best for account signups.
-          </p>
-          <ul className="caption flex flex-col gap-2" style={{ marginTop: 8 }}>
-            <li>· Auto-cancel + refund if no SMS arrives</li>
-            <li>· 5,000+ services covered</li>
-            <li>· 180+ countries</li>
+          <ul className="feats">
+            <li>Auto-cancel + refund if no SMS arrives</li>
+            <li>5,000+ services covered</li>
+            <li>180+ countries</li>
           </ul>
         </div>
 
-        <div className="card flex flex-col gap-3" style={{ borderColor: "var(--color-ink)" }}>
-          <div className="eyebrow">Rental</div>
-          <div className="flex items-baseline gap-2">
-            <span className="h2 mono">$1+</span>
-            <span className="caption">/ hour, day, week</span>
+        <div className="price-card featured">
+          <span className="pop">Most flexible</span>
+          <span className="tag">Rental</span>
+          <div className="svc">Keep your number</div>
+          <div className="price">
+            $1+<small>per hour, day, or week</small>
           </div>
-          <p className="small">
-            Keep the same number for hours, days, or weeks. Receives unlimited
-            SMS during the rental window. Best for ongoing 2FA.
-          </p>
-          <ul className="caption flex flex-col gap-2" style={{ marginTop: 8 }}>
-            <li>· Unlimited inbound SMS</li>
-            <li>· Auto-renewable</li>
-            <li>· US, UK, EU coverage</li>
+          <ul className="feats">
+            <li>Unlimited inbound SMS</li>
+            <li>Auto-renewable</li>
+            <li>US, UK, EU coverage</li>
           </ul>
         </div>
 
-        <div className="card flex flex-col gap-3">
-          <div className="eyebrow">Volume</div>
-          <div className="flex items-baseline gap-2">
-            <span className="h2 mono">API</span>
+        <div className="price-card">
+          <span className="tag">Volume</span>
+          <div className="svc">API access</div>
+          <div className="price">
+            API<small>bulk pricing · Phase 3</small>
           </div>
-          <p className="small">
-            B2B reseller tier with a programmatic API and bulk pricing. For teams
-            running automation at scale.
-          </p>
-          <ul className="caption flex flex-col gap-2" style={{ marginTop: 8 }}>
-            <li>· REST API + webhooks</li>
-            <li>· Negotiated markup tiers</li>
-            <li>· Phase 3 — contact us</li>
+          <ul className="feats">
+            <li>REST API + webhooks</li>
+            <li>Negotiated markup tiers</li>
+            <li>Contact us</li>
           </ul>
         </div>
       </div>
@@ -363,7 +449,9 @@ function Faq() {
       <div className="section-head">
         <div className="left">
           <div className="eyebrow">FAQ</div>
-          <h2 className="h2">Questions, answered honestly.</h2>
+          <h2 className="h2">
+            Questions, <span className="italic-green">answered honestly.</span>
+          </h2>
         </div>
       </div>
 

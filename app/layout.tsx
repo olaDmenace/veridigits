@@ -55,17 +55,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <link rel="preconnect" href="https://api.fontshare.com" crossOrigin="" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        {/* eslint-disable @next/next/no-page-custom-font -- App Router layout applies fonts globally; General Sans is not on Google Fonts so next/font/google is not viable. */}
+        {/* eslint-disable @next/next/no-page-custom-font -- App Router layout applies fonts globally; a single stylesheet link keeps the three families (Fraunces variable serif w/ optical sizing, Inter, JetBrains Mono) in one request. */}
         <link
           rel="stylesheet"
-          href="https://api.fontshare.com/v2/css?f%5B%5D=general-sans@400,500,600,700&display=swap"
-        />
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;0,9..144,800;1,9..144,400;1,9..144,500;1,9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
         />
         {/* eslint-enable @next/next/no-page-custom-font */}
       </head>
