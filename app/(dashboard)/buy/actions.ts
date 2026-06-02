@@ -13,10 +13,6 @@ import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { inngest } from "@/lib/inngest/client";
 import {
-  applyWalletTransaction,
-} from "@/lib/wallet/apply";
-import { InsufficientBalanceError } from "@/lib/wallet/types";
-import {
   signHoldToken,
   verifyHoldToken,
   HoldTokenError,
@@ -660,35 +656,10 @@ export async function purchase(
     };
   }
 
-  // Settle locally — debit the wallet against the order we just created.
-  try {
-    await applyWalletTransaction({
-      userId: user.id,
-      amountCents: -payload.retailCents,
-      type: "purchase",
-      referenceType: "order",
-      referenceId: orderRow.id,
-      note: `${payload.providerSlug}:${buyResult.upstreamOrderId}`,
-    });
-  } catch (err) {
-    // Wallet drained between getQuote and purchase, or other DB error.
-    // Compensating cancel: restore upstream + delete the local order row.
-    await safeCancelOrder(payload.providerSlug, buyResult.upstreamOrderId);
-    await admin.from("orders").delete().eq("id", orderRow.id);
-
-    if (err instanceof InsufficientBalanceError) {
-      return {
-        ok: false,
-        code: "insufficient_balance",
-        message: "Wallet was drained mid-purchase. Top up and try again.",
-      };
-    }
-    return {
-      ok: false,
-      code: "internal",
-      message: err instanceof Error ? err.message : "wallet debit failed",
-    };
-  }
+  // Defer-debit: we do NOT charge here. The wallet is debited when the first
+  // valid SMS lands (see lib/inngest/poll-orders.ts). The balance pre-check
+  // above is a friendly gate only; nothing is reserved, so the eventual
+  // capture can still fail if the user spends the balance elsewhere first.
 
   // Kick off the per-order polling loop. Errors here are non-fatal —
   // the user still owns the number, expire-orders will handle the worst case.
