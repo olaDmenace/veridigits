@@ -589,13 +589,15 @@ function QuotePanel({
         >
           <span className="dot"></span>
           {isPending
-            ? "Charging wallet…"
-            : `Buy for ${formatUsdCents(q.retailCents)}`}
+            ? "Reserving number…"
+            : `Get number · ${formatUsdCents(q.retailCents)}`}
         </button>
       </form>
 
       <p className="caption text-center">
-        Quote valid for 30s. Refunded automatically if no SMS arrives.
+        Quote valid for 30s. You&apos;re only charged{" "}
+        {formatUsdCents(q.retailCents)} when a valid code arrives — cancel or
+        let it expire for free otherwise.
       </p>
     </div>
   );
