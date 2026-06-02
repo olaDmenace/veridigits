@@ -7,7 +7,7 @@ export default function LegalLayout({
   children: React.ReactNode;
 }) {
   return (
-    <>
+    <div className="theme-dark">
       <Topbar
         links={[
           { href: "/legal/terms", label: "Terms" },
@@ -22,6 +22,6 @@ export default function LegalLayout({
       />
 
       <main className="page section legal-prose">{children}</main>
-    </>
+    </div>
   );
 }

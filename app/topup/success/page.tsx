@@ -65,7 +65,7 @@ export default async function PaymentReceivedPage({
     : `/login?redirect=/dashboard`;
 
   return (
-    <>
+    <div className="theme-dark">
       <Topbar
         brandHref={user ? "/dashboard" : "/"}
         links={[]}
@@ -152,7 +152,7 @@ export default async function PaymentReceivedPage({
           ) : null}
         </div>
       </main>
-    </>
+    </div>
   );
 }
 

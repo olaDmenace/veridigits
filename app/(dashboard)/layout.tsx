@@ -37,7 +37,7 @@ export default async function DashboardLayout({
   if (profile?.is_admin) links.push({ href: "/admin", label: "Admin" });
 
   return (
-    <>
+    <div className="theme-dark">
       <Topbar
         brandHref="/dashboard"
         links={links}
@@ -51,6 +51,6 @@ export default async function DashboardLayout({
         }
       />
       <main className="page section">{children}</main>
-    </>
+    </div>
   );
 }

@@ -26,7 +26,7 @@ export default async function AdminLayout({
   }
 
   return (
-    <>
+    <div className="theme-dark">
       <Topbar
         brandHref="/admin"
         brandLabel="ADMIN"
@@ -48,6 +48,6 @@ export default async function AdminLayout({
         }
       />
       <main className="page section">{children}</main>
-    </>
+    </div>
   );
 }

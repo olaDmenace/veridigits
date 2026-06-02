@@ -6,7 +6,7 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <main className="min-h-dvh flex flex-col">
+    <main className="theme-dark min-h-dvh flex flex-col">
       {/* main element gets the global gutter from globals.css; just need
           vertical breathing room + centering here. */}
       <div className="flex-1 flex items-center justify-center py-12">

@@ -21,11 +21,12 @@ export default function ErrorBoundary({
   }, [error]);
 
   return (
-    <main className="page section">
-      <div
-        className="card flex flex-col items-center gap-5 text-center"
-        style={{ padding: 56, maxWidth: 560, margin: "0 auto" }}
-      >
+    <div className="theme-dark">
+      <main className="page section">
+        <div
+          className="card flex flex-col items-center gap-5 text-center"
+          style={{ padding: 56, maxWidth: 560, margin: "0 auto" }}
+        >
         <div
           className="eyebrow mono"
           style={{ color: "var(--color-danger)" }}
@@ -58,7 +59,8 @@ export default function ErrorBoundary({
             Back to home
           </Link>
         </div>
-      </div>
-    </main>
+        </div>
+      </main>
+    </div>
   );
 }

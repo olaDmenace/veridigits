@@ -1646,3 +1646,135 @@ main,
 .marketing .footer-list a { color: rgba(250,248,243,.6); }
 .marketing .footer-list a:hover { color: var(--color-paper); }
 .marketing .site-footer-bottom { border-top-color: rgba(255,255,255,.08); }
+
+/* ============================================================
+   APP DARK THEME  (auth · dashboard · admin · legal · edges)
+   ------------------------------------------------------------
+   The whole design system is token-driven, so the dark surface is
+   produced by REDEFINING the semantic tokens — every component that
+   reads --color-paper/-surface/-ink/-border (topbar, cards, inputs,
+   tables, drawer, buttons, domain widgets) inverts from this one
+   place. The fixes below cover the two spots a flat token-flip can't
+   reach:
+     1. tokens that conflated "ink = text" with "ink = dark surface"
+        (.wallet, .otp-reveal, all .selected chip states), and
+     2. ink text sitting on a GREEN fill (.btn-primary, .ico-sq, .pop)
+        which would turn light-on-green after the flip.
+   The marketing landing keeps its own .marketing treatment and is
+   intentionally NOT routed through here (a global flip would darken
+   its bright phone mockup).
+============================================================ */
+.theme-dark {
+  /* — surfaces (warm dark, matched to the marketing base) — */
+  --color-paper:         #16120E;
+  --color-surface:       #1E1A14;
+  --color-subtle:        #241F18;
+  --color-quiet:         #2C2620;
+  --color-border:        rgba(255,255,255,.10);
+  --color-border-strong: rgba(255,255,255,.18);
+
+  /* — ink ramp flips to the light text scale — */
+  --color-ink:           #FAF8F3;
+  --color-ink-2:         rgba(250,248,243,.80);
+  --color-ink-muted:     rgba(250,248,243,.56);
+  --color-ink-subtle:    rgba(250,248,243,.40);
+
+  /* — green "text/accent on light" tones were too dark on a dark
+       surface; remap the deep green to the bright one so every
+       eyebrow / price / code / link recolors at once — */
+  --color-vg-700:        #6ED593;
+  --color-vg-50:         rgba(0,196,106,.12);   /* soft chip fill  */
+  --color-vg-100:        rgba(0,196,106,.30);   /* soft chip border */
+
+  /* — system soft fills re-toned translucent for dark — */
+  --color-danger-soft:   rgba(212,63,63,.16);
+  --color-warn-soft:     rgba(199,126,27,.16);
+  --color-info-soft:     rgba(37,99,235,.16);
+
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+
+/* down-page green glow, same language as the marketing page.
+   z-index:-1 (inside the isolate context) keeps it behind all content
+   without needing to set position/z-index on the children — important
+   because a blanket `.theme-dark > *` rule would clobber the Topbar's
+   own `position: sticky`. */
+.theme-dark::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(46% 22% at 86% 22%, rgba(0,196,106,.10), transparent 62%),
+    radial-gradient(42% 20% at 8% 58%, rgba(0,196,106,.07), transparent 62%),
+    radial-gradient(48% 20% at 92% 88%, rgba(0,196,106,.06), transparent 62%);
+}
+
+/* — keep dark ink on GREEN fills (flip turned --color-ink light) — */
+.theme-dark .btn-primary,
+.theme-dark .btn-accent,
+.theme-dark .step .ico-sq,
+.theme-dark .price-card .pop,
+.theme-dark .chip.selected .tic { color: #14110C; }
+
+/* — logo mark: ink fill would vanish; flip to the green chip — */
+.theme-dark .logo .mark { background: var(--color-vg-500); color: #14110C; }
+
+/* — .btn-ink was the quiet dark CTA; becomes a raised dark button — */
+.theme-dark .btn-ink {
+  background: #2A241D; color: var(--color-ink);
+  border-color: rgba(255,255,255,.10);
+  box-shadow: none;
+}
+.theme-dark .btn-ink:hover { background: #332C23; }
+
+/* — Wallet: ink-surface card → warm raised card, light text — */
+.theme-dark .wallet {
+  background: linear-gradient(180deg, #221D16, #1A1611);
+  color: var(--color-ink);
+  border: 1px solid rgba(255,255,255,.08);
+}
+.theme-dark .wallet .meta div b { color: var(--color-ink); }
+
+/* — OTP reveal: same ink-surface treatment — */
+.theme-dark .otp-reveal {
+  background: #221D16; color: var(--color-ink);
+  border: 1px solid rgba(255,255,255,.08);
+}
+
+/* — Selected states used an ink fill; make them green-tinted — */
+.theme-dark .cty-row.selected,
+.theme-dark .topup-tile.selected,
+.theme-dark .rail-tab.selected,
+.theme-dark .chip.selected {
+  background: rgba(0,196,106,.16);
+  color: var(--color-ink);
+  border-color: rgba(0,196,106,.50);
+}
+.theme-dark .mode-toggle-btn.is-active {
+  background: rgba(0,196,106,.18);
+  color: var(--color-ink);
+}
+
+/* — Selection affordance on tiles → green instead of light ink — */
+.theme-dark .svc-tile:hover,
+.theme-dark .svc-tile.selected,
+.theme-dark .topup-tile:hover,
+.theme-dark .rail-tab:hover { border-color: rgba(0,196,106,.45); }
+
+/* — Featured pricing card (if used on a dark surface) → glow card — */
+.theme-dark .price-card.featured {
+  background: linear-gradient(180deg, rgba(0,196,106,.14), rgba(0,196,106,.035));
+  border-color: rgba(0,196,106,.40);
+  box-shadow:
+    0 0 0 1px rgba(0,196,106,.28),
+    0 30px 60px -30px rgba(0,196,106,.35);
+}
+.theme-dark .price-card.featured .tag { color: #14110C; background: var(--color-vg-500); }
+
+/* — Badge / banner borders were hardcoded light; retint for dark — */
+.theme-dark .badge-warn,
+.theme-dark .legal-prose .draft-banner { border-color: rgba(199,126,27,.40); }
+.theme-dark .badge-danger { border-color: rgba(212,63,63,.40); }
+.theme-dark .badge-info { border-color: rgba(37,99,235,.40); }

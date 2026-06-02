@@ -6,7 +6,7 @@ export const metadata = {
 
 export default function NotFound() {
   return (
-    <>
+    <div className="theme-dark">
       <header className="topbar">
         <div className="page topbar-inner">
           <Link className="logo" href="/">
@@ -45,6 +45,6 @@ export default function NotFound() {
           </div>
         </div>
       </main>
-    </>
+    </div>
   );
 }
