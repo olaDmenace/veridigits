@@ -182,6 +182,7 @@ export type Database = {
       orders: {
         Row: {
           cancelled_at: string | null
+          charged_at: string | null
           completed_at: string | null
           country_id: string | null
           created_at: string
@@ -201,6 +202,7 @@ export type Database = {
         }
         Insert: {
           cancelled_at?: string | null
+          charged_at?: string | null
           completed_at?: string | null
           country_id?: string | null
           created_at?: string
@@ -220,6 +222,7 @@ export type Database = {
         }
         Update: {
           cancelled_at?: string | null
+          charged_at?: string | null
           completed_at?: string | null
           country_id?: string | null
           created_at?: string
