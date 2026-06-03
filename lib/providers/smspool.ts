@@ -12,6 +12,7 @@ import {
   type ProviderPriceQuote,
   type RentalBuyParams,
 } from "./types";
+import { STRICT_SCREENING_SERVICES } from "./preference";
 
 /**
  * SMSPool upstream provider.
@@ -124,97 +125,75 @@ export class SmsPoolProvider implements OtpProvider {
   }
 
   async syncCatalog(): Promise<ProviderCatalogEntry[]> {
-    // Per-country service lists with price/stock. SMSPool uses numeric IDs, so
-    // upstream_*_code stays the ID (what buy/check need) while the canonical
-    // serviceSlug/countryIso come from the human names so services align with
-    // 5SIM (e.g. "Telegram" -> "telegram"). Only positively priced + stocked
-    // rows are emitted, so an unexpected response shape yields nothing rather
-    // than bad data.
-    //
-    // ─── VERIFY-ON-FIRST-LIVE-RUN ─────────────────────────────────────────
-    // Whether /service/retrieve_all?country= returns price+stock, and the
-    // field names, are unconfirmed (no network here). Also: SMSPool country
-    // NAMES rarely match 5SIM's idiosyncratic slugs (e.g. "United States" ->
-    // "unitedstates" vs 5SIM "usa"), so cross-provider fallback by country
-    // needs a country-mapping table — a documented follow-up.
+    // SMSPool's /service/retrieve_all returns only {ID, name, favourite} — no
+    // price or stock. We populate SMSPool as the US fallback for the
+    // strict-screening services TextVerified is primary for (so e.g. Apple /
+    // Instagram, which 5SIM doesn't carry in the US, get a fallback). That's a
+    // small, bounded set, so we fetch a real price per service via
+    // /request/price; if that call fails or returns nothing we still list the
+    // row with a placeholder (the live re-quote at purchase is authoritative).
+    // Numeric IDs stay the upstream code; countryIso is pinned to "usa" so the
+    // rows share a (service,country) with 5SIM / TextVerified.
     const countriesRaw = await this.get<unknown>("/country/retrieve_all");
     const countries: SmsPoolCountry[] = Array.isArray(countriesRaw)
       ? (countriesRaw as SmsPoolCountry[])
       : [];
-    // Diagnostic: surface the real shape in the run logs (one line).
-    const countrySample = JSON.stringify(
-      Array.isArray(countriesRaw) ? countriesRaw[0] : countriesRaw,
-    ).slice(0, 300);
-    console.warn(
-      `[smspool] /country/retrieve_all isArray=${Array.isArray(countriesRaw)} count=${countries.length} sample=`,
-      countrySample,
+
+    const us = countries.find(
+      (c) =>
+        (c.short_name != null && /^us$/i.test(String(c.short_name))) ||
+        /united states/i.test(c.name ?? ""),
     );
-
-    const out: ProviderCatalogEntry[] = [];
-    let loggedServices = false;
-    let serviceSample = "(no services fetched)";
-
-    for (const c of countries) {
-      const countryId = idOf(c.ID ?? c.id);
-      if (!countryId) continue;
-      const countryName = stringOrNull(c.name) ?? countryId;
-
-      let services: SmsPoolCatalogService[] = [];
-      try {
-        const rawSvc = await this.get<unknown>(
-          `/service/retrieve_all?country=${encodeURIComponent(countryId)}`,
-        );
-        services = Array.isArray(rawSvc) ? (rawSvc as SmsPoolCatalogService[]) : [];
-        if (!loggedServices) {
-          loggedServices = true;
-          serviceSample = JSON.stringify(
-            Array.isArray(rawSvc) ? rawSvc[0] : rawSvc,
-          ).slice(0, 300);
-          console.warn(
-            `[smspool] /service/retrieve_all?country=${countryId} isArray=${Array.isArray(rawSvc)} count=${services.length} sample=`,
-            serviceSample,
-          );
-        }
-      } catch (err) {
-        if (!loggedServices) {
-          loggedServices = true;
-          console.warn(
-            "[smspool] /service/retrieve_all failed:",
-            err instanceof Error ? err.message : String(err),
-          );
-        }
-        continue; // skip this country on a transient error
-      }
-
-      for (const s of services) {
-        const serviceId = idOf(s.ID ?? s.id);
-        if (!serviceId) continue;
-        const price = toNumber(s.price ?? s.cost);
-        const avail = pickNumber(s.available, s.stock, s.count, s.amount) ?? 0;
-        if (price <= 0 || avail <= 0) continue;
-        const serviceName = stringOrNull(s.name) ?? serviceId;
-        out.push({
-          upstreamServiceCode: serviceId,
-          upstreamServiceName: serviceName,
-          upstreamCountryCode: countryId,
-          upstreamOperator: "default",
-          priceCents: Math.round(price * 100),
-          availableCount: avail,
-          serviceSlug: slugify(serviceName),
-          countryIso: slugify(countryName),
-          countryName,
-        });
-      }
-    }
-    console.warn(`[smspool] catalog entries produced: ${out.length}`);
-    // If we produced nothing, throw a diagnostic carrying the raw response
-    // shapes so it lands (untruncated) in provider_sync_runs.error for analysis.
-    if (out.length === 0) {
+    const countryId = us ? idOf(us.ID ?? us.id) : null;
+    if (!countryId) {
       throw new ProviderApiError(
         this.slug,
-        `0 catalog entries (shape mismatch). countries=${countries.length} countrySample=${countrySample} | serviceSample=${serviceSample}`,
+        `US country not found (of ${countries.length})`,
       );
     }
+
+    const servicesRaw = await this.get<unknown>(
+      `/service/retrieve_all?country=${encodeURIComponent(countryId)}`,
+    );
+    const services: SmsPoolCatalogService[] = Array.isArray(servicesRaw)
+      ? (servicesRaw as SmsPoolCatalogService[])
+      : [];
+
+    const out: ProviderCatalogEntry[] = [];
+    for (const s of services) {
+      const serviceId = idOf(s.ID ?? s.id);
+      const name = stringOrNull(s.name);
+      if (!serviceId || !name) continue;
+      const slug = slugify(name);
+      // Only back the services we route to a premium provider in the US.
+      if (!STRICT_SCREENING_SERVICES.has(slug)) continue;
+
+      let priceCents = SMSPOOL_PLACEHOLDER_CENTS;
+      try {
+        const p = await this.post<SmsPoolPrice>("/request/price", {
+          country: countryId,
+          service: serviceId,
+        });
+        const c = Math.round(toNumber(p.price ?? p.cost) * 100);
+        if (c > 0) priceCents = c;
+      } catch {
+        // keep placeholder — live re-quote at purchase is authoritative
+      }
+
+      out.push({
+        upstreamServiceCode: serviceId,
+        upstreamServiceName: name,
+        upstreamCountryCode: countryId,
+        upstreamOperator: "default",
+        priceCents,
+        availableCount: AVAILABILITY_SENTINEL,
+        serviceSlug: slug,
+        countryIso: "usa", // align with 5SIM / TextVerified US rows
+        countryName: "USA",
+      });
+    }
+
+    console.warn(`[smspool] US strict-service catalog entries: ${out.length}`);
     return out;
   }
 
@@ -290,6 +269,7 @@ export class SmsPoolProvider implements OtpProvider {
 // ── response shapes (documented; verify field names on first live run) ──────
 interface SmsPoolPrice {
   price?: string | number;
+  cost?: string | number;
   available?: string | number;
   amount?: string | number;
   stock?: string | number;
@@ -319,6 +299,7 @@ interface SmsPoolCountry {
   ID?: string | number;
   id?: string | number;
   name?: string;
+  short_name?: string;
 }
 interface SmsPoolCatalogService {
   ID?: string | number;
@@ -382,6 +363,10 @@ function mapCheckStatus(raw: number | string | undefined): ProviderOrderStatus {
 
 const AVAILABILITY_SENTINEL = 999;
 const DEFAULT_ACTIVATION_TTL_MS = 10 * 60 * 1000;
+/** Cap per-service price calls per sync so the job stays well-bounded. */
+/** Cached price used when /request/price is unavailable at sync time; the live
+ *  re-quote at purchase is authoritative. */
+const SMSPOOL_PLACEHOLDER_CENTS = 150;
 
 /** Canonical service slug from a display name (aligns across providers). */
 function slugify(name: string): string {

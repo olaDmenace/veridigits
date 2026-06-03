@@ -149,27 +149,52 @@ describe("SmsPoolProvider.cancelOrder", () => {
 });
 
 describe("SmsPoolProvider.syncCatalog", () => {
-  it("builds aligned entries from per-country service lists, skipping unpriced/out-of-stock", async () => {
+  it("US strict services: real price where available, placeholder otherwise; aligns to 'usa'; skips non-strict", async () => {
     (global.fetch as ReturnType<typeof vi.fn>)
       // /country/retrieve_all
-      .mockResolvedValueOnce(jsonResponse([{ ID: 1, name: "United States" }]))
-      // /service/retrieve_all?country=1
       .mockResolvedValueOnce(
         jsonResponse([
-          { ID: 10, name: "Telegram", price: "0.20", available: 5 },
-          { ID: 11, name: "WhatsApp", price: "0.00", available: 9 }, // unpriced → skip
-          { ID: 12, name: "Google", price: "0.30", available: 0 }, // no stock → skip
+          { ID: 2, name: "Canada", short_name: "CA" },
+          { ID: 1, name: "United States", short_name: "US" },
         ]),
-      );
+      )
+      // /service/retrieve_all?country=1  (no prices in this response)
+      .mockResolvedValueOnce(
+        jsonResponse([
+          { ID: 10, name: "Telegram", favourite: 0 },
+          { ID: 11, name: "WhatsApp", favourite: 0 },
+          { ID: 12, name: "Google", favourite: 0 },
+          { ID: 99, name: "1688", favourite: 0 }, // not strict → ignored
+        ]),
+      )
+      // /request/price for the 3 strict services (1688 is filtered before pricing)
+      .mockResolvedValueOnce(jsonResponse({ price: "0.20" }))
+      .mockResolvedValueOnce(jsonResponse({ price: "0.35" }))
+      .mockResolvedValueOnce(jsonResponse({ price: "0" })); // no price → placeholder
+
     const entries = await provider().syncCatalog();
-    expect(entries).toHaveLength(1);
+    expect(entries).toHaveLength(3);
+    expect(entries.map((e) => e.serviceSlug)).toEqual([
+      "telegram",
+      "whatsapp",
+      "google",
+    ]);
     expect(entries[0]).toMatchObject({
       upstreamServiceCode: "10",
       upstreamCountryCode: "1",
-      serviceSlug: "telegram",
-      countryIso: "unitedstates",
+      countryIso: "usa",
       priceCents: 20,
-      availableCount: 5,
     });
+    expect(entries[1].priceCents).toBe(35);
+    expect(entries[2].priceCents).toBeGreaterThan(0); // google → placeholder
+  });
+
+  it("throws a diagnostic when the US country isn't found", async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+      jsonResponse([{ ID: 2, name: "Canada", short_name: "CA" }]),
+    );
+    await expect(provider().syncCatalog()).rejects.toBeInstanceOf(
+      ProviderApiError,
+    );
   });
 });
