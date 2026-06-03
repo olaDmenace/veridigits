@@ -127,15 +127,18 @@ async function pollOnce(orderId: string): Promise<PollTick> {
 
   // Classify any received SMS, then decide the outcome. Under defer-debit we
   // charge ONLY on a valid capture; cross-service and upstream-cancel paths
-  // move no money (nothing was charged up front).
+  // move no money (nothing was charged up front). Note: provider status
+  // "received" does not imply an SMS exists (5SIM's RECEIVED = "waiting for
+  // SMS"), so capture is gated on anyMessage below.
   const evidence =
     upstream.status === "received"
       ? await classifyEvidence(supabase, orderId, serviceSlug)
-      : { anyMatch: false, anyMismatch: false };
+      : { anyMessage: false, anyMatch: false, anyMismatch: false };
 
   const outcome = decideSmsOutcome({
     upstreamStatus: upstream.status,
     currentStatus: order.status,
+    anyMessage: evidence.anyMessage,
     anyMatch: evidence.anyMatch,
     anyMismatch: evidence.anyMismatch,
   });
@@ -239,7 +242,7 @@ async function classifyEvidence(
   supabase: ReturnType<typeof getAdminClient>,
   orderId: string,
   serviceSlug: string | null,
-): Promise<{ anyMatch: boolean; anyMismatch: boolean }> {
+): Promise<{ anyMessage: boolean; anyMatch: boolean; anyMismatch: boolean }> {
   const { data: msgs } = await supabase
     .from("received_messages")
     .select("sender")
@@ -252,7 +255,7 @@ async function classifyEvidence(
     if (d.decision === "match") anyMatch = true;
     if (d.decision === "mismatch") anyMismatch = true;
   }
-  return { anyMatch, anyMismatch };
+  return { anyMessage: (msgs?.length ?? 0) > 0, anyMatch, anyMismatch };
 }
 
 /**

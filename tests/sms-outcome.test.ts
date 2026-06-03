@@ -7,17 +7,35 @@ describe("decideSmsOutcome", () => {
       decideSmsOutcome({
         upstreamStatus: "received",
         currentStatus: "active",
+        anyMessage: true,
         anyMatch: true,
         anyMismatch: false,
       }),
     ).toBe("capture");
   });
 
-  it("treats no-evidence (neither match nor mismatch) as a normal capture", () => {
+  // Regression: 5SIM's RECEIVED status means "waiting for SMS", not "SMS
+  // arrived". It flips ~2s after purchase with an empty sms[] array. Capturing
+  // on status alone (no message) charged the wallet and blocked Cancel with no
+  // code ever delivered. With no message present we must keep waiting.
+  it("waits (does NOT capture) when status is received but no SMS exists", () => {
     expect(
       decideSmsOutcome({
         upstreamStatus: "received",
         currentStatus: "active",
+        anyMessage: false,
+        anyMatch: false,
+        anyMismatch: false,
+      }),
+    ).toBe("wait");
+  });
+
+  it("captures a message from an unrecognized sender (present but no match/mismatch)", () => {
+    expect(
+      decideSmsOutcome({
+        upstreamStatus: "received",
+        currentStatus: "active",
+        anyMessage: true,
         anyMatch: false,
         anyMismatch: false,
       }),
@@ -29,6 +47,7 @@ describe("decideSmsOutcome", () => {
       decideSmsOutcome({
         upstreamStatus: "received",
         currentStatus: "active",
+        anyMessage: true,
         anyMatch: false,
         anyMismatch: true,
       }),
@@ -40,6 +59,7 @@ describe("decideSmsOutcome", () => {
       decideSmsOutcome({
         upstreamStatus: "received",
         currentStatus: "active",
+        anyMessage: true,
         anyMatch: true,
         anyMismatch: true,
       }),
@@ -51,6 +71,7 @@ describe("decideSmsOutcome", () => {
       decideSmsOutcome({
         upstreamStatus: "received",
         currentStatus: "received",
+        anyMessage: true,
         anyMatch: true,
         anyMismatch: false,
       }),
@@ -62,6 +83,7 @@ describe("decideSmsOutcome", () => {
       decideSmsOutcome({
         upstreamStatus: "cancelled",
         currentStatus: "active",
+        anyMessage: false,
         anyMatch: false,
         anyMismatch: false,
       }),
@@ -73,6 +95,7 @@ describe("decideSmsOutcome", () => {
       decideSmsOutcome({
         upstreamStatus: "pending",
         currentStatus: "active",
+        anyMessage: false,
         anyMatch: false,
         anyMismatch: false,
       }),

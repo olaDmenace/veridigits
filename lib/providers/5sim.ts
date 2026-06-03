@@ -268,6 +268,11 @@ function isOrder(value: unknown): value is FivesimOrder {
 
 function mapStatus(s: string): ProviderOrderStatus {
   // 5SIM statuses: PENDING, RECEIVED, CANCELED, TIMEOUT, FINISHED, BANNED.
+  // TRAP: 5SIM "RECEIVED" means "number live, WAITING for an SMS" — not "SMS
+  // arrived". It flips ~2s after purchase with an empty sms[] array. The real
+  // "code arrived" signal is the sms[] array being non-empty (-> messages).
+  // So callers must gate capture/charge on actual messages, never on this
+  // status alone (see decideSmsOutcome's anyMessage guard).
   switch (s) {
     case "PENDING":
       return "pending";
