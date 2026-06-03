@@ -1,5 +1,6 @@
 import { FiveSimProvider } from "./5sim";
 import { SmsPoolProvider } from "./smspool";
+import { TextVerifiedProvider } from "./textverified";
 import type { OtpProvider } from "./types";
 
 export * from "./types";
@@ -34,6 +35,12 @@ export function getProvider(slug: string): OtpProvider {
       break;
     case "smspool":
       provider = new SmsPoolProvider(requireEnv("SMSPOOL_API_KEY"));
+      break;
+    case "textverified":
+      provider = new TextVerifiedProvider(
+        requireEnv("TEXTVERIFIED_API_KEY"),
+        requireEnv("TEXTVERIFIED_API_USERNAME"),
+      );
       break;
     default:
       throw new Error(`unknown provider slug: ${slug}`);

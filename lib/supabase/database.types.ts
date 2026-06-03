@@ -372,6 +372,7 @@ export type Database = {
           id: string
           is_enabled: boolean
           last_synced_at: string | null
+          preference_rank: number
           provider_slug: string
           recent_received_count: number
           recent_total_count: number
@@ -388,6 +389,7 @@ export type Database = {
           id?: string
           is_enabled?: boolean
           last_synced_at?: string | null
+          preference_rank?: number
           provider_slug: string
           recent_received_count?: number
           recent_total_count?: number
@@ -404,6 +406,7 @@ export type Database = {
           id?: string
           is_enabled?: boolean
           last_synced_at?: string | null
+          preference_rank?: number
           provider_slug?: string
           recent_received_count?: number
           recent_total_count?: number
