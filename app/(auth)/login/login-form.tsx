@@ -90,7 +90,7 @@ export function LoginForm({
 
       <p className="caption text-center">
         Don&apos;t have an account?{" "}
-        <Link href="/signup" className="font-semibold text-[var(--color-lime-600)] underline underline-offset-2">
+        <Link href="/signup" className="link-lime">
           Sign up
         </Link>
       </p>

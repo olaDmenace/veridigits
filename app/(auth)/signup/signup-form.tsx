@@ -185,10 +185,7 @@ export function SignupForm() {
 
       <p className="caption text-center">
         Already have an account?{" "}
-        <Link
-          href="/login"
-          className="font-semibold text-[var(--color-lime-600)] underline underline-offset-2"
-        >
+        <Link href="/login" className="link-lime">
           Sign in
         </Link>
       </p>
