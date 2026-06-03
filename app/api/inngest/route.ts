@@ -5,6 +5,7 @@ import { pollOrderFn } from "@/lib/inngest/poll-orders";
 import { expireOrdersFn } from "@/lib/inngest/expire-orders";
 import { abuseVelocityFn } from "@/lib/inngest/abuse-velocity";
 import { reconcileWalletsFn } from "@/lib/inngest/reconcile-wallets";
+import { reconcileUnchargedOrdersFn } from "@/lib/inngest/reconcile-uncharged";
 import { recomputeOperatorSuccessRatesFn } from "@/lib/inngest/operator-success-rates";
 
 /**
@@ -20,6 +21,7 @@ export const { GET, POST, PUT } = serve({
     expireOrdersFn,
     abuseVelocityFn,
     reconcileWalletsFn,
+    reconcileUnchargedOrdersFn,
     recomputeOperatorSuccessRatesFn,
   ],
 });
