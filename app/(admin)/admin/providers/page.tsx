@@ -3,6 +3,9 @@ import { formatUsdCents } from "@/lib/utils/money";
 import { SyncButton } from "./sync-button";
 
 export const metadata = { title: "Providers · Admin" };
+// Always render live — the catalog sync runs async after the Sync button's
+// revalidate, so a cached snapshot would miss freshly-synced provider rows.
+export const dynamic = "force-dynamic";
 
 interface ProviderRow {
   slug: string;
