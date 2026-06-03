@@ -142,13 +142,17 @@ export class SmsPoolProvider implements OtpProvider {
       ? (countriesRaw as SmsPoolCountry[])
       : [];
     // Diagnostic: surface the real shape in the run logs (one line).
+    const countrySample = JSON.stringify(
+      Array.isArray(countriesRaw) ? countriesRaw[0] : countriesRaw,
+    ).slice(0, 300);
     console.warn(
       `[smspool] /country/retrieve_all isArray=${Array.isArray(countriesRaw)} count=${countries.length} sample=`,
-      JSON.stringify(Array.isArray(countriesRaw) ? countriesRaw[0] : countriesRaw).slice(0, 400),
+      countrySample,
     );
 
     const out: ProviderCatalogEntry[] = [];
     let loggedServices = false;
+    let serviceSample = "(no services fetched)";
 
     for (const c of countries) {
       const countryId = idOf(c.ID ?? c.id);
@@ -163,9 +167,12 @@ export class SmsPoolProvider implements OtpProvider {
         services = Array.isArray(rawSvc) ? (rawSvc as SmsPoolCatalogService[]) : [];
         if (!loggedServices) {
           loggedServices = true;
+          serviceSample = JSON.stringify(
+            Array.isArray(rawSvc) ? rawSvc[0] : rawSvc,
+          ).slice(0, 300);
           console.warn(
             `[smspool] /service/retrieve_all?country=${countryId} isArray=${Array.isArray(rawSvc)} count=${services.length} sample=`,
-            JSON.stringify(Array.isArray(rawSvc) ? rawSvc[0] : rawSvc).slice(0, 400),
+            serviceSample,
           );
         }
       } catch (err) {
@@ -200,6 +207,14 @@ export class SmsPoolProvider implements OtpProvider {
       }
     }
     console.warn(`[smspool] catalog entries produced: ${out.length}`);
+    // If we produced nothing, throw a diagnostic carrying the raw response
+    // shapes so it lands (untruncated) in provider_sync_runs.error for analysis.
+    if (out.length === 0) {
+      throw new ProviderApiError(
+        this.slug,
+        `0 catalog entries (shape mismatch). countries=${countries.length} countrySample=${countrySample} | serviceSample=${serviceSample}`,
+      );
+    }
     return out;
   }
 

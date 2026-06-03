@@ -228,9 +228,10 @@ export class TextVerifiedProvider implements OtpProvider {
       cache: "no-store",
     });
     if (!res.ok) {
+      const body = await res.text().catch(() => "");
       throw new ProviderApiError(
         this.slug,
-        `auth returned ${res.status}`,
+        `auth returned ${res.status}: ${body.slice(0, 200)}`,
         res.status,
       );
     }
