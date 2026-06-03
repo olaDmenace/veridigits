@@ -187,7 +187,7 @@ export function SignupForm() {
         Already have an account?{" "}
         <Link
           href="/login"
-          className="font-medium text-[var(--color-ink)] underline-offset-2 hover:underline"
+          className="font-semibold text-[var(--color-vg-700)] underline underline-offset-2"
         >
           Sign in
         </Link>
