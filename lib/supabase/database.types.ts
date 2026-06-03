@@ -434,6 +434,33 @@ export type Database = {
           },
         ]
       }
+      provider_sync_runs: {
+        Row: {
+          entries_processed: number
+          error: string | null
+          id: string
+          ok: boolean
+          provider_slug: string
+          ran_at: string
+        }
+        Insert: {
+          entries_processed?: number
+          error?: string | null
+          id?: string
+          ok?: boolean
+          provider_slug: string
+          ran_at?: string
+        }
+        Update: {
+          entries_processed?: number
+          error?: string | null
+          id?: string
+          ok?: boolean
+          provider_slug?: string
+          ran_at?: string
+        }
+        Relationships: []
+      }
       received_messages: {
         Row: {
           content: string

@@ -68,6 +68,18 @@ export const syncCatalogFn = inngest.createFunction(
         failed.push({ slug, error: result.error });
         logger.error(`catalog sync failed for ${slug}`, { error: result.error });
       }
+      // Persist the per-provider outcome so failures are diagnosable from the DB.
+      await step.run(`record-${slug}`, async () => {
+        await getAdminClient()
+          .from("provider_sync_runs")
+          .insert({
+            provider_slug: slug,
+            entries_processed: result.entriesProcessed,
+            ok: !result.error,
+            error: result.error ?? null,
+          });
+        return { recorded: true };
+      });
     }
 
     return {
