@@ -45,109 +45,115 @@ export function SignupForm() {
       </div>
 
       <form action={formAction} className="flex flex-col gap-4">
-        <div>
-          <label className="label" htmlFor="email">
-            Email
-          </label>
-          <input
-            id="email"
-            className="input"
-            name="email"
-            type="email"
-            autoComplete="email"
-            required
-            defaultValue={state?.email}
-            placeholder="you@example.com"
-          />
+        <div className="field-grid">
+          <div>
+            <label className="label" htmlFor="email">
+              Email
+            </label>
+            <input
+              id="email"
+              className="input"
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
+              defaultValue={state?.email}
+              placeholder="you@example.com"
+            />
+          </div>
+
+          <div>
+            <label className="label" htmlFor="username">
+              Username
+            </label>
+            <input
+              id="username"
+              className="input"
+              name="username"
+              type="text"
+              autoComplete="username"
+              required
+              minLength={3}
+              maxLength={20}
+              pattern="[a-zA-Z][a-zA-Z0-9_]{2,19}"
+              defaultValue={state?.username}
+              placeholder="e.g. nightowl_42"
+            />
+          </div>
         </div>
 
-        <div>
-          <label className="label" htmlFor="username">
-            Username
-          </label>
-          <input
-            id="username"
-            className="input"
-            name="username"
-            type="text"
-            autoComplete="username"
-            required
-            minLength={3}
-            maxLength={20}
-            pattern="[a-zA-Z][a-zA-Z0-9_]{2,19}"
-            defaultValue={state?.username}
-            placeholder="e.g. nightowl_42"
-          />
+        <div className="field-grid">
+          <div>
+            <label className="label" htmlFor="password">
+              Password
+            </label>
+            <PasswordField
+              id="password"
+              name="password"
+              autoComplete="new-password"
+              required
+              minLength={8}
+              placeholder="8+ characters"
+              onChange={setPassword}
+            />
+          </div>
+
+          <div>
+            <label className="label" htmlFor="confirm_password">
+              Confirm password
+            </label>
+            <PasswordField
+              id="confirm_password"
+              name="confirm_password"
+              autoComplete="new-password"
+              required
+              minLength={8}
+              placeholder="Re-enter password"
+              onChange={setConfirm}
+            />
+            {mismatch ? (
+              <p
+                className="caption"
+                style={{ marginTop: 6, color: "var(--color-danger)" }}
+              >
+                Passwords don&apos;t match.
+              </p>
+            ) : null}
+          </div>
         </div>
 
-        <div>
-          <label className="label" htmlFor="display_name">
-            Display name <span className="caption">(optional)</span>
-          </label>
-          <input
-            id="display_name"
-            className="input"
-            name="display_name"
-            type="text"
-            autoComplete="off"
-            maxLength={60}
-            defaultValue={state?.displayName}
-            placeholder="Shown in your dashboard"
-          />
-        </div>
+        <div className="field-grid">
+          <div>
+            <label className="label" htmlFor="display_name">
+              Display name <span className="caption">(optional)</span>
+            </label>
+            <input
+              id="display_name"
+              className="input"
+              name="display_name"
+              type="text"
+              autoComplete="off"
+              maxLength={60}
+              defaultValue={state?.displayName}
+              placeholder="Shown in your dashboard"
+            />
+          </div>
 
-        <div>
-          <label className="label" htmlFor="password">
-            Password
-          </label>
-          <PasswordField
-            id="password"
-            name="password"
-            autoComplete="new-password"
-            required
-            minLength={8}
-            placeholder="8+ characters"
-            onChange={setPassword}
-          />
-        </div>
-
-        <div>
-          <label className="label" htmlFor="confirm_password">
-            Confirm password
-          </label>
-          <PasswordField
-            id="confirm_password"
-            name="confirm_password"
-            autoComplete="new-password"
-            required
-            minLength={8}
-            placeholder="Re-enter your password"
-            onChange={setConfirm}
-          />
-          {mismatch ? (
-            <p
-              className="caption"
-              style={{ marginTop: 6, color: "var(--color-danger)" }}
-            >
-              Passwords don&apos;t match.
-            </p>
-          ) : null}
-        </div>
-
-        <div>
-          <label className="label" htmlFor="referral_code">
-            Referral code <span className="caption">(optional)</span>
-          </label>
-          <input
-            id="referral_code"
-            className="input"
-            name="referral_code"
-            type="text"
-            autoComplete="off"
-            maxLength={32}
-            defaultValue={state?.referralCode}
-            placeholder="If a friend invited you"
-          />
+          <div>
+            <label className="label" htmlFor="referral_code">
+              Referral code <span className="caption">(optional)</span>
+            </label>
+            <input
+              id="referral_code"
+              className="input"
+              name="referral_code"
+              type="text"
+              autoComplete="off"
+              maxLength={32}
+              defaultValue={state?.referralCode}
+              placeholder="If a friend invited you"
+            />
+          </div>
         </div>
 
         {state?.ok === false && state.error ? (

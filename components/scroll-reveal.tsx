@@ -16,7 +16,9 @@ import { useEffect } from "react";
 export function ScrollReveal() {
   useEffect(() => {
     const els = Array.from(
-      document.querySelectorAll<HTMLElement>(".reveal:not(.is-visible)"),
+      document.querySelectorAll<HTMLElement>(
+        ".reveal:not(.is-visible), .stagger:not(.is-visible)",
+      ),
     );
     if (els.length === 0) return;
 

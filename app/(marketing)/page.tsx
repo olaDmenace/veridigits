@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Topbar } from "@/components/topbar";
 import { BrandLogo } from "@/components/brand-logo";
 import { ScrollReveal } from "@/components/scroll-reveal";
+import { Faq as FaqAccordion } from "@/components/faq";
 
 export default function Home() {
   return (
@@ -41,7 +42,7 @@ function Hero() {
       <FloatingIcons />
       <div className="page hero-inner">
         <div className="hero-grid">
-          <div className="hero-copy">
+          <div className="hero-copy reveal">
             <span className="eyebrow-pill">
               <span className="pulse"></span>SMS verification · no KYC
             </span>
@@ -59,9 +60,9 @@ function Hero() {
               <span className="dot"></span>
               Get started
             </Link>
-            <a className="btn btn-on-dark btn-lg" href="#how">
-              How it works
-            </a>
+            <Link className="btn btn-secondary btn-lg" href="/login">
+              Log in
+            </Link>
           </div>
 
           <div className="hero-stats">
@@ -80,7 +81,7 @@ function Hero() {
           </div>
         </div>
 
-        <div className="phone-stage">
+        <div className="phone-stage reveal">
           <div className="phone">
             <div className="phone-screen">
               <div className="phone-notch"></div>
@@ -210,15 +211,15 @@ function FloatingIcons() {
 function TrustStrip() {
   return (
     <section className="page" style={{ paddingTop: 0, paddingBottom: 8 }}>
-      <div className="trusted-card">
+      <div className="trusted-card reveal">
         <div className="ttl">Top up with crypto or Naira</div>
         <div className="logos">
-          <span>USDT</span>
-          <span>USDC</span>
-          <span>BTC</span>
-          <span>ETH</span>
-          <span>Naira</span>
-          <span>+200 coins</span>
+          <span className="cur" data-cur="usdt">USDT</span>
+          <span className="cur" data-cur="usdc">USDC</span>
+          <span className="cur" data-cur="btc">BTC</span>
+          <span className="cur" data-cur="eth">ETH</span>
+          <span className="cur" data-cur="naira">Naira</span>
+          <span className="cur" data-cur="more">+200 coins</span>
         </div>
       </div>
     </section>
@@ -262,7 +263,7 @@ function HowItWorks() {
         </div>
       </div>
 
-      <div className="steps reveal">
+      <div className="steps stagger">
         {STEPS.map((s) => (
           <div key={s.num} className="step">
             <div className="num">{s.num}</div>
@@ -342,7 +343,7 @@ function ServicesGrid() {
         </div>
       </div>
 
-      <div className="svc-grid reveal">
+      <div className="svc-grid stagger">
         {POPULAR_SERVICES.map((s) => (
           <div key={s.name} className="svc-tile">
             <BrandLogo slug={s.slug} abbr={s.abbr} size={36} />
@@ -373,7 +374,7 @@ function Pricing() {
         </div>
       </div>
 
-      <div className="pricing-grid reveal">
+      <div className="pricing-grid stagger">
         <div className="price-card">
           <span className="tag">Activation</span>
           <div className="svc">Pay per number</div>
@@ -457,19 +458,7 @@ function Faq() {
         </div>
       </div>
 
-      <div className="faq-list reveal">
-        {FAQ_ITEMS.map((item, i) => (
-          <details key={item.q} className="faq-item" open={i === 0}>
-            <summary>
-              <span className="faq-q">{item.q}</span>
-              <span className="faq-toggle" aria-hidden>
-                +
-              </span>
-            </summary>
-            <p className="faq-a">{item.a}</p>
-          </details>
-        ))}
-      </div>
+      <FaqAccordion items={FAQ_ITEMS} />
     </section>
   );
 }
