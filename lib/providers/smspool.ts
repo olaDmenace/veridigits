@@ -137,24 +137,49 @@ export class SmsPoolProvider implements OtpProvider {
     // NAMES rarely match 5SIM's idiosyncratic slugs (e.g. "United States" ->
     // "unitedstates" vs 5SIM "usa"), so cross-provider fallback by country
     // needs a country-mapping table — a documented follow-up.
-    const countries = await this.get<SmsPoolCountry[]>("/country/retrieve_all");
-    const out: ProviderCatalogEntry[] = [];
+    const countriesRaw = await this.get<unknown>("/country/retrieve_all");
+    const countries: SmsPoolCountry[] = Array.isArray(countriesRaw)
+      ? (countriesRaw as SmsPoolCountry[])
+      : [];
+    // Diagnostic: surface the real shape in the run logs (one line).
+    console.warn(
+      `[smspool] /country/retrieve_all isArray=${Array.isArray(countriesRaw)} count=${countries.length} sample=`,
+      JSON.stringify(Array.isArray(countriesRaw) ? countriesRaw[0] : countriesRaw).slice(0, 400),
+    );
 
-    for (const c of countries ?? []) {
+    const out: ProviderCatalogEntry[] = [];
+    let loggedServices = false;
+
+    for (const c of countries) {
       const countryId = idOf(c.ID ?? c.id);
       if (!countryId) continue;
       const countryName = stringOrNull(c.name) ?? countryId;
 
-      let services: SmsPoolCatalogService[] | null = null;
+      let services: SmsPoolCatalogService[] = [];
       try {
-        services = await this.get<SmsPoolCatalogService[]>(
+        const rawSvc = await this.get<unknown>(
           `/service/retrieve_all?country=${encodeURIComponent(countryId)}`,
         );
-      } catch {
+        services = Array.isArray(rawSvc) ? (rawSvc as SmsPoolCatalogService[]) : [];
+        if (!loggedServices) {
+          loggedServices = true;
+          console.warn(
+            `[smspool] /service/retrieve_all?country=${countryId} isArray=${Array.isArray(rawSvc)} count=${services.length} sample=`,
+            JSON.stringify(Array.isArray(rawSvc) ? rawSvc[0] : rawSvc).slice(0, 400),
+          );
+        }
+      } catch (err) {
+        if (!loggedServices) {
+          loggedServices = true;
+          console.warn(
+            "[smspool] /service/retrieve_all failed:",
+            err instanceof Error ? err.message : String(err),
+          );
+        }
         continue; // skip this country on a transient error
       }
 
-      for (const s of services ?? []) {
+      for (const s of services) {
         const serviceId = idOf(s.ID ?? s.id);
         if (!serviceId) continue;
         const price = toNumber(s.price ?? s.cost);
@@ -174,6 +199,7 @@ export class SmsPoolProvider implements OtpProvider {
         });
       }
     }
+    console.warn(`[smspool] catalog entries produced: ${out.length}`);
     return out;
   }
 

@@ -178,13 +178,28 @@ describe("TextVerifiedProvider.syncCatalog", () => {
     });
   });
 
-  it("skips services it can't price", async () => {
+  it("uses a placeholder price (still lists) when pricing fails", async () => {
     mockRouter((url, method) => {
       if (url.endsWith("/api/pub/v2/auth")) return json(AUTH_OK);
       if (url.includes("/api/pub/v2/services"))
         return json({ data: [{ serviceName: "whatsapp" }] });
       if (url.endsWith("/api/pub/v2/pricing/verifications") && method === "POST")
         return json({ error: "no price" }, 400);
+      return json({}, 404);
+    });
+    const entries = await provider().syncCatalog();
+    expect(entries).toHaveLength(1);
+    expect(entries[0].serviceSlug).toBe("whatsapp");
+    expect(entries[0].priceCents).toBeGreaterThan(0); // placeholder
+  });
+
+  it("ignores services that aren't in the strict-screening set", async () => {
+    mockRouter((url, method) => {
+      if (url.endsWith("/api/pub/v2/auth")) return json(AUTH_OK);
+      if (url.includes("/api/pub/v2/services"))
+        return json({ data: [{ serviceName: "someobscurething" }] });
+      if (url.endsWith("/api/pub/v2/pricing/verifications") && method === "POST")
+        return json({ totalCost: 1 });
       return json({}, 404);
     });
     const entries = await provider().syncCatalog();

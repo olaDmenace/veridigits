@@ -12,6 +12,7 @@ import {
   type ProviderPriceQuote,
   type RentalBuyParams,
 } from "./types";
+import { STRICT_SCREENING_SERVICES } from "./preference";
 
 /**
  * TextVerified upstream provider (API v2).
@@ -141,33 +142,45 @@ export class TextVerifiedProvider implements OtpProvider {
   }
 
   async syncCatalog(): Promise<ProviderCatalogEntry[]> {
-    // Services list (US-only model). Price each one; emit only priced rows so
-    // the registry has a ranking hint (the live re-quote at purchase is
-    // authoritative). Canonical keys align to 5SIM: serviceSlug=slug(name),
-    // countryIso="usa" — so e.g. WhatsApp shares a (service,country) with 5SIM
-    // and can use it as fallback.
+    // Populate the services we route to TextVerified (the strict-screening
+    // lanes). Canonical keys align to 5SIM (serviceSlug=slug(name),
+    // countryIso="usa") so each shares a (service,country) with 5SIM for
+    // fallback. Pricing is best-effort: a placeholder is fine because TV rows
+    // are alone in their preference tier and the live re-quote at purchase is
+    // authoritative — so a flaky/odd pricing shape never blocks population.
     const raw = await this.authedJson<TvServiceList>(
       "GET",
       "/api/pub/v2/services?numberType=mobile&reservationType=verification",
     );
     const services = Array.isArray(raw) ? raw : (raw?.data ?? []);
+    if (services.length === 0) {
+      console.warn(
+        "[textverified] /services returned no usable entries; raw=",
+        JSON.stringify(raw).slice(0, 400),
+      );
+    }
 
     const entries: ProviderCatalogEntry[] = [];
     for (const s of services) {
       const name = stringOrNull(s.serviceName);
       if (!name) continue;
-      let priceCents = 0;
+      const slug = slugify(name);
+      // Only the lanes we actually route to TextVerified.
+      if (!STRICT_SCREENING_SERVICES.has(slug)) continue;
+
+      let priceCents = TV_PLACEHOLDER_PRICE_CENTS;
       try {
         const p = await this.authedJson<TvPricing>(
           "POST",
           "/api/pub/v2/pricing/verifications",
           { serviceName: name, capability: "sms", numberType: "mobile" },
         );
-        priceCents = Math.round(toNumber(p.totalCost) * 100);
+        const c = Math.round(toNumber(p.totalCost) * 100);
+        if (c > 0) priceCents = c;
       } catch {
-        continue; // can't price it → don't list it
+        // keep the placeholder — live re-quote at purchase is authoritative
       }
-      if (priceCents <= 0) continue;
+
       entries.push({
         upstreamServiceCode: name,
         upstreamServiceName: name,
@@ -175,7 +188,7 @@ export class TextVerifiedProvider implements OtpProvider {
         upstreamOperator: "default",
         priceCents,
         availableCount: AVAILABILITY_SENTINEL,
-        serviceSlug: slugify(name),
+        serviceSlug: slug,
         countryIso: TEXTVERIFIED_COUNTRY_ISO,
         countryName: "USA",
       });
@@ -350,6 +363,10 @@ const AVAILABILITY_SENTINEL = 999;
 const DEFAULT_TTL_MS = 10 * 60 * 1000;
 /** TextVerified is US-only; align to 5SIM's US country row (iso_code "usa"). */
 const TEXTVERIFIED_COUNTRY_ISO = "usa";
+/** Placeholder cached price when the live pricing call is unavailable; the
+ *  real price comes from the re-quote at purchase. Keeps catalog population
+ *  from depending on the pricing endpoint's exact request shape. */
+const TV_PLACEHOLDER_PRICE_CENTS = 150;
 
 /** Canonical service slug from a provider's display name (aligns across providers). */
 function slugify(name: string): string {
