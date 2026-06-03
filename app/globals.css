@@ -191,7 +191,7 @@ main,
 .topbar-drawer {
   position: fixed; inset: 0;
   z-index: 60;
-  background: rgba(20,17,12,.32);
+  background: rgba(10,10,10,.40);
   backdrop-filter: blur(2px);
   animation: drawer-fade var(--duration-base) var(--ease-out);
 }
