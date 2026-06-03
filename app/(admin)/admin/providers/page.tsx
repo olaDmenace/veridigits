@@ -14,6 +14,87 @@ interface ProviderRow {
   total7d: number;
 }
 
+interface RoutingProvider {
+  slug: string;
+  rank: number;
+  available: number;
+  enabled: boolean;
+  priceCents: number | null;
+}
+interface RoutingGroup {
+  serviceSlug: string;
+  countryIso: string;
+  providers: RoutingProvider[];
+}
+
+/**
+ * Builds the "which provider is primary, and is there a fallback" view for
+ * every (service, country) that has a configured preference. Internal admin
+ * only — real upstream names are fine here (never shown to end users).
+ */
+async function loadRouting(
+  admin: ReturnType<typeof getAdminClient>,
+): Promise<RoutingGroup[]> {
+  const key = (s: string | null, c: string | null) => `${s}|${c}`;
+
+  const { data: prefPairs } = await admin
+    .from("provider_services")
+    .select("service_id, country_id")
+    .gt("preference_rank", 0);
+
+  const preferred = new Set((prefPairs ?? []).map((p) => key(p.service_id, p.country_id)));
+  if (preferred.size === 0) return [];
+
+  const serviceIds = [
+    ...new Set((prefPairs ?? []).map((p) => p.service_id).filter(Boolean)),
+  ] as string[];
+  const countryIds = [
+    ...new Set((prefPairs ?? []).map((p) => p.country_id).filter(Boolean)),
+  ] as string[];
+
+  const { data: rrows } = await admin
+    .from("provider_services")
+    .select(
+      "provider_slug, preference_rank, available_count, is_enabled, wholesale_price_cents, service_id, country_id, services(slug), countries(iso_code)",
+    )
+    .in("service_id", serviceIds)
+    .in("country_id", countryIds);
+
+  const groups = new Map<string, RoutingGroup>();
+  for (const r of rrows ?? []) {
+    const k = key(r.service_id, r.country_id);
+    if (!preferred.has(k)) continue; // only true preferred pairs (avoid cross-product)
+    let g = groups.get(k);
+    if (!g) {
+      g = {
+        serviceSlug: (r.services as { slug: string } | null)?.slug ?? "?",
+        countryIso: (r.countries as { iso_code: string } | null)?.iso_code ?? "?",
+        providers: [],
+      };
+      groups.set(k, g);
+    }
+    g.providers.push({
+      slug: r.provider_slug,
+      rank: r.preference_rank,
+      available: r.available_count ?? 0,
+      enabled: r.is_enabled,
+      priceCents: r.wholesale_price_cents,
+    });
+  }
+
+  for (const g of groups.values()) {
+    g.providers.sort(
+      (a, b) =>
+        b.rank - a.rank ||
+        (a.priceCents ?? Number.MAX_SAFE_INTEGER) -
+          (b.priceCents ?? Number.MAX_SAFE_INTEGER),
+    );
+  }
+  return [...groups.values()].sort((a, b) =>
+    a.serviceSlug.localeCompare(b.serviceSlug),
+  );
+}
+
 export default async function AdminProvidersPage() {
   const admin = getAdminClient();
 
@@ -58,6 +139,8 @@ export default async function AdminProvidersPage() {
   }
 
   const rows = [...grouped.values()].sort((a, b) => a.slug.localeCompare(b.slug));
+
+  const routing = await loadRouting(admin);
 
   return (
     <div className="flex flex-col gap-8">
@@ -130,6 +213,92 @@ export default async function AdminProvidersPage() {
           </div>
         </div>
       )}
+
+      {/* Routing preferences — which provider is primary per service, and
+          whether a fallback exists. Only services with a configured preference
+          appear here. */}
+      <div className="flex flex-col gap-4">
+        <div>
+          <div className="eyebrow">Routing</div>
+          <h2 className="h3" style={{ marginTop: 8 }}>
+            Provider preferences
+          </h2>
+          <p className="caption" style={{ marginTop: 8, maxWidth: 560 }}>
+            Services with a configured primary. The first chip is the primary
+            (highest tier); the rest are automatic fallbacks. A single chip means
+            no fallback supply exists yet for that service/country.
+          </p>
+        </div>
+
+        {routing.length === 0 ? (
+          <div className="card" style={{ padding: 24 }}>
+            <p className="caption">
+              No routing preferences configured yet. Once a sync runs (or seeds
+              land), preferred services appear here.
+            </p>
+          </div>
+        ) : (
+          <div className="card-flat" style={{ padding: 0 }}>
+            <div className="table-wrap">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Service</th>
+                    <th>Country</th>
+                    <th>Routing (primary → fallback)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {routing.map((g) => {
+                    const noFallback = g.providers.length < 2;
+                    return (
+                      <tr key={`${g.serviceSlug}-${g.countryIso}`}>
+                        <td style={{ fontWeight: 500 }}>{g.serviceSlug}</td>
+                        <td className="mono" style={{ textTransform: "uppercase" }}>
+                          {g.countryIso}
+                        </td>
+                        <td>
+                          <div
+                            style={{
+                              display: "flex",
+                              gap: 8,
+                              flexWrap: "wrap",
+                              alignItems: "center",
+                            }}
+                          >
+                            {g.providers.map((p, i) => {
+                              const dead = !p.enabled || p.available <= 0;
+                              return (
+                                <span
+                                  key={p.slug}
+                                  className={`badge ${i === 0 ? "badge-success" : ""}`}
+                                  style={
+                                    dead
+                                      ? { opacity: 0.5, textDecoration: "line-through" }
+                                      : undefined
+                                  }
+                                  title={`rank ${p.rank} · ${p.available} in stock${p.enabled ? "" : " · disabled"}`}
+                                >
+                                  {i === 0 ? "★ " : ""}
+                                  {p.slug}
+                                  {p.rank > 0 ? ` ·${p.rank}` : ""}
+                                </span>
+                              );
+                            })}
+                            {noFallback ? (
+                              <span className="badge badge-warn">no fallback</span>
+                            ) : null}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
