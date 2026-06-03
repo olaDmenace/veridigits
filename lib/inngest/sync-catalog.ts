@@ -1,6 +1,7 @@
 import { inngest } from "./client";
 import { getProvider } from "@/lib/providers";
 import { getAdminClient } from "@/lib/supabase/admin";
+import { preferenceRankFor } from "@/lib/providers/preference";
 
 const ENABLED_PROVIDERS = ["5sim", "smspool", "textverified"] as const;
 const UPSERT_BATCH_SIZE = 1000;
@@ -153,12 +154,14 @@ async function reconcileProvider(
     upstream_operator: string;
     wholesale_price_cents: number;
     available_count: number;
+    preference_rank: number;
     last_synced_at: string;
     is_enabled: boolean;
   }> = [];
 
   for (const e of entries) {
-    const serviceId = serviceIdBySlug.get(svcSlugOf(e));
+    const svcSlug = svcSlugOf(e);
+    const serviceId = serviceIdBySlug.get(svcSlug);
     const countryId = countryIdByIso.get(ctyIsoOf(e));
     if (!serviceId || !countryId) continue;
 
@@ -171,6 +174,9 @@ async function reconcileProvider(
       upstream_operator: e.upstreamOperator,
       wholesale_price_cents: e.priceCents,
       available_count: e.availableCount,
+      // Config-driven routing preference (TextVerified-primary for strict
+      // services). Applied every sync so the rule stays the source of truth.
+      preference_rank: preferenceRankFor(providerSlug, svcSlug),
       last_synced_at: now,
       is_enabled: true,
     });
