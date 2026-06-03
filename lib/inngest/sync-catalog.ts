@@ -53,19 +53,47 @@ export const syncCatalogFn = inngest.createFunction(
     }
 
     let totalEntries = 0;
+    const failed: Array<{ slug: string; error: string }> = [];
 
     for (const slug of providersToSync) {
+      // reconcileProvider never throws — it returns an `error` field instead, so
+      // one provider's failure is isolated and the rest still sync. The error
+      // (which carries the upstream HTTP status + response snippet) surfaces in
+      // the run output + logs for diagnosis.
       const result = await step.run(`sync-${slug}`, async () => {
         return reconcileProvider(slug);
       });
       totalEntries += result.entriesProcessed;
+      if (result.error) {
+        failed.push({ slug, error: result.error });
+        logger.error(`catalog sync failed for ${slug}`, { error: result.error });
+      }
     }
 
-    return { synced: providersToSync.length, totalEntries };
+    return {
+      synced: providersToSync.length - failed.length,
+      attempted: providersToSync.length,
+      totalEntries,
+      failed,
+    };
   },
 );
 
 async function reconcileProvider(
+  providerSlug: string,
+): Promise<{ entriesProcessed: number; disabledStale: number; error?: string }> {
+  try {
+    return await reconcileProviderInner(providerSlug);
+  } catch (err) {
+    return {
+      entriesProcessed: 0,
+      disabledStale: 0,
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
+}
+
+async function reconcileProviderInner(
   providerSlug: string,
 ): Promise<{ entriesProcessed: number; disabledStale: number }> {
   const provider = getProvider(providerSlug);

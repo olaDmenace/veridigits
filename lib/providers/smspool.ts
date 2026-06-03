@@ -177,9 +177,11 @@ export class SmsPoolProvider implements OtpProvider {
     return out;
   }
 
-  /** Unauthenticated GET for the public catalog endpoints. */
+  /** GET for catalog endpoints (key appended — SMSPool accepts/expects it). */
   private async get<T>(path: string): Promise<T> {
-    const res = await fetch(`${this.baseUrl}${path}`, {
+    const sep = path.includes("?") ? "&" : "?";
+    const url = `${this.baseUrl}${path}${sep}key=${encodeURIComponent(this.apiKey)}`;
+    const res = await fetch(url, {
       headers: { Accept: "application/json" },
       cache: "no-store",
     });
