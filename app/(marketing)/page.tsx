@@ -8,6 +8,7 @@ export default function Home() {
   return (
     <div className="marketing">
       <Topbar
+        hideMobileMenu
         links={[
           { href: "#how", label: "How it works", anchor: true },
           { href: "#services", label: "Services", anchor: true },
@@ -15,7 +16,7 @@ export default function Home() {
           { href: "#faq", label: "FAQ", anchor: true },
         ]}
         primary={
-          <Link href="/login" className="btn btn-on-dark btn-sm">
+          <Link href="/login" className="btn btn-primary btn-sm">
             Sign in
           </Link>
         }

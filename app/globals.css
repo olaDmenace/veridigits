@@ -270,6 +270,8 @@ main,
   .topbar-nav { display: none; }
   .topbar-actions { display: none; }
   .topbar-toggle { display: inline-flex; }
+  /* Landing page: no hamburger — keep the primary action (Sign in) visible. */
+  .topbar-actions.always-visible { display: flex; }
 }
 
 /* ============================================================

@@ -24,12 +24,19 @@ export function Topbar({
   meta,
   brandHref = "/",
   brandLabel,
+  hideMobileMenu = false,
 }: {
   links: TopbarLink[];
   primary?: React.ReactNode;
   meta?: React.ReactNode;
   brandHref?: string;
   brandLabel?: string;
+  /**
+   * Drop the mobile hamburger drawer and keep the primary action visible at
+   * all widths instead. Used on the public landing page, where the only
+   * mobile affordance an unauthed visitor needs is the Sign in button.
+   */
+  hideMobileMenu?: boolean;
 }) {
   return (
     <header className="topbar">
@@ -60,12 +67,14 @@ export function Topbar({
           )}
         </nav>
 
-        <div className="topbar-actions">
+        <div className={`topbar-actions${hideMobileMenu ? " always-visible" : ""}`}>
           {meta}
           {primary}
         </div>
 
-        <MobileMenu links={links} primary={primary} meta={meta} />
+        {hideMobileMenu ? null : (
+          <MobileMenu links={links} primary={primary} meta={meta} />
+        )}
       </div>
     </header>
   );
