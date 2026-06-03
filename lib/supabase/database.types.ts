@@ -572,7 +572,19 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      provider_summary: {
+        Row: {
+          provider_slug: string | null
+          total_rows: number | null
+          enabled_rows: number | null
+          preferred_rows: number | null
+          last_synced_at: string | null
+          cheapest_cents: number | null
+          received_7d: number | null
+          total_7d: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       is_admin: { Args: never; Returns: boolean }

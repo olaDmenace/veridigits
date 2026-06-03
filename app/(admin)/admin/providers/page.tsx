@@ -101,47 +101,27 @@ async function loadRouting(
 export default async function AdminProvidersPage() {
   const admin = getAdminClient();
 
-  const { data: psRows } = await admin
-    .from("provider_services")
+  // Aggregate in the DB — provider_services has 120k+ rows and the API caps a
+  // plain select at 1000, which used to drop providers (SMSPool/TextVerified)
+  // whose rows fell outside that window.
+  const { data: summaryRows } = await admin
+    .from("provider_summary")
     .select(
-      "provider_slug, is_enabled, last_synced_at, wholesale_price_cents, recent_received_count, recent_total_count",
+      "provider_slug, total_rows, enabled_rows, last_synced_at, cheapest_cents, received_7d, total_7d",
     );
 
-  const grouped = new Map<string, ProviderRow>();
-  for (const r of psRows ?? []) {
-    const slug = r.provider_slug;
-    let row = grouped.get(slug);
-    if (!row) {
-      row = {
-        slug,
-        enabledRows: 0,
-        totalRows: 0,
-        lastSyncedAt: null,
-        cheapestCents: null,
-        received7d: 0,
-        total7d: 0,
-      };
-      grouped.set(slug, row);
-    }
-    row.totalRows++;
-    if (r.is_enabled) row.enabledRows++;
-    row.received7d += r.recent_received_count;
-    row.total7d += r.recent_total_count;
-    if (
-      r.last_synced_at &&
-      (!row.lastSyncedAt || r.last_synced_at > row.lastSyncedAt)
-    ) {
-      row.lastSyncedAt = r.last_synced_at;
-    }
-    if (
-      typeof r.wholesale_price_cents === "number" &&
-      (row.cheapestCents == null || r.wholesale_price_cents < row.cheapestCents)
-    ) {
-      row.cheapestCents = r.wholesale_price_cents;
-    }
-  }
-
-  const rows = [...grouped.values()].sort((a, b) => a.slug.localeCompare(b.slug));
+  const rows: ProviderRow[] = (summaryRows ?? [])
+    .filter((r) => r.provider_slug)
+    .map((r) => ({
+      slug: r.provider_slug as string,
+      enabledRows: r.enabled_rows ?? 0,
+      totalRows: r.total_rows ?? 0,
+      lastSyncedAt: r.last_synced_at,
+      cheapestCents: r.cheapest_cents,
+      received7d: r.received_7d ?? 0,
+      total7d: r.total_7d ?? 0,
+    }))
+    .sort((a, b) => a.slug.localeCompare(b.slug));
 
   const routing = await loadRouting(admin);
 
