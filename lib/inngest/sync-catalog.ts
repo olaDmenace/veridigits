@@ -222,9 +222,21 @@ async function reconcileProviderInner(
     });
   }
 
+  // 5b. De-duplicate by the upsert conflict key. Two catalog entries can
+  // resolve to the same (provider, service, country, operator) — e.g. two
+  // upstream service names that slugify to the same canonical service — and
+  // Postgres ON CONFLICT can't update the same row twice in one statement.
+  const seenKeys = new Set<string>();
+  const dedupedRows = psRows.filter((r) => {
+    const k = `${r.provider_slug}|${r.service_id}|${r.country_id}|${r.upstream_operator}`;
+    if (seenKeys.has(k)) return false;
+    seenKeys.add(k);
+    return true;
+  });
+
   // 6. Batch upsert provider_services.
-  for (let i = 0; i < psRows.length; i += UPSERT_BATCH_SIZE) {
-    const batch = psRows.slice(i, i + UPSERT_BATCH_SIZE);
+  for (let i = 0; i < dedupedRows.length; i += UPSERT_BATCH_SIZE) {
+    const batch = dedupedRows.slice(i, i + UPSERT_BATCH_SIZE);
     const { error: psErr } = await supabase
       .from("provider_services")
       .upsert(batch, {
@@ -251,11 +263,11 @@ async function reconcileProviderInner(
   if (staleErr) {
     // Disabling stale rows is best-effort — a failure here doesn't poison
     // the rest of the sync.
-    return { entriesProcessed: psRows.length, disabledStale: 0 };
+    return { entriesProcessed: dedupedRows.length, disabledStale: 0 };
   }
 
   return {
-    entriesProcessed: psRows.length,
+    entriesProcessed: dedupedRows.length,
     disabledStale: disabledCount ?? 0,
   };
 }
