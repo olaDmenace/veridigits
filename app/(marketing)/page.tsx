@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Topbar } from "@/components/topbar";
 import { BrandLogo } from "@/components/brand-logo";
+import { ScrollReveal } from "@/components/scroll-reveal";
 
 export default function Home() {
   return (
@@ -29,6 +30,7 @@ export default function Home() {
       </main>
 
       <SiteFooter />
+      <ScrollReveal />
     </div>
   );
 }
@@ -247,7 +249,7 @@ const STEPS = [
 function HowItWorks() {
   return (
     <section id="how" className="page section">
-      <div className="section-head">
+      <div className="section-head reveal">
         <div className="left">
           <div className="eyebrow">How it works</div>
           <h2 className="h2">
@@ -260,7 +262,7 @@ function HowItWorks() {
         </div>
       </div>
 
-      <div className="steps">
+      <div className="steps reveal">
         {STEPS.map((s) => (
           <div key={s.num} className="step">
             <div className="num">{s.num}</div>
@@ -324,8 +326,8 @@ const POPULAR_SERVICES: Array<{
 
 function ServicesGrid() {
   return (
-    <section id="services" className="page section">
-      <div className="section-head">
+    <section id="services" className="page section alt">
+      <div className="section-head reveal">
         <div className="left">
           <div className="eyebrow">Services</div>
           <h2 className="h2">
@@ -340,7 +342,7 @@ function ServicesGrid() {
         </div>
       </div>
 
-      <div className="svc-grid">
+      <div className="svc-grid reveal">
         {POPULAR_SERVICES.map((s) => (
           <div key={s.name} className="svc-tile">
             <BrandLogo slug={s.slug} abbr={s.abbr} size={36} />
@@ -358,7 +360,7 @@ function ServicesGrid() {
 function Pricing() {
   return (
     <section id="pricing" className="page section">
-      <div className="section-head">
+      <div className="section-head reveal">
         <div className="left">
           <div className="eyebrow">Pricing</div>
           <h2 className="h2">
@@ -371,7 +373,7 @@ function Pricing() {
         </div>
       </div>
 
-      <div className="pricing-grid">
+      <div className="pricing-grid reveal">
         <div className="price-card">
           <span className="tag">Activation</span>
           <div className="svc">Pay per number</div>
@@ -445,8 +447,8 @@ const FAQ_ITEMS: Array<{ q: string; a: string }> = [
 
 function Faq() {
   return (
-    <section id="faq" className="page section">
-      <div className="section-head">
+    <section id="faq" className="page section alt">
+      <div className="section-head reveal">
         <div className="left">
           <div className="eyebrow">FAQ</div>
           <h2 className="h2">
@@ -455,7 +457,7 @@ function Faq() {
         </div>
       </div>
 
-      <div className="faq-list">
+      <div className="faq-list reveal">
         {FAQ_ITEMS.map((item, i) => (
           <details key={item.q} className="faq-item" open={i === 0}>
             <summary>

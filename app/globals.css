@@ -1,28 +1,35 @@
 @import "tailwindcss";
 
 /* ============================================================
-   VERIDIGITS DESIGN TOKENS
-   Light-only · Warm paper background · Single accent
-   Tokens declared in @theme are exposed both as CSS variables
-   on :root and as Tailwind v4 utilities (bg-paper, text-ink,
-   rounded-md, shadow-md, font-mono, etc.).
+   VERIDIGITS DESIGN TOKENS  (Wise-inspired · light · lime accent)
+   White + off-white alternating surfaces, dark footer.
+   Primary CTA = lime #9fe870. The original verification green
+   #00C46A is preserved for stats, italic accents, and checkmarks.
+   Tokens in @theme are exposed as CSS vars + Tailwind v4 utilities.
 ============================================================ */
 @theme {
-  /* — Paper / surfaces — */
-  --color-paper:         #FAF8F3;
-  --color-surface:       #FFFFFF;
-  --color-subtle:        #F2EFE8;
-  --color-quiet:         #ECE9E0;
-  --color-border:        #E2DED2;
-  --color-border-strong: #C8C2B1;
+  /* — Surfaces (white + off-white rhythm, dark footer) — */
+  --color-paper:         #ffffff;  /* page background */
+  --color-surface:       #ffffff;  /* cards */
+  --color-subtle:        #f9fafb;  /* off-white alt sections / subtle fills */
+  --color-quiet:         #f3f4f6;  /* hover / nested */
+  --color-border:        #e8e8e8;
+  --color-border-strong: #d0d0d0;
+  --color-footer:        #0a0a0a;  /* dark footer */
 
-  /* — Ink — */
-  --color-ink:           #14110C;
-  --color-ink-2:         #3A3630;
-  --color-ink-muted:     #6B6558;
-  --color-ink-subtle:    #9A9388;
+  /* — Text hierarchy (5 steps) — */
+  --color-ink:           #1a1a1a;
+  --color-ink-2:         #333333;
+  --color-ink-muted:     #555555;
+  --color-ink-subtle:    #888888;
+  --color-ink-faint:     #b0b0b0;
 
-  /* — Accent: verification green — */
+  /* — Primary CTA: Wise lime — */
+  --color-lime:          #9fe870;
+  --color-lime-600:      #8ad95e;  /* hover */
+  --color-on-lime:       #0a0a0a;  /* text on lime */
+
+  /* — Preserved verification green (stats, italic spans, checkmarks) — */
   --color-vg-50:         #ECFAF0;
   --color-vg-100:        #D5F4DF;
   --color-vg-200:        #A8E8BE;
@@ -40,53 +47,63 @@
   --color-info:          #2563EB;
   --color-info-soft:     #E5EDFD;
 
-  /* — Type families —
-     Fraunces: variable serif w/ italic optical sizing — display + headings.
-     Inter: body, UI labels, buttons.
-     JetBrains Mono: numerics, OTP codes, technical micro-copy. */
-  --font-display: "Fraunces", "Times New Roman", Georgia, serif;
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* — Type: Instrument Sans (UI + display), JetBrains Mono (numerics) — */
+  --font-display: "Instrument Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-sans: "Instrument Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
   /* — Radii — */
   --radius-xs:   4px;
-  --radius-sm:   8px;
-  --radius-md:   12px;
+  --radius-sm:   6px;
+  --radius-md:   10px;
   --radius-lg:   16px;
-  --radius-xl:   22px;
-  --radius-2xl:  32px;
+  --radius-xl:   20px;
+  --radius-2xl:  28px;
   --radius-full: 999px;
 
-  /* — Shadows (warm-tinted) — */
-  --shadow-xs:    0 1px 0 rgba(20,17,12,.04);
-  --shadow-sm:    0 2px 6px -2px rgba(20,17,12,.08), 0 1px 2px rgba(20,17,12,.04);
-  --shadow-md:    0 8px 24px -8px rgba(20,17,12,.10), 0 2px 6px -2px rgba(20,17,12,.06);
-  --shadow-lg:    0 24px 60px -20px rgba(20,17,12,.14), 0 6px 16px -4px rgba(20,17,12,.08);
-  --shadow-card:  0 1px 0 rgba(20,17,12,.04), 0 1px 2px rgba(20,17,12,.04);
-  --shadow-float: 0 30px 60px -28px rgba(20,17,12,.25), 0 12px 24px -12px rgba(20,17,12,.12);
-  --shadow-glow:  0 0 0 4px rgba(0, 196, 106, .18);
+  /* — Shadows (soft, Wise-style — no harsh dark) — */
+  --shadow-xs:    0 1px 2px rgba(10,10,10,.04);
+  --shadow-sm:    0 1px 3px rgba(10,10,10,.06), 0 1px 2px rgba(10,10,10,.04);
+  --shadow-md:    0 4px 16px rgba(10,10,10,.06), 0 2px 6px rgba(10,10,10,.04);
+  --shadow-lg:    0 12px 32px rgba(10,10,10,.08), 0 4px 12px rgba(10,10,10,.05);
+  --shadow-card:  0 1px 2px rgba(10,10,10,.04);
+  --shadow-float: 0 16px 40px rgba(10,10,10,.10);
+  --shadow-glow:  0 0 0 3px rgba(159,232,112,.45);  /* lime focus ring */
 
   /* — Motion — */
-  --ease-out:    cubic-bezier(.2,.8,.2,1);
-  --ease-in:     cubic-bezier(.6,.04,.98,.34);
-  --duration-fast: 120ms;
-  --duration-base: 200ms;
-  --duration-slow: 360ms;
+  --ease-out:    cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in:     cubic-bezier(0.4, 0, 1, 1);
+  --duration-fast: 100ms;
+  --duration-base: 180ms;
+  --duration-slow: 300ms;
+
+  /* — Spacing: 8pt grid (4px base unit) — */
+  --sp-1: 4px;   --sp-2: 8px;   --sp-3: 12px;  --sp-4: 16px;
+  --sp-5: 20px;  --sp-6: 24px;  --sp-7: 28px;  --sp-8: 32px;
+  --sp-9: 36px;  --sp-10: 40px; --sp-11: 44px; --sp-12: 48px;
+  --sp-13: 52px; --sp-14: 56px; --sp-16: 64px; --sp-20: 80px;
+  --sp-24: 96px; --sp-28: 112px; --sp-32: 128px;
 }
 
 /* ============================================================
    BASE
 ============================================================ */
 html, body { margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
 body {
   background: var(--color-paper);
   color: var(--color-ink);
   font-family: var(--font-sans);
   font-size: 16px;
   line-height: 1.55;
-  font-feature-settings: "ss01", "cv11";
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  /* `clip` (not `hidden`) contains the full-bleed 100vw section bands without
+     creating a scroll container — so position:sticky topbars keep working. */
+  overflow-x: clip;
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
 }
 img, svg { display: block; max-width: 100%; }
 a { color: inherit; text-decoration: none; }
@@ -381,13 +398,12 @@ main,
    horizontal gutter. */
 .hero { padding-top: 96px; padding-bottom: 120px; position: relative; }
 
-/* ── Dark, modern hero band ──────────────────────────────────────
-   Full-bleed dark section with a green glow, a faint masked grid,
-   and a constellation of real brand chips floating behind the copy
-   and around the phone. <main> owns the horizontal gutter, so the
-   band breaks out of that padding to reach the screen edges, then
-   re-applies the gutter so inner content stays aligned with the
-   rest of the page. The page below stays warm paper. */
+/* ── Light hero band (Wise-style) ────────────────────────────────
+   Full-bleed off-white section with a soft lime glow, a faint
+   masked grid, and a constellation of real brand chips floating
+   around the phone. <main> owns the horizontal gutter, so the band
+   breaks out of that padding to reach the screen edges, then
+   re-applies the gutter so inner content stays aligned. */
 .hero-dark {
   padding-top: 120px;
   padding-bottom: 140px;
@@ -395,13 +411,14 @@ main,
   margin-right: calc(-1 * max(var(--gutter-x), env(safe-area-inset-right)));
   padding-left: max(var(--gutter-x), env(safe-area-inset-left));
   padding-right: max(var(--gutter-x), env(safe-area-inset-right));
-  color: var(--color-paper);
+  color: var(--color-ink);
   overflow: hidden;
   isolation: isolate;
+  border-bottom: 1px solid var(--color-border);
   background:
-    radial-gradient(72% 60% at 80% 28%, rgba(0,196,106,.20), transparent 62%),
-    radial-gradient(48% 50% at 6% 92%, rgba(0,196,106,.10), transparent 60%),
-    linear-gradient(180deg, #100E0A 0%, #14110C 52%, #16120E 100%);
+    radial-gradient(70% 60% at 82% 20%, rgba(159,232,112,.28), transparent 60%),
+    radial-gradient(50% 50% at 4% 92%, rgba(0,196,106,.07), transparent 60%),
+    linear-gradient(180deg, #ffffff 0%, #f9fafb 100%);
 }
 .hero-inner { position: relative; z-index: 2; }
 
@@ -410,8 +427,8 @@ main,
 .hero-orbit::before {
   content: ""; position: absolute; inset: 0;
   background-image:
-    linear-gradient(rgba(255,255,255,.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px);
+    linear-gradient(rgba(10,10,10,.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(10,10,10,.035) 1px, transparent 1px);
   background-size: 54px 54px;
   -webkit-mask-image: radial-gradient(68% 60% at 72% 34%, #000 28%, transparent 76%);
           mask-image: radial-gradient(68% 60% at 72% 34%, #000 28%, transparent 76%);
@@ -419,8 +436,8 @@ main,
 .hero-glow {
   position: absolute; z-index: 0;
   top: 16%; right: 8%; width: 460px; height: 460px;
-  background: radial-gradient(circle, rgba(0,196,106,.28), transparent 65%);
-  filter: blur(20px);
+  background: radial-gradient(circle, rgba(159,232,112,.40), transparent 65%);
+  filter: blur(24px);
   pointer-events: none;
 }
 
@@ -428,11 +445,11 @@ main,
 .fi {
   position: absolute; z-index: 1;
   display: grid; place-items: center;
-  filter: drop-shadow(0 18px 34px rgba(0,0,0,.55));
+  filter: drop-shadow(0 10px 22px rgba(10,10,10,.14));
   animation: float-y 7s ease-in-out infinite;
   will-change: transform;
 }
-.fi-chip { box-shadow: inset 0 0 0 1px rgba(255,255,255,.16); }
+.fi-chip { box-shadow: inset 0 0 0 1px rgba(10,10,10,.06), var(--shadow-sm); }
 @keyframes float-y {
   0%, 100% { transform: translateY(0) rotate(0deg); }
   50%      { transform: translateY(-15px) rotate(-2.5deg); }
@@ -444,10 +461,10 @@ main,
 .fi-3 { bottom: 19%; right: 6%;   opacity: .92; animation-duration: 6.8s; animation-delay: -1s; }
 .fi-4 { bottom: 9%;  right: 27%;  opacity: .82; animation-duration: 9s;   animation-delay: -3s; }
 .fi-5 { top: 39%;    right: 1.5%; opacity: .9;  animation-duration: 7.8s; animation-delay: -0.5s; }
-.fi-6 { top: 29%;    right: 39%;  opacity: .5;  animation-duration: 8.2s; animation-delay: -4s;
-        filter: blur(.5px) drop-shadow(0 14px 26px rgba(0,0,0,.5)); }
-.fi-7 { bottom: 33%; right: 37%;  opacity: .46; animation-duration: 9.4s; animation-delay: -1.5s;
-        filter: blur(1px) drop-shadow(0 14px 26px rgba(0,0,0,.5)); }
+.fi-6 { top: 29%;    right: 39%;  opacity: .55; animation-duration: 8.2s; animation-delay: -4s;
+        filter: blur(.5px) drop-shadow(0 10px 20px rgba(10,10,10,.12)); }
+.fi-7 { bottom: 33%; right: 37%;  opacity: .5;  animation-duration: 9.4s; animation-delay: -1.5s;
+        filter: blur(1px) drop-shadow(0 10px 20px rgba(10,10,10,.12)); }
 
 /* left / behind-copy bokeh — heavily blurred, low opacity for depth */
 .fi-8  { top: 11%;    left: 3%;  opacity: .24; filter: blur(3px); animation-duration: 10s;   animation-delay: -2.5s; }
@@ -467,39 +484,35 @@ main,
   .fi { animation: none; }
 }
 
-/* on-dark copy treatments */
+/* hero copy treatments (light) */
 .hero-dark .eyebrow-pill {
-  background: rgba(255,255,255,.06);
-  color: var(--color-vg-300);
-  border-color: rgba(0,196,106,.30);
-  -webkit-backdrop-filter: blur(8px);
-          backdrop-filter: blur(8px);
+  background: #fff;
+  color: var(--color-vg-700);
+  border-color: var(--color-vg-100);
+  box-shadow: var(--shadow-xs);
 }
-.hero-dark .hero-copy h1 { color: var(--color-paper); }
+.hero-dark .hero-copy h1 { color: var(--color-ink); }
 .hero-accent {
+  /* preserved green italic accent */
   font-style: italic;
-  font-weight: 500;
-  color: var(--color-vg-300);
-  text-shadow: 0 0 30px rgba(0,196,106,.45);
+  font-weight: 600;
+  color: var(--color-vg-600);
 }
-.hero-dark p.lead { color: rgba(250,248,243,.70); }
+.hero-dark p.lead { color: var(--color-ink-muted); }
 .hero-dark .hero-stats {
-  background: rgba(255,255,255,.05);
-  border-color: rgba(255,255,255,.10);
-  box-shadow: 0 26px 54px -30px rgba(0,0,0,.65);
+  background: #fff;
+  border-color: var(--color-border);
+  box-shadow: var(--shadow-sm);
 }
-.hero-dark .hero-stats .stat { border-right-color: rgba(255,255,255,.10); }
-.hero-dark .hero-stats .num { color: var(--color-vg-300); }
-.hero-dark .hero-stats .lbl { color: rgba(250,248,243,.55); }
+.hero-dark .hero-stats .stat { border-right-color: var(--color-border); }
+.hero-dark .hero-stats .num { color: var(--color-vg-600); }
+.hero-dark .hero-stats .lbl { color: var(--color-ink-subtle); }
 .hero-dark .phone {
-  background: #0C0A07;
-  box-shadow:
-    0 60px 100px -40px rgba(0,0,0,.7),
-    0 0 0 1px rgba(255,255,255,.06),
-    0 0 90px -18px rgba(0,196,106,.30);
+  background: #0a0a0a;
+  box-shadow: var(--shadow-lg);
 }
 .hero-dark .phone-stage::before {
-  background: radial-gradient(55% 45% at 55% 45%, rgba(0,196,106,.22), transparent 70%);
+  background: radial-gradient(55% 45% at 55% 45%, rgba(159,232,112,.22), transparent 70%);
 }
 
 .hero-grid {
@@ -773,20 +786,20 @@ main,
 .btn:focus-visible { outline: none; box-shadow: var(--shadow-glow); }
 .btn:active { transform: translateY(0.5px); }
 
-/* Primary is the verification green — the one place the accent goes loud. */
+/* Primary CTA — Wise lime. */
 .btn-primary {
-  background: var(--color-vg-500); color: var(--color-ink);
-  box-shadow: 0 6px 16px -4px rgba(0,196,106,.40), inset 0 -2px 0 rgba(0,0,0,.08);
+  background: var(--color-lime); color: var(--color-on-lime);
+  box-shadow: var(--shadow-sm);
 }
-.btn-primary:hover { background: var(--color-vg-600); }
+.btn-primary:hover { background: var(--color-lime-600); }
 
-/* Ink — the quiet, dark CTA (was the old primary). */
-.btn-ink { background: var(--color-ink); color: var(--color-paper); box-shadow: 0 4px 12px -2px rgba(20,17,12,.30); }
-.btn-ink:hover { background: #2A2620; }
+/* Ink — the quiet, dark CTA. */
+.btn-ink { background: var(--color-ink); color: #fff; box-shadow: var(--shadow-sm); }
+.btn-ink:hover { background: #000; }
 
 /* Kept as an alias of primary for any older markup that used .btn-accent. */
-.btn-accent { background: var(--color-vg-500); color: var(--color-ink); }
-.btn-accent:hover { background: var(--color-vg-600); }
+.btn-accent { background: var(--color-lime); color: var(--color-on-lime); }
+.btn-accent:hover { background: var(--color-lime-600); }
 
 .btn-secondary { background: var(--color-surface); color: var(--color-ink); border-color: var(--color-border-strong); box-shadow: var(--shadow-xs); }
 .btn-secondary:hover { background: var(--color-subtle); border-color: var(--color-ink-subtle); }
@@ -800,8 +813,10 @@ main,
 .btn-danger { background: var(--color-danger); color: #fff; }
 .btn-danger:hover { background: #B83434; }
 
-.btn-on-dark { background: rgba(255,255,255,.10); color: var(--color-paper); border: 1.5px solid rgba(255,255,255,.18); }
-.btn-on-dark:hover { background: rgba(255,255,255,.16); }
+/* Secondary button for light surfaces (topbar, hero). The legacy name is kept
+   because the dark `.wallet` card re-darkens it via a scoped override below. */
+.btn-on-dark { background: var(--color-surface); color: var(--color-ink); border: 1.5px solid var(--color-border-strong); }
+.btn-on-dark:hover { background: var(--color-subtle); border-color: var(--color-ink-subtle); }
 
 .btn-sm { height: 38px; padding: 0 16px; font-size: 13px; }
 .btn-lg { height: 56px; padding: 0 28px; font-size: 15px; }
@@ -818,7 +833,8 @@ main,
 }
 .btn:hover .arr { transform: translateX(2px); }
 .btn .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--color-vg-500); }
-.btn-primary .dot, .btn-ink .dot { background: var(--color-vg-300); }
+.btn-primary .dot { background: var(--color-on-lime); }
+.btn-ink .dot { background: var(--color-vg-300); }
 
 /* ============================================================
    CARDS, INPUTS, BADGES, TABLES
@@ -1471,13 +1487,17 @@ main,
   color: var(--color-ink-2);
 }
 
-/* Footer */
+/* Footer — dark */
 .site-footer {
-  border-top: 1px solid var(--color-border);
-  background: color-mix(in oklab, var(--color-paper) 60%, var(--color-subtle));
+  background: var(--color-footer);
+  color: #fff;
   padding-top: 64px;
   margin-top: 32px;
 }
+.site-footer .logo { color: #fff; }
+.site-footer .logo .mark { background: var(--color-lime); color: var(--color-on-lime); }
+.site-footer .caption, .site-footer .eyebrow { color: rgba(255,255,255,.5); }
+.site-footer .eyebrow::before { background: var(--color-lime); }
 .site-footer-inner {
   display: grid;
   grid-template-columns: 2fr 3fr;
@@ -1504,290 +1524,61 @@ main,
 }
 .footer-list a {
   font-size: 14px;
-  color: var(--color-ink-2);
+  color: rgba(255,255,255,.62);
   transition: color var(--duration-fast) var(--ease-out);
 }
-.footer-list a:hover { color: var(--color-ink); }
+.footer-list a:hover { color: #fff; }
 .site-footer-bottom {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 24px 0 32px;
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid rgba(255,255,255,.1);
 }
 
 /* ============================================================
-   MARKETING — DARK + GLOW THEME (scoped to the landing page)
-   The Topbar / SiteFooter are shared with light surfaces
-   (dashboard, admin, legal), so the dark treatment lives under
-   the .marketing scope only and never leaks out.
+   SECTION RHYTHM + MOTION
 ============================================================ */
-.marketing {
-  position: relative;
-  isolation: isolate;
-  min-height: 100vh;
-  background: #16120E;
-  color: var(--color-paper);
+/* White + off-white alternating section rhythm. The off-white band is painted
+   full-bleed via a pseudo-element so it spans the viewport even though the
+   section itself is width-constrained by `.page`. */
+.section.alt { position: relative; }
+.section.alt::before {
+  content: "";
+  position: absolute;
+  top: 0; bottom: 0;
+  left: calc(50% - 50vw);
+  width: 100vw;
+  background: var(--color-subtle);
+  z-index: -1;
+  pointer-events: none;
 }
-/* down-page green glow language — soft radials anchored at a few
-   scroll depths so the accent breathes through every section. */
-.marketing::before {
-  content: ""; position: absolute; inset: 0; z-index: 0; pointer-events: none;
-  background:
-    radial-gradient(46% 20% at 86% 32%, rgba(0,196,106,.10), transparent 62%),
-    radial-gradient(42% 18% at 8% 60%, rgba(0,196,106,.08), transparent 62%),
-    radial-gradient(48% 18% at 92% 84%, rgba(0,196,106,.07), transparent 62%);
-}
-.marketing > main,
-.marketing > .site-footer { position: relative; z-index: 1; }
+.bg-alt { background: var(--color-subtle); }
 
-/* — Navbar — */
-.marketing .topbar {
-  background: color-mix(in oklab, #16120E 74%, transparent);
-  border-bottom-color: rgba(255,255,255,.08);
-}
-.marketing .topbar-nav a { color: rgba(250,248,243,.62); }
-.marketing .topbar-nav a:hover { color: var(--color-paper); }
-.marketing .topbar .meta { color: rgba(250,248,243,.40); }
-.marketing .topbar-toggle {
-  background: rgba(255,255,255,.06);
-  border-color: rgba(255,255,255,.14);
-  color: var(--color-paper);
-}
-.marketing .topbar-toggle:hover { background: rgba(255,255,255,.10); border-color: rgba(255,255,255,.22); }
-.marketing .logo { color: var(--color-paper); }
-/* ink mark would vanish on the dark bar — flip it to the green chip */
-.marketing .logo .mark { background: var(--color-vg-500); color: var(--color-ink); }
-
-/* mobile drawer (DOM child of .marketing even though position:fixed) */
-.marketing .topbar-drawer-panel { background: #1A1611; border-left-color: rgba(255,255,255,.08); }
-.marketing .topbar-drawer-links { border-top-color: rgba(255,255,255,.08); }
-.marketing .topbar-drawer-links li { border-bottom-color: rgba(255,255,255,.08); }
-.marketing .topbar-drawer-links a { color: var(--color-paper); }
-.marketing .topbar-drawer-links a:hover { color: var(--color-vg-300); }
-.marketing .topbar-drawer-close {
-  background: rgba(255,255,255,.06); border-color: rgba(255,255,255,.14); color: var(--color-paper);
-}
-.marketing .topbar-drawer-actions { border-top-color: rgba(255,255,255,.08); }
-.marketing .topbar-drawer-meta { color: rgba(250,248,243,.5); }
-
-/* — Type on dark — */
-.marketing .section { border-top-color: rgba(255,255,255,.07); }
-.marketing .display,
-.marketing .h1, .marketing .h2, .marketing .h3, .marketing .h4 { color: var(--color-paper); }
-.marketing .body { color: rgba(250,248,243,.66); }
-.marketing .eyebrow { color: var(--color-vg-300); }
-.marketing .italic-green { color: var(--color-vg-300); }
-
-/* — Trust strip — */
-.marketing .trusted-card {
-  background: rgba(255,255,255,.04);
-  border-color: rgba(255,255,255,.09);
-  box-shadow: 0 24px 50px -34px rgba(0,0,0,.6);
-  -webkit-backdrop-filter: blur(8px);
-          backdrop-filter: blur(8px);
-}
-.marketing .trusted-card .ttl { color: rgba(250,248,243,.5); }
-.marketing .trusted-card .logos { color: rgba(250,248,243,.56); }
-.marketing .trusted-card .logos span:hover { color: var(--color-vg-300); }
-
-/* — Steps — */
-.marketing .step { border-right-color: rgba(255,255,255,.08); }
-@media (max-width: 900px) {
-  .marketing .step { border-bottom-color: rgba(255,255,255,.08); }
-}
-.marketing .step .num { color: rgba(0,196,106,.18); }
-.marketing .step h3 { color: var(--color-paper); }
-.marketing .step p { color: rgba(250,248,243,.6); }
-
-/* — Services grid — */
-.marketing .svc-tile {
-  background: rgba(255,255,255,.04);
-  border-color: rgba(255,255,255,.08);
-}
-.marketing .svc-tile:hover {
-  border-color: rgba(0,196,106,.45);
-  background: rgba(255,255,255,.06);
-  box-shadow: 0 0 0 1px rgba(0,196,106,.22), 0 18px 36px -22px rgba(0,0,0,.7);
-}
-.marketing .svc-tile .nm { color: var(--color-paper); }
-.marketing .svc-tile .pr { color: rgba(250,248,243,.5); }
-
-/* — Pricing — */
-.marketing .price-card {
-  background: rgba(255,255,255,.04);
-  border-color: rgba(255,255,255,.09);
-}
-.marketing .price-card:hover {
-  border-color: rgba(0,196,106,.45);
-  box-shadow: 0 22px 44px -26px rgba(0,0,0,.7);
-}
-.marketing .price-card .tag { color: var(--color-vg-300); background: rgba(0,196,106,.12); }
-.marketing .price-card .svc { color: var(--color-paper); }
-.marketing .price-card .price { color: var(--color-vg-300); }
-.marketing .price-card .price small { color: rgba(250,248,243,.5); }
-.marketing .price-card .feats { color: rgba(250,248,243,.72); }
-/* featured tier: ink card would disappear on dark — make it the glow card */
-.marketing .price-card.featured {
-  background: linear-gradient(180deg, rgba(0,196,106,.14), rgba(0,196,106,.035));
-  border-color: rgba(0,196,106,.40);
-  box-shadow:
-    0 0 0 1px rgba(0,196,106,.28),
-    0 30px 60px -30px rgba(0,196,106,.35),
-    0 30px 60px -34px rgba(0,0,0,.7);
-}
-.marketing .price-card.featured .tag { color: var(--color-ink); background: var(--color-vg-500); }
-.marketing .price-card.featured .svc { color: var(--color-paper); }
-.marketing .price-card.featured .price small { color: rgba(250,248,243,.6); }
-.marketing .price-card.featured .feats { color: rgba(250,248,243,.85); }
-
-/* — FAQ — */
-.marketing .faq-list { border-top-color: rgba(255,255,255,.10); }
-.marketing .faq-item { border-bottom-color: rgba(255,255,255,.10); }
-.marketing .faq-item .faq-q { color: var(--color-paper); }
-.marketing .faq-item .faq-toggle { color: var(--color-vg-300); }
-.marketing .faq-item .faq-a { color: rgba(250,248,243,.64); }
-
-/* — Footer — */
-.marketing .site-footer {
-  border-top-color: rgba(255,255,255,.08);
-  background: linear-gradient(180deg, transparent, rgba(0,0,0,.28));
-}
-.marketing .site-footer .logo { color: var(--color-paper); }
-.marketing .site-footer .caption { color: rgba(250,248,243,.5); }
-.marketing .site-footer .eyebrow { color: rgba(250,248,243,.5); }
-.marketing .footer-list a { color: rgba(250,248,243,.6); }
-.marketing .footer-list a:hover { color: var(--color-paper); }
-.marketing .site-footer-bottom { border-top-color: rgba(255,255,255,.08); }
-
-/* ============================================================
-   APP DARK THEME  (auth · dashboard · admin · legal · edges)
-   ------------------------------------------------------------
-   The whole design system is token-driven, so the dark surface is
-   produced by REDEFINING the semantic tokens — every component that
-   reads --color-paper/-surface/-ink/-border (topbar, cards, inputs,
-   tables, drawer, buttons, domain widgets) inverts from this one
-   place. The fixes below cover the two spots a flat token-flip can't
-   reach:
-     1. tokens that conflated "ink = text" with "ink = dark surface"
-        (.wallet, .otp-reveal, all .selected chip states), and
-     2. ink text sitting on a GREEN fill (.btn-primary, .ico-sq, .pop)
-        which would turn light-on-green after the flip.
-   The marketing landing keeps its own .marketing treatment and is
-   intentionally NOT routed through here (a global flip would darken
-   its bright phone mockup).
-============================================================ */
-.theme-dark {
-  /* — surfaces (warm dark, matched to the marketing base) — */
-  --color-paper:         #16120E;
-  --color-surface:       #1E1A14;
-  --color-subtle:        #241F18;
-  --color-quiet:         #2C2620;
-  --color-border:        rgba(255,255,255,.10);
-  --color-border-strong: rgba(255,255,255,.18);
-
-  /* — ink ramp flips to the light text scale — */
-  --color-ink:           #FAF8F3;
-  --color-ink-2:         rgba(250,248,243,.80);
-  --color-ink-muted:     rgba(250,248,243,.56);
-  --color-ink-subtle:    rgba(250,248,243,.40);
-
-  /* — green "text/accent on light" tones were too dark on a dark
-       surface; remap the deep green to the bright one so every
-       eyebrow / price / code / link recolors at once — */
-  --color-vg-700:        #6ED593;
-  --color-vg-50:         rgba(0,196,106,.12);   /* soft chip fill  */
-  --color-vg-100:        rgba(0,196,106,.30);   /* soft chip border */
-
-  /* — system soft fills re-toned translucent for dark — */
-  --color-danger-soft:   rgba(212,63,63,.16);
-  --color-warn-soft:     rgba(199,126,27,.16);
-  --color-info-soft:     rgba(37,99,235,.16);
-
-  position: relative;
-  isolation: isolate;
-  min-height: 100vh;
-  background: var(--color-paper);
-  color: var(--color-ink);
+/* Scroll-reveal: content fades + rises in when it enters the viewport.
+   A client observer adds .is-visible. Honors reduced-motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .reveal {
+    opacity: 0;
+    transform: translateY(18px);
+    transition:
+      opacity var(--duration-slow) var(--ease-out),
+      transform var(--duration-slow) var(--ease-out);
+    transition-delay: var(--reveal-delay, 0ms);
+    will-change: opacity, transform;
+  }
+  .reveal.is-visible { opacity: 1; transform: none; }
 }
 
-/* down-page green glow, same language as the marketing page.
-   z-index:-1 (inside the isolate context) keeps it behind all content
-   without needing to set position/z-index on the children — important
-   because a blanket `.theme-dark > *` rule would clobber the Topbar's
-   own `position: sticky`. */
-.theme-dark::before {
-  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
-  background:
-    radial-gradient(46% 22% at 86% 22%, rgba(0,196,106,.10), transparent 62%),
-    radial-gradient(42% 20% at 8% 58%, rgba(0,196,106,.07), transparent 62%),
-    radial-gradient(48% 20% at 92% 88%, rgba(0,196,106,.06), transparent 62%);
+/* Smooth, shared interaction transitions across interactive surfaces. */
+@media (prefers-reduced-motion: no-preference) {
+  a, .card, .svc-tile, .price-card, .topup-tile, .rail-tab, .chip,
+  .cty-row, .faq-item .faq-toggle, .topbar-nav a, .footer-list a {
+    transition:
+      color var(--duration-fast) var(--ease-out),
+      background-color var(--duration-base) var(--ease-out),
+      border-color var(--duration-base) var(--ease-out),
+      box-shadow var(--duration-base) var(--ease-out),
+      transform var(--duration-base) var(--ease-out);
+  }
 }
-
-/* — keep dark ink on GREEN fills (flip turned --color-ink light) — */
-.theme-dark .btn-primary,
-.theme-dark .btn-accent,
-.theme-dark .step .ico-sq,
-.theme-dark .price-card .pop,
-.theme-dark .chip.selected .tic { color: #14110C; }
-
-/* — logo mark: ink fill would vanish; flip to the green chip — */
-.theme-dark .logo .mark { background: var(--color-vg-500); color: #14110C; }
-
-/* — .btn-ink was the quiet dark CTA; becomes a raised dark button — */
-.theme-dark .btn-ink {
-  background: #2A241D; color: var(--color-ink);
-  border-color: rgba(255,255,255,.10);
-  box-shadow: none;
-}
-.theme-dark .btn-ink:hover { background: #332C23; }
-
-/* — Wallet: ink-surface card → warm raised card, light text — */
-.theme-dark .wallet {
-  background: linear-gradient(180deg, #221D16, #1A1611);
-  color: var(--color-ink);
-  border: 1px solid rgba(255,255,255,.08);
-}
-.theme-dark .wallet .meta div b { color: var(--color-ink); }
-
-/* — OTP reveal: same ink-surface treatment — */
-.theme-dark .otp-reveal {
-  background: #221D16; color: var(--color-ink);
-  border: 1px solid rgba(255,255,255,.08);
-}
-
-/* — Selected states used an ink fill; make them green-tinted — */
-.theme-dark .cty-row.selected,
-.theme-dark .topup-tile.selected,
-.theme-dark .rail-tab.selected,
-.theme-dark .chip.selected {
-  background: rgba(0,196,106,.16);
-  color: var(--color-ink);
-  border-color: rgba(0,196,106,.50);
-}
-.theme-dark .mode-toggle-btn.is-active {
-  background: rgba(0,196,106,.18);
-  color: var(--color-ink);
-}
-
-/* — Selection affordance on tiles → green instead of light ink — */
-.theme-dark .svc-tile:hover,
-.theme-dark .svc-tile.selected,
-.theme-dark .topup-tile:hover,
-.theme-dark .rail-tab:hover { border-color: rgba(0,196,106,.45); }
-
-/* — Featured pricing card (if used on a dark surface) → glow card — */
-.theme-dark .price-card.featured {
-  background: linear-gradient(180deg, rgba(0,196,106,.14), rgba(0,196,106,.035));
-  border-color: rgba(0,196,106,.40);
-  box-shadow:
-    0 0 0 1px rgba(0,196,106,.28),
-    0 30px 60px -30px rgba(0,196,106,.35);
-}
-.theme-dark .price-card.featured .tag { color: #14110C; background: var(--color-vg-500); }
-
-/* — Badge / banner borders were hardcoded light; retint for dark — */
-.theme-dark .badge-warn,
-.theme-dark .legal-prose .draft-banner { border-color: rgba(199,126,27,.40); }
-.theme-dark .badge-danger { border-color: rgba(212,63,63,.40); }
-.theme-dark .badge-info { border-color: rgba(37,99,235,.40); }

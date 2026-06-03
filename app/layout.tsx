@@ -42,7 +42,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#FAF8F3",
+  themeColor: "#ffffff",
   width: "device-width",
   initialScale: 1,
 };
@@ -57,10 +57,10 @@ export default function RootLayout({
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        {/* eslint-disable @next/next/no-page-custom-font -- App Router layout applies fonts globally; a single stylesheet link keeps the three families (Fraunces variable serif w/ optical sizing, Inter, JetBrains Mono) in one request. */}
+        {/* eslint-disable @next/next/no-page-custom-font -- App Router layout applies fonts globally; one stylesheet link keeps Instrument Sans (UI + display) and JetBrains Mono (numerics/codes) in a single request. */}
         <link
           rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;0,9..144,800;1,9..144,400;1,9..144,500;1,9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=JetBrains+Mono:wght@400;500;600&display=swap"
         />
         {/* eslint-enable @next/next/no-page-custom-font */}
       </head>
