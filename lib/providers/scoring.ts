@@ -9,11 +9,17 @@
  * tier.
  *
  * Selection rule:
- *   1. Sort by wholesale_price_cents ASC.
- *   2. If any candidate has enough sample to be trusted AND a success rate
- *      above the floor, take the CHEAPEST such candidate.
- *   3. Otherwise fall back to the absolute cheapest (the system has no data
- *      yet, no point being precious).
+ *   0. HARD PREFERENCE first: only consider candidates in the highest
+ *      preference tier that currently has stock. This is what lets us route
+ *      e.g. WhatsApp to a preferred provider while everything else stays
+ *      cheapest-reliable. Candidates are already filtered to in-stock upstream
+ *      rows by the caller, so an out-of-stock preferred provider simply isn't
+ *      present and the next tier is used — that's the fallback.
+ *   1. Within that tier, sort by wholesale_price_cents ASC.
+ *   2. If any has enough sample to be trusted AND a success rate above the
+ *      floor, take the CHEAPEST such candidate.
+ *   3. Otherwise fall back to the absolute cheapest in the tier (no data yet,
+ *      no point being precious).
  *
  * Thresholds are conservative; we'd rather lose a little price advantage than
  * route a user to a known-bad operator. Tune as data accumulates.
@@ -26,6 +32,12 @@ export interface ScorableCandidate {
   wholesale_price_cents: number | null;
   recent_received_count: number;
   recent_total_count: number;
+  /**
+   * Routing tier; higher wins. Defaults to 0 (no preference). Set per
+   * (service[,country]) to make a provider primary — a tier-10 candidate is
+   * chosen over a cheaper tier-0 one as long as it has stock.
+   */
+  preference_rank?: number | null;
 }
 
 /** Below this sample size the success rate is too noisy to trust. */
@@ -61,7 +73,16 @@ export function pickBestCandidate<T extends ScorableCandidate>(
 ): T | null {
   if (candidates.length === 0) return null;
 
-  const byPrice = [...candidates].sort(
+  // Hard preference: restrict to the highest preference tier present. The
+  // caller only passes in-stock candidates, so a preferred provider that's
+  // out of stock just won't appear here and the next tier is used.
+  const maxRank = candidates.reduce(
+    (m, c) => Math.max(m, c.preference_rank ?? 0),
+    Number.NEGATIVE_INFINITY,
+  );
+  const topTier = candidates.filter((c) => (c.preference_rank ?? 0) === maxRank);
+
+  const byPrice = [...topTier].sort(
     (a, b) =>
       (a.wholesale_price_cents ?? Number.MAX_SAFE_INTEGER) -
       (b.wholesale_price_cents ?? Number.MAX_SAFE_INTEGER),

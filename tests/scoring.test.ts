@@ -16,6 +16,7 @@ function make(
     wholesale_price_cents: number | null;
     recent_received_count: number;
     recent_total_count: number;
+    preference_rank: number | null;
   }>,
 ) {
   return {
@@ -26,6 +27,7 @@ function make(
     wholesale_price_cents: 100,
     recent_received_count: 0,
     recent_total_count: 0,
+    preference_rank: 0,
     ...overrides,
   };
 }
@@ -137,5 +139,68 @@ describe("pickBestCandidate", () => {
       upstream_operator: "okay",
     });
     expect(pickBestCandidate([burned, okay])?.upstream_operator).toBe("okay");
+  });
+
+  it("hard preference: picks a higher-tier provider even when a lower tier is cheaper", () => {
+    const cheap5sim = make({
+      provider_slug: "5sim",
+      wholesale_price_cents: 30,
+      preference_rank: 0,
+      upstream_operator: "5sim-cheap",
+    });
+    const preferred = make({
+      provider_slug: "textverified",
+      wholesale_price_cents: 90,
+      preference_rank: 10,
+      upstream_operator: "tv-preferred",
+    });
+    expect(
+      pickBestCandidate([cheap5sim, preferred])?.upstream_operator,
+    ).toBe("tv-preferred");
+  });
+
+  it("within the preferred tier, still applies reliability then price", () => {
+    const preferredUnproven = make({
+      provider_slug: "textverified",
+      wholesale_price_cents: 60,
+      preference_rank: 10,
+      upstream_operator: "tv-unproven",
+    });
+    const preferredReliable = make({
+      provider_slug: "textverified",
+      wholesale_price_cents: 80,
+      preference_rank: 10,
+      recent_received_count: 9,
+      recent_total_count: 10,
+      upstream_operator: "tv-reliable",
+    });
+    const cheap5sim = make({
+      provider_slug: "5sim",
+      wholesale_price_cents: 20,
+      preference_rank: 0,
+      upstream_operator: "5sim",
+    });
+    expect(
+      pickBestCandidate([cheap5sim, preferredUnproven, preferredReliable])
+        ?.upstream_operator,
+    ).toBe("tv-reliable");
+  });
+
+  it("falls back to the lower tier when the preferred provider has no stock", () => {
+    // Preferred provider absent (filtered out upstream as out-of-stock) — only
+    // tier-0 candidates remain, so we route among them normally.
+    const a = make({
+      provider_slug: "5sim",
+      wholesale_price_cents: 50,
+      preference_rank: 0,
+      upstream_operator: "5sim-a",
+    });
+    const b = make({
+      provider_slug: "smspool",
+      wholesale_price_cents: 40,
+      preference_rank: 0,
+      upstream_operator: "smspool-b",
+    });
+    expect(pickBestCandidate([a, b])?.upstream_operator).toBe("smspool-b");
   });
 });
