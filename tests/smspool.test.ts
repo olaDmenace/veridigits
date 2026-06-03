@@ -149,7 +149,27 @@ describe("SmsPoolProvider.cancelOrder", () => {
 });
 
 describe("SmsPoolProvider.syncCatalog", () => {
-  it("returns empty until a bulk-pricing source is wired", async () => {
-    await expect(provider().syncCatalog()).resolves.toEqual([]);
+  it("builds aligned entries from per-country service lists, skipping unpriced/out-of-stock", async () => {
+    (global.fetch as ReturnType<typeof vi.fn>)
+      // /country/retrieve_all
+      .mockResolvedValueOnce(jsonResponse([{ ID: 1, name: "United States" }]))
+      // /service/retrieve_all?country=1
+      .mockResolvedValueOnce(
+        jsonResponse([
+          { ID: 10, name: "Telegram", price: "0.20", available: 5 },
+          { ID: 11, name: "WhatsApp", price: "0.00", available: 9 }, // unpriced → skip
+          { ID: 12, name: "Google", price: "0.30", available: 0 }, // no stock → skip
+        ]),
+      );
+    const entries = await provider().syncCatalog();
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({
+      upstreamServiceCode: "10",
+      upstreamCountryCode: "1",
+      serviceSlug: "telegram",
+      countryIso: "unitedstates",
+      priceCents: 20,
+      availableCount: 5,
+    });
   });
 });

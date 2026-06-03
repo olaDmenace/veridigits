@@ -37,12 +37,24 @@ export interface ProviderOrderState {
 }
 
 export interface ProviderCatalogEntry {
+  /** Provider-specific code passed back to buy/check (5SIM slug, SMSPool numeric id, TextVerified serviceName). */
   upstreamServiceCode: string;
   upstreamServiceName: string;
+  /** Provider-specific country code passed back to buy/check. */
   upstreamCountryCode: string;
   upstreamOperator: string;
   priceCents: number;
   availableCount: number;
+  /**
+   * Canonical slug for the SHARED `services` table, so the same logical service
+   * maps to one row across providers (enabling cross-provider routing/fallback).
+   * Defaults to upstreamServiceCode — correct for 5SIM, where the code is already
+   * the slug. Providers with opaque codes (SMSPool) must set this from the name.
+   */
+  serviceSlug?: string;
+  /** Canonical iso for the shared `countries` table. Align cross-provider (e.g. "usa"). Defaults to upstreamCountryCode. */
+  countryIso?: string;
+  countryName?: string;
 }
 
 export interface PriceLookupParams {

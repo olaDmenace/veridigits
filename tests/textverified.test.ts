@@ -159,7 +159,35 @@ describe("TextVerifiedProvider.cancelOrder", () => {
 });
 
 describe("TextVerifiedProvider.syncCatalog", () => {
-  it("returns empty until a priced catalog source is wired", async () => {
-    await expect(provider().syncCatalog()).resolves.toEqual([]);
+  it("prices each service and emits US-aligned entries", async () => {
+    mockRouter((url, method) => {
+      if (url.endsWith("/api/pub/v2/auth")) return json(AUTH_OK);
+      if (url.includes("/api/pub/v2/services"))
+        return json({ data: [{ serviceName: "whatsapp" }, { serviceName: "google" }] });
+      if (url.endsWith("/api/pub/v2/pricing/verifications") && method === "POST")
+        return json({ totalCost: 1.5 });
+      return json({}, 404);
+    });
+    const entries = await provider().syncCatalog();
+    expect(entries).toHaveLength(2);
+    expect(entries[0]).toMatchObject({
+      upstreamServiceCode: "whatsapp",
+      serviceSlug: "whatsapp",
+      countryIso: "usa",
+      priceCents: 150,
+    });
+  });
+
+  it("skips services it can't price", async () => {
+    mockRouter((url, method) => {
+      if (url.endsWith("/api/pub/v2/auth")) return json(AUTH_OK);
+      if (url.includes("/api/pub/v2/services"))
+        return json({ data: [{ serviceName: "whatsapp" }] });
+      if (url.endsWith("/api/pub/v2/pricing/verifications") && method === "POST")
+        return json({ error: "no price" }, 400);
+      return json({}, 404);
+    });
+    const entries = await provider().syncCatalog();
+    expect(entries).toHaveLength(0);
   });
 });

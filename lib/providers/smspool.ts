@@ -124,12 +124,81 @@ export class SmsPoolProvider implements OtpProvider {
   }
 
   async syncCatalog(): Promise<ProviderCatalogEntry[]> {
-    // SMSPool has no single bulk price tree like 5SIM's /guest/prices, so a
-    // full per-(service×country) price crawl is impractical from one call.
-    // Catalog population for SMSPool is handled separately (admin seeding /
-    // targeted sync); returning [] keeps the shared sync job from inserting
-    // partial/priceless rows. See docs/designs/multi-provider-routing.md.
-    return [];
+    // Per-country service lists with price/stock. SMSPool uses numeric IDs, so
+    // upstream_*_code stays the ID (what buy/check need) while the canonical
+    // serviceSlug/countryIso come from the human names so services align with
+    // 5SIM (e.g. "Telegram" -> "telegram"). Only positively priced + stocked
+    // rows are emitted, so an unexpected response shape yields nothing rather
+    // than bad data.
+    //
+    // ─── VERIFY-ON-FIRST-LIVE-RUN ─────────────────────────────────────────
+    // Whether /service/retrieve_all?country= returns price+stock, and the
+    // field names, are unconfirmed (no network here). Also: SMSPool country
+    // NAMES rarely match 5SIM's idiosyncratic slugs (e.g. "United States" ->
+    // "unitedstates" vs 5SIM "usa"), so cross-provider fallback by country
+    // needs a country-mapping table — a documented follow-up.
+    const countries = await this.get<SmsPoolCountry[]>("/country/retrieve_all");
+    const out: ProviderCatalogEntry[] = [];
+
+    for (const c of countries ?? []) {
+      const countryId = idOf(c.ID ?? c.id);
+      if (!countryId) continue;
+      const countryName = stringOrNull(c.name) ?? countryId;
+
+      let services: SmsPoolCatalogService[] | null = null;
+      try {
+        services = await this.get<SmsPoolCatalogService[]>(
+          `/service/retrieve_all?country=${encodeURIComponent(countryId)}`,
+        );
+      } catch {
+        continue; // skip this country on a transient error
+      }
+
+      for (const s of services ?? []) {
+        const serviceId = idOf(s.ID ?? s.id);
+        if (!serviceId) continue;
+        const price = toNumber(s.price ?? s.cost);
+        const avail = pickNumber(s.available, s.stock, s.count, s.amount) ?? 0;
+        if (price <= 0 || avail <= 0) continue;
+        const serviceName = stringOrNull(s.name) ?? serviceId;
+        out.push({
+          upstreamServiceCode: serviceId,
+          upstreamServiceName: serviceName,
+          upstreamCountryCode: countryId,
+          upstreamOperator: "default",
+          priceCents: Math.round(price * 100),
+          availableCount: avail,
+          serviceSlug: slugify(serviceName),
+          countryIso: slugify(countryName),
+          countryName,
+        });
+      }
+    }
+    return out;
+  }
+
+  /** Unauthenticated GET for the public catalog endpoints. */
+  private async get<T>(path: string): Promise<T> {
+    const res = await fetch(`${this.baseUrl}${path}`, {
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    });
+    const text = await res.text();
+    if (!res.ok) {
+      throw new ProviderApiError(
+        this.slug,
+        `${path} returned ${res.status}: ${text.slice(0, 200)}`,
+        res.status,
+      );
+    }
+    try {
+      return JSON.parse(text) as T;
+    } catch {
+      throw new ProviderApiError(
+        this.slug,
+        `${path}: non-JSON response: ${text.slice(0, 200)}`,
+      );
+    }
   }
 
   // ── transport ────────────────────────────────────────────────────────────
@@ -203,6 +272,22 @@ interface SmsPoolCancel {
   success?: number | boolean;
   message?: string;
 }
+interface SmsPoolCountry {
+  ID?: string | number;
+  id?: string | number;
+  name?: string;
+}
+interface SmsPoolCatalogService {
+  ID?: string | number;
+  id?: string | number;
+  name?: string;
+  price?: string | number;
+  cost?: string | number;
+  available?: string | number;
+  stock?: string | number;
+  count?: string | number;
+  amount?: string | number;
+}
 
 /** SMSPool buy result → common shape. Throws on a non-success payload. */
 function parsePurchase(
@@ -254,6 +339,17 @@ function mapCheckStatus(raw: number | string | undefined): ProviderOrderStatus {
 
 const AVAILABILITY_SENTINEL = 999;
 const DEFAULT_ACTIVATION_TTL_MS = 10 * 60 * 1000;
+
+/** Canonical service slug from a display name (aligns across providers). */
+function slugify(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
+/** Stringify a numeric/string id, or null if absent. */
+function idOf(v: unknown): string | null {
+  if (v == null) return null;
+  const s = String(v).trim();
+  return s.length > 0 ? s : null;
+}
 
 function toNumber(v: unknown): number {
   const n = typeof v === "string" ? Number(v) : typeof v === "number" ? v : NaN;

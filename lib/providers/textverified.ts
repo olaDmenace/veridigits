@@ -141,11 +141,46 @@ export class TextVerifiedProvider implements OtpProvider {
   }
 
   async syncCatalog(): Promise<ProviderCatalogEntry[]> {
-    // Service list is available (GET /api/pub/v2/services) but pricing is a
-    // per-service call and the model is US-only, so a full priced catalog isn't
-    // built from one request. Catalog population is handled separately (admin /
-    // targeted sync). Returning [] avoids inserting priceless rows.
-    return [];
+    // Services list (US-only model). Price each one; emit only priced rows so
+    // the registry has a ranking hint (the live re-quote at purchase is
+    // authoritative). Canonical keys align to 5SIM: serviceSlug=slug(name),
+    // countryIso="usa" — so e.g. WhatsApp shares a (service,country) with 5SIM
+    // and can use it as fallback.
+    const raw = await this.authedJson<TvServiceList>(
+      "GET",
+      "/api/pub/v2/services?numberType=mobile&reservationType=verification",
+    );
+    const services = Array.isArray(raw) ? raw : (raw?.data ?? []);
+
+    const entries: ProviderCatalogEntry[] = [];
+    for (const s of services) {
+      const name = stringOrNull(s.serviceName);
+      if (!name) continue;
+      let priceCents = 0;
+      try {
+        const p = await this.authedJson<TvPricing>(
+          "POST",
+          "/api/pub/v2/pricing/verifications",
+          { serviceName: name, capability: "sms", numberType: "mobile" },
+        );
+        priceCents = Math.round(toNumber(p.totalCost) * 100);
+      } catch {
+        continue; // can't price it → don't list it
+      }
+      if (priceCents <= 0) continue;
+      entries.push({
+        upstreamServiceCode: name,
+        upstreamServiceName: name,
+        upstreamCountryCode: "us",
+        upstreamOperator: "default",
+        priceCents,
+        availableCount: AVAILABILITY_SENTINEL,
+        serviceSlug: slugify(name),
+        countryIso: TEXTVERIFIED_COUNTRY_ISO,
+        countryName: "USA",
+      });
+    }
+    return entries;
   }
 
   // ── messages ───────────────────────────────────────────────────────────────
@@ -276,6 +311,12 @@ interface TvSmsPage {
 interface TvPricing {
   totalCost?: number | string;
 }
+interface TvService {
+  serviceName?: string;
+}
+interface TvServiceList {
+  data?: TvService[];
+}
 
 /**
  * TextVerified verification `state` → our ProviderOrderStatus.
@@ -307,6 +348,13 @@ function extractId(href: string | undefined): string | null {
 
 const AVAILABILITY_SENTINEL = 999;
 const DEFAULT_TTL_MS = 10 * 60 * 1000;
+/** TextVerified is US-only; align to 5SIM's US country row (iso_code "usa"). */
+const TEXTVERIFIED_COUNTRY_ISO = "usa";
+
+/** Canonical service slug from a provider's display name (aligns across providers). */
+function slugify(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
 
 function toNumber(v: unknown): number {
   const n = typeof v === "string" ? Number(v) : typeof v === "number" ? v : NaN;

@@ -2,7 +2,7 @@ import { inngest } from "./client";
 import { getProvider } from "@/lib/providers";
 import { getAdminClient } from "@/lib/supabase/admin";
 
-const ENABLED_PROVIDERS = ["5sim"] as const;
+const ENABLED_PROVIDERS = ["5sim", "smspool", "textverified"] as const;
 const UPSERT_BATCH_SIZE = 1000;
 
 /**
@@ -76,19 +76,31 @@ async function reconcileProvider(
     return { entriesProcessed: 0, disabledStale: 0 };
   }
 
-  // 1. Unique service slugs + country slugs in this catalog.
+  // Canonical key helpers — fall back to the upstream code (5SIM behavior).
+  const svcSlugOf = (e: (typeof entries)[number]) =>
+    e.serviceSlug ?? e.upstreamServiceCode;
+  const ctyIsoOf = (e: (typeof entries)[number]) =>
+    e.countryIso ?? e.upstreamCountryCode;
+
+  // 1. Unique canonical service slugs + country isos in this catalog.
   const serviceSlugs = new Set<string>();
   const serviceNames = new Map<string, string>();
   const countrySlugs = new Set<string>();
+  const countryNames = new Map<string, string>();
   for (const e of entries) {
-    serviceSlugs.add(e.upstreamServiceCode);
-    if (!serviceNames.has(e.upstreamServiceCode)) {
-      serviceNames.set(e.upstreamServiceCode, e.upstreamServiceName);
+    const svcSlug = svcSlugOf(e);
+    const ctyIso = ctyIsoOf(e);
+    serviceSlugs.add(svcSlug);
+    if (!serviceNames.has(svcSlug)) {
+      serviceNames.set(svcSlug, e.upstreamServiceName);
     }
-    countrySlugs.add(e.upstreamCountryCode);
+    countrySlugs.add(ctyIso);
+    if (!countryNames.has(ctyIso)) {
+      countryNames.set(ctyIso, e.countryName ?? titleCase(ctyIso));
+    }
   }
 
-  // 2. Upsert services (slug-based).
+  // 2. Upsert services (canonical slug-based).
   const servicesPayload = [...serviceSlugs].map((slug) => ({
     slug,
     name: serviceNames.get(slug) ?? slug,
@@ -100,10 +112,10 @@ async function reconcileProvider(
     throw new Error(`upsert services failed: ${servicesErr.message}`);
   }
 
-  // 3. Upsert countries (using upstream slug as iso_code for v1).
+  // 3. Upsert countries (canonical iso_code).
   const countriesPayload = [...countrySlugs].map((slug) => ({
     iso_code: slug,
-    name: titleCase(slug),
+    name: countryNames.get(slug) ?? titleCase(slug),
   }));
   const { error: countriesErr } = await supabase
     .from("countries")
@@ -146,8 +158,8 @@ async function reconcileProvider(
   }> = [];
 
   for (const e of entries) {
-    const serviceId = serviceIdBySlug.get(e.upstreamServiceCode);
-    const countryId = countryIdByIso.get(e.upstreamCountryCode);
+    const serviceId = serviceIdBySlug.get(svcSlugOf(e));
+    const countryId = countryIdByIso.get(ctyIsoOf(e));
     if (!serviceId || !countryId) continue;
 
     psRows.push({
