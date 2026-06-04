@@ -64,7 +64,12 @@ export const STRICT_SCREENING_SERVICES = new Set<string>([
  * Remove a slug here the moment its balance is funded — its rows are already in
  * the catalog, so it goes live immediately on the next quote.
  */
-export const DISABLED_PROVIDERS = new Set<string>([]);
+// Re-gated 2026-06: funded but NOT yet working. TextVerified pricing call is
+// missing required carrier/area-code options (400), and SMSPool services are
+// whitelist-only on our account (purchase rejected). Routing to either just
+// errors the user, so keep them out until both are actually fulfilling. 5SIM
+// handles everything via delivery-ranked operators meanwhile.
+export const DISABLED_PROVIDERS = new Set<string>(["textverified", "smspool"]);
 
 /** Whether routing may select this provider right now. */
 export function isProviderRoutable(providerSlug: string): boolean {
