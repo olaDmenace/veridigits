@@ -263,15 +263,18 @@ async function classifyEvidence(
  *   - "code: 123456"
  *   - "G-928451"
  *   - "Your code is 847-291"
- *   - "<service>: 123456"
+ *   - "YourWhatsAppcode:778467Don'tshare"  (mashed, no spaces)
  *
- * Returns the first 4-8 digit run we find. Null if nothing matches.
+ * Anchors on DIGIT boundaries (not `\b` word boundaries): WhatsApp and others
+ * jam the code straight against letters ("code:778467Don't"), where a trailing
+ * `\b` never matches because digit→letter is word→word. Returns the first
+ * standalone 4-8 digit run. Null if nothing matches.
  */
-function extractCode(content: string): string | null {
+export function extractCode(content: string): string | null {
   const candidates = [
-    /\bG-(\d{4,8})\b/,
-    /\b(\d{3}-\d{3})\b/,
-    /\b(\d{4,8})\b/,
+    /G-(\d{4,8})(?!\d)/,
+    /(?<!\d)(\d{3}-\d{3})(?!\d)/,
+    /(?<!\d)(\d{4,8})(?!\d)/,
   ];
   for (const re of candidates) {
     const m = content.match(re);
