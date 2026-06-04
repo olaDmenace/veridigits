@@ -23,10 +23,11 @@
  *   1. Sort by wholesale_price_cents ASC.
  *   2. If any candidate clears the reliability floor, take the CHEAPEST such.
  *   3. Otherwise take the candidate with the HIGHEST effective delivery.
- *   4. No guaranteed-fail sales: if the chosen candidate's KNOWN delivery
- *      (measured or published, not a prior) is below MIN_VIABLE_RATE, return
- *      null so the caller shows out-of-stock instead of charging for a number
- *      that can never receive (e.g. POF/USA, 0% on every 5SIM operator).
+ *
+ * We OFFER every in-stock operator — even a low/0% published rate. The rate is
+ * 5SIM's estimate, defer-debit means a miss never charges, and re-roll covers
+ * it, so refusing the sale (and hiding the service) is worse than offering the
+ * best available number. Returns null only when the candidate list is empty.
  */
 export interface ScorableCandidate {
   provider_slug: string;
@@ -65,12 +66,6 @@ export const PREFERRED_PRIOR = 0.85;
  * preferred one. It can still be chosen when nothing better exists.
  */
 export const NEUTRAL_PRIOR = 0.45;
-
-/**
- * Below this KNOWN delivery (measured or published) we refuse to sell — better
- * out-of-stock than charging for a number that will never receive.
- */
-export const MIN_VIABLE_RATE = 0.05;
 
 type QualityInput = Pick<
   ScorableCandidate,
@@ -117,7 +112,10 @@ export function effectiveDelivery(c: QualityInput): number {
 
 /**
  * Pick the candidate to actually buy from. Input may be in any order. Returns
- * null if the list is empty or the only options are known duds.
+ * null ONLY when the list is empty — we offer every in-stock operator (even a
+ * low published rate), picking the best one. The rate is just 5SIM's estimate;
+ * defer-debit means a miss never charges, and re-roll covers it, so refusing a
+ * sale is worse than offering the best available number.
  */
 export function pickBestCandidate<T extends ScorableCandidate>(
   candidates: T[],
@@ -130,24 +128,14 @@ export function pickBestCandidate<T extends ScorableCandidate>(
       (b.wholesale_price_cents ?? Number.MAX_SAFE_INTEGER),
   );
 
-  // Cheapest operator whose effective delivery clears the floor...
+  // Cheapest operator whose effective delivery clears the reliability bar...
   const reliable = byPrice.filter((c) => effectiveDelivery(c) >= RELIABILITY_FLOOR);
-  let chosen: T;
-  if (reliable.length > 0) {
-    chosen = reliable[0];
-  } else {
-    // ...otherwise the highest effective delivery (byPrice order breaks ties
-    // toward cheaper, since reduce keeps the incumbent on equality).
-    chosen = byPrice.reduce(
-      (best, c) => (effectiveDelivery(c) > effectiveDelivery(best) ? c : best),
-      byPrice[0],
-    );
-  }
+  if (reliable.length > 0) return reliable[0];
 
-  // No guaranteed-fail sales: refuse a pick whose KNOWN delivery is hopeless.
-  // Priors never trigger this — only measured/published evidence does.
-  const known = expectedDelivery(chosen);
-  if (known != null && known < MIN_VIABLE_RATE) return null;
-
-  return chosen;
+  // ...otherwise the highest effective delivery (byPrice order breaks ties
+  // toward cheaper, since reduce keeps the incumbent on equality).
+  return byPrice.reduce(
+    (best, c) => (effectiveDelivery(c) > effectiveDelivery(best) ? c : best),
+    byPrice[0],
+  );
 }

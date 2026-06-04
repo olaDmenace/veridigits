@@ -118,11 +118,13 @@ describe("pickBestCandidate", () => {
     ).toBe("v63");
   });
 
-  it("refuses (returns null) when every option is a known dud (e.g. POF/USA all 0%)", () => {
-    const a = make({ published_success_rate: 0, upstream_operator: "v8" });
-    const b = make({ published_success_rate: 0, upstream_operator: "v51" });
-    const c = make({ published_success_rate: 0, upstream_operator: "v63" });
-    expect(pickBestCandidate([a, b, c])).toBeNull();
+  it("still offers a number when every option is a low/0%-rated dud (open everything)", () => {
+    // We sell whatever 5SIM has in stock — the rate is just an estimate, and a
+    // miss never charges. Cheapest among equal duds wins.
+    const a = make({ wholesale_price_cents: 14, published_success_rate: 0, upstream_operator: "v8" });
+    const b = make({ wholesale_price_cents: 6, published_success_rate: 0, upstream_operator: "v51" });
+    const c = make({ wholesale_price_cents: 6, published_success_rate: 0, upstream_operator: "v63" });
+    expect(pickBestCandidate([a, b, c])?.upstream_operator).toBe("v51");
   });
 
   it("never refuses an unknown-quality candidate (gives new providers a chance)", () => {
