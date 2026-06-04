@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { cancelOrderAction } from "./actions";
+import { cancelOrderAction, rerollOrder } from "./actions";
 import { canCancelOrder, MIN_CANCEL_AGE_MS } from "@/lib/orders/cancel-eligibility";
 
 export interface InitialMessage {
@@ -38,7 +39,10 @@ export function LiveOrderView({
   const [now, setNow] = useState(() => Date.now());
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [isPendingCancel, startCancel] = useTransition();
+  const [rerollError, setRerollError] = useState<string | null>(null);
+  const [isPendingReroll, startReroll] = useTransition();
   const [copied, setCopied] = useState(false);
+  const router = useRouter();
 
   // Tick once a second for the countdown / cancel-window display.
   useEffect(() => {
@@ -177,8 +181,22 @@ export function LiveOrderView({
     });
   }
 
+  function onReroll() {
+    setRerollError(null);
+    startReroll(async () => {
+      const result = await rerollOrder(order.id);
+      if (result.ok) router.push(`/orders/${result.orderId}`);
+      else setRerollError(result.message);
+    });
+  }
+
   const latestMessage = messages[0];
   const extractedCode = latestMessage?.extracted_code;
+
+  // Offer a free re-roll when the number ended without a code.
+  const terminalNoCode =
+    !extractedCode &&
+    (status === "expired" || status === "cancelled" || status === "refunded");
 
   const copyCode = (code: string) => {
     navigator.clipboard?.writeText(code).then(
@@ -236,9 +254,28 @@ export function LiveOrderView({
             and codes for other services occasionally land on these numbers —
             there&apos;s nothing for you to do.
           </p>
-          <p className="caption" style={{ marginTop: 10 }}>
-            Want to try again? <a href="/buy">Buy a new number</a>.
-          </p>
+        </div>
+      ) : null}
+
+      {/* One-tap free re-roll — number ended with no code */}
+      {terminalNoCode ? (
+        <div className="card flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <div className="eyebrow">No code on this number</div>
+            <p className="caption" style={{ marginTop: 4 }}>
+              You weren&apos;t charged. Get a fresh number for {order.service} —
+              it&apos;ll be a new number, so re-enter it at the service. Still
+              free unless a code arrives.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="btn btn-primary w-full sm:w-auto"
+            onClick={onReroll}
+            disabled={isPendingReroll}
+          >
+            {isPendingReroll ? "Getting a number…" : "Try another number (free)"}
+          </button>
         </div>
       ) : null}
 
@@ -314,14 +351,24 @@ export function LiveOrderView({
               let it expire.
             </p>
           </div>
-          <button
-            type="button"
-            className="btn btn-secondary w-full sm:w-auto"
-            onClick={onCancel}
-            disabled={isPendingCancel}
-          >
-            {isPendingCancel ? "Cancelling…" : "Cancel number"}
-          </button>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center w-full sm:w-auto">
+            <button
+              type="button"
+              className="btn btn-secondary w-full sm:w-auto"
+              onClick={onCancel}
+              disabled={isPendingCancel || isPendingReroll}
+            >
+              {isPendingCancel ? "Cancelling…" : "Cancel number"}
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary w-full sm:w-auto"
+              onClick={onReroll}
+              disabled={isPendingReroll || isPendingCancel}
+            >
+              {isPendingReroll ? "Getting a number…" : "Try another (free)"}
+            </button>
+          </div>
         </div>
       ) : tooEarly ? (
         <div className="card">
@@ -334,7 +381,7 @@ export function LiveOrderView({
         </div>
       ) : null}
 
-      {cancelError ? (
+      {cancelError || rerollError ? (
         <div
           className="badge badge-danger"
           style={{
@@ -347,7 +394,7 @@ export function LiveOrderView({
             fontWeight: 500,
           }}
         >
-          {cancelError}
+          {cancelError ?? rerollError}
         </div>
       ) : null}
     </div>
