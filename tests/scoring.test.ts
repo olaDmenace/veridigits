@@ -198,23 +198,65 @@ describe("pickBestCandidate", () => {
     expect(pickBestCandidate([burned, okay])?.upstream_operator).toBe("okay");
   });
 
-  it("hard preference: picks a higher-tier provider even when a lower tier is cheaper", () => {
-    const cheap5sim = make({
+  it("soft preference: a preferred provider wins when the alternatives are unreliable", () => {
+    const tv = make({
+      provider_slug: "textverified",
+      wholesale_price_cents: 150,
+      preference_rank: 10, // real numbers, no data yet -> high prior
+      upstream_operator: "tv",
+    });
+    const dud8 = make({
+      provider_slug: "5sim",
+      wholesale_price_cents: 20,
+      published_success_rate: 0,
+      upstream_operator: "virtual8",
+    });
+    const weak = make({
       provider_slug: "5sim",
       wholesale_price_cents: 30,
-      published_success_rate: 62,
-      preference_rank: 0,
-      upstream_operator: "5sim-cheap",
+      published_success_rate: 9,
+      upstream_operator: "virtual63",
     });
-    const preferred = make({
+    expect(pickBestCandidate([dud8, weak, tv])?.upstream_operator).toBe("tv");
+  });
+
+  it("soft preference yields to a cheaper PROVEN-reliable alternative", () => {
+    // Tinder/Discord shape: preferred real number is pricey, but 5SIM has a
+    // genuinely reliable + far cheaper operator. Don't overpay.
+    const tv = make({
       provider_slug: "textverified",
-      wholesale_price_cents: 90,
+      wholesale_price_cents: 150,
       preference_rank: 10,
-      upstream_operator: "tv-preferred",
+      upstream_operator: "tv",
+    });
+    const cheapReliable5sim = make({
+      provider_slug: "5sim",
+      wholesale_price_cents: 17,
+      published_success_rate: 71,
+      upstream_operator: "virtual63",
     });
     expect(
-      pickBestCandidate([cheap5sim, preferred])?.upstream_operator,
-    ).toBe("tv-preferred");
+      pickBestCandidate([tv, cheapReliable5sim])?.upstream_operator,
+    ).toBe("virtual63");
+  });
+
+  it("an unpreferred unknown does NOT undercut a preferred provider", () => {
+    // SMSPool (unknown, cheapest) must not steal a strict US service from
+    // TextVerified just because it's cheap.
+    const tv = make({
+      provider_slug: "textverified",
+      wholesale_price_cents: 150,
+      preference_rank: 10,
+      upstream_operator: "tv",
+    });
+    const cheapUnknown = make({
+      provider_slug: "smspool",
+      wholesale_price_cents: 5,
+      published_success_rate: null,
+      preference_rank: 0,
+      upstream_operator: "smspool",
+    });
+    expect(pickBestCandidate([cheapUnknown, tv])?.upstream_operator).toBe("tv");
   });
 
   it("falls back to the lower tier when the preferred provider has no stock", () => {

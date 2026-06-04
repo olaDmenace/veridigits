@@ -396,9 +396,13 @@ export async function getQuote(
     .eq("is_enabled", true)
     .gt("available_count", 0)
     .not("wholesale_price_cents", "is", null)
+    // Keep the strongest candidates within the limit: preferred providers
+    // first, then highest published delivery rate, then cheapest. pickBestCandidate
+    // makes the final call across them.
     .order("preference_rank", { ascending: false })
+    .order("published_success_rate", { ascending: false, nullsFirst: false })
     .order("wholesale_price_cents", { ascending: true })
-    .limit(10);
+    .limit(12);
 
   if (candErr) {
     return { ok: false, code: "internal", message: candErr.message };
