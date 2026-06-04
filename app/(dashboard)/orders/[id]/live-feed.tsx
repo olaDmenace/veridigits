@@ -50,6 +50,16 @@ export function LiveOrderView({
   useEffect(() => {
     const supabase = createClient();
 
+    // Authenticate the realtime SOCKET. received_messages RLS is an EXISTS
+    // subquery on orders.user_id, so postgres_changes only delivers a row when
+    // auth.uid() resolves — which needs the user's JWT on the socket. Without
+    // this the socket is anon, every INSERT event is dropped by RLS, and the
+    // code lands server-side but never pushes to the tab.
+    supabase.auth.getSession().then(({ data }) => {
+      const token = data.session?.access_token;
+      if (token) supabase.realtime.setAuth(token);
+    });
+
     const messagesChannel = supabase
       .channel(`order-msgs:${order.id}`)
       .on(
@@ -91,6 +101,48 @@ export function LiveOrderView({
       supabase.removeChannel(orderChannel);
     };
   }, [order.id]);
+
+  // Polling fallback. Realtime is the fast path, but it can silently drop (RLS
+  // auth, socket hiccups, a deploy mid-wait), so while the order is still
+  // waiting for a code we also poll every few seconds. RLS-protected selects
+  // via the cookie-authed browser client, so this works even when the socket
+  // doesn't. Stops the moment a code lands or the order goes terminal.
+  const hasCode = messages.some((m) => m.extracted_code);
+  useEffect(() => {
+    const terminal =
+      status === "cancelled" || status === "expired" || status === "refunded";
+    if (terminal || hasCode) return;
+
+    const supabase = createClient();
+    let alive = true;
+
+    const tick = async () => {
+      const { data: msgs } = await supabase
+        .from("received_messages")
+        .select("id, sender, content, extracted_code, received_at")
+        .eq("order_id", order.id)
+        .order("received_at", { ascending: false });
+      if (alive && msgs && msgs.length > 0) {
+        setMessages((prev) => {
+          const known = new Set(prev.map((m) => m.id));
+          const fresh = msgs.filter((m) => !known.has(m.id));
+          return fresh.length > 0 ? [...fresh, ...prev] : prev;
+        });
+      }
+      const { data: ord } = await supabase
+        .from("orders")
+        .select("status")
+        .eq("id", order.id)
+        .maybeSingle();
+      if (alive && ord?.status) setStatus(ord.status);
+    };
+
+    const id = setInterval(tick, 5000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, [order.id, status, hasCode]);
 
   const expiresAtMs = new Date(order.expires_at).getTime();
   const createdAtMs = new Date(order.created_at).getTime();
