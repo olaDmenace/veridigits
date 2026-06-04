@@ -1859,3 +1859,59 @@ main,
 @media (max-width: 540px) {
   .field-grid { grid-template-columns: 1fr; }
 }
+
+/* ============================================================
+   WHATSAPP SUPPORT FAB (wa.me click-to-chat)
+============================================================ */
+.wa-fab {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 40; /* under the topbar drawer (z-60) so it never floats over the menu */
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 54px;
+  padding: 0 20px 0 16px;
+  border-radius: var(--radius-full);
+  background: #25d366; /* WhatsApp brand green — kept recognizable on purpose */
+  color: #ffffff;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  box-shadow: 0 8px 24px -6px rgba(37, 211, 102, 0.5), var(--shadow-sm);
+  transition:
+    transform var(--duration-base) var(--ease-out),
+    box-shadow var(--duration-base) var(--ease-out),
+    background var(--duration-base) var(--ease-out);
+}
+.wa-fab:hover {
+  background: #20bd5a;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px -6px rgba(37, 211, 102, 0.6), var(--shadow-md);
+}
+.wa-fab:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(37, 211, 102, 0.45);
+}
+.wa-fab-glyph { flex-shrink: 0; }
+
+@media (max-width: 600px) {
+  /* Icon-only circle on small screens to stay out of the way. */
+  .wa-fab {
+    right: 16px;
+    bottom: 16px;
+    height: 52px;
+    width: 52px;
+    padding: 0;
+    justify-content: center;
+    gap: 0;
+  }
+  .wa-fab-label { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wa-fab { transition: background var(--duration-fast) var(--ease-out); }
+  .wa-fab:hover { transform: none; }
+}
