@@ -64,7 +64,7 @@ export const STRICT_SCREENING_SERVICES = new Set<string>([
  * Remove a slug here the moment its balance is funded — its rows are already in
  * the catalog, so it goes live immediately on the next quote.
  */
-export const DISABLED_PROVIDERS = new Set<string>(["textverified", "smspool"]);
+export const DISABLED_PROVIDERS = new Set<string>([]);
 
 /** Whether routing may select this provider right now. */
 export function isProviderRoutable(providerSlug: string): boolean {

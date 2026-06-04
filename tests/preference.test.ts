@@ -48,15 +48,15 @@ describe("preferenceRankFor", () => {
 });
 
 describe("isProviderRoutable", () => {
-  it("routes 5SIM (the funded, always-available provider)", () => {
-    expect(isProviderRoutable("5sim")).toBe(true);
+  it("routes every real provider while the gate is empty (all funded)", () => {
+    for (const p of ["5sim", "textverified", "smspool"]) {
+      expect(isProviderRoutable(p)).toBe(true);
+    }
   });
 
-  it("excludes the currently-unfunded providers", () => {
-    // Sanity: the gate is actually engaged for the providers we expect.
-    expect(DISABLED_PROVIDERS.has("textverified")).toBe(true);
-    expect(DISABLED_PROVIDERS.has("smspool")).toBe(true);
-    expect(isProviderRoutable("textverified")).toBe(false);
-    expect(isProviderRoutable("smspool")).toBe(false);
+  it("is exactly the inverse of DISABLED_PROVIDERS membership", () => {
+    // Mechanism check (gate is empty now, but must still exclude any slug added)
+    expect(isProviderRoutable("anything")).toBe(!DISABLED_PROVIDERS.has("anything"));
+    expect(isProviderRoutable("5sim")).toBe(!DISABLED_PROVIDERS.has("5sim"));
   });
 });
