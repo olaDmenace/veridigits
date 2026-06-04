@@ -105,9 +105,25 @@ export class FiveSimProvider implements OtpProvider {
 
   async buyActivation(params: ActivationBuyParams): Promise<ProviderBuyResult> {
     const operator = params.upstreamOperator ?? DEFAULT_OPERATOR;
-    const path = `/user/buy/activation/${encodeURIComponent(params.upstreamCountryCode)}/${encodeURIComponent(operator)}/${encodeURIComponent(params.upstreamServiceCode)}`;
+    const tryBuy = (op: string) =>
+      this.authenticatedGet<FivesimOrder | { error?: string }>(
+        `/user/buy/activation/${encodeURIComponent(params.upstreamCountryCode)}/${encodeURIComponent(op)}/${encodeURIComponent(params.upstreamServiceCode)}`,
+      );
 
-    const order = await this.authenticatedGet<FivesimOrder | { error?: string }>(path);
+    let order: FivesimOrder | { error?: string };
+    try {
+      order = await tryBuy(operator);
+    } catch (err) {
+      // 5SIM's per-operator catalog count is unreliable — a high-count operator
+      // can still return "no free phones" at buy time. Rather than fail the
+      // whole purchase, fall back to "any" so 5SIM hands us any available
+      // number for this product/country.
+      if (err instanceof ProviderOutOfStockError && operator !== DEFAULT_OPERATOR) {
+        order = await tryBuy(DEFAULT_OPERATOR);
+      } else {
+        throw err;
+      }
+    }
 
     if (!isOrder(order)) {
       const message = order.error ?? "buyActivation: unknown error";
@@ -122,6 +138,7 @@ export class FiveSimProvider implements OtpProvider {
       phoneNumber: order.phone,
       expiresAt: new Date(order.expires),
       wholesaleCents: Math.round((order.price ?? 0) * 100),
+      operator: order.operator,
     };
   }
 

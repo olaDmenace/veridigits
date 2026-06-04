@@ -17,6 +17,12 @@ export interface ProviderBuyResult {
   phoneNumber: string;
   expiresAt: Date;
   wholesaleCents: number;
+  /**
+   * The operator the upstream actually assigned. May differ from the requested
+   * one when we fall back (e.g. 5SIM "any"). Recorded so success stats are
+   * attributed to the operator that really delivered.
+   */
+  operator?: string;
 }
 
 export interface ProviderMessage {

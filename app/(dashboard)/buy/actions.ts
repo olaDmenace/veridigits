@@ -683,7 +683,9 @@ export async function purchase(
       country_id: payload.countryId,
       provider_slug: payload.providerSlug,
       upstream_order_id: buyResult.upstreamOrderId,
-      upstream_operator: payload.upstreamOperator ?? null,
+      // The actual operator the upstream assigned (may differ from the quoted
+      // one when we fell back to "any"), so stats attribute to what delivered.
+      upstream_operator: buyResult.operator ?? payload.upstreamOperator ?? null,
       phone_number: buyResult.phoneNumber,
       wholesale_paid_cents: buyResult.wholesaleCents || payload.wholesaleCents,
       retail_charged_cents: payload.retailCents,
