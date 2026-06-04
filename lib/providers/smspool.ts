@@ -12,7 +12,6 @@ import {
   type ProviderPriceQuote,
   type RentalBuyParams,
 } from "./types";
-import { STRICT_SCREENING_SERVICES } from "./preference";
 
 /**
  * SMSPool upstream provider.
@@ -94,7 +93,15 @@ export class SmsPoolProvider implements OtpProvider {
 
     const status = mapCheckStatus(body.status);
     const messages: ProviderMessage[] = [];
-    const text = body.full_sms ?? body.sms ?? null;
+    // SMSPool's /sms/check exposes the code under a few field names depending on
+    // endpoint/version (full_sms / sms / full_code / code). Read whichever is
+    // present so a delivered code is never missed.
+    const text =
+      stringOrNull(body.full_sms) ??
+      stringOrNull(body.sms) ??
+      stringOrNull(body.full_code) ??
+      stringOrNull(body.code) ??
+      null;
     if (status === "received" && text) {
       messages.push({
         sender: stringOrNull(body.service) ?? "SMSPool",
@@ -138,16 +145,14 @@ export class SmsPoolProvider implements OtpProvider {
   }
 
   async syncCatalog(): Promise<ProviderCatalogEntry[]> {
-    // SMSPool's /service/retrieve_all returns only {ID, name, favourite} — no
-    // price or stock. We populate SMSPool for the strict-screening services in
-    // the countries where it's our quality lane: the US (fallback behind
-    // TextVerified) and the UK (PRIMARY — TextVerified is US-only, so SMSPool's
-    // non-VoIP UK numbers are the best we have there, with 5SIM as backup).
-    // Bounded set, so we fetch a real price per service via /request/price;
-    // placeholder if that's unavailable (live re-quote at purchase is
-    // authoritative). Numeric IDs stay the upstream code; countryIso is pinned
-    // to the canonical shared code ("usa" / "england") so rows share a
-    // (service, country) with 5SIM / TextVerified.
+    // Populate SMSPool for the curated dating / hard-to-verify services
+    // (SMSPOOL_SERVICE_SLUGS) in the US + UK. These are exactly the services
+    // 5SIM's virtual numbers get rejected on (POF, Badoo, Grindr, ...) — and
+    // SMSPool provisions them without a whitelist. Bounded set, so we fetch a
+    // real price + success rate per service via /request/price; placeholder
+    // price if unavailable (live re-quote at purchase is authoritative).
+    // serviceSlug is the canonical slug so rows share a (service, country) with
+    // 5SIM and the router can compare them.
     const countriesRaw = await this.get<unknown>("/country/retrieve_all");
     const countries: SmsPoolCountry[] = Array.isArray(countriesRaw)
       ? (countriesRaw as SmsPoolCountry[])
@@ -180,10 +185,15 @@ export class SmsPoolProvider implements OtpProvider {
         const serviceId = idOf(s.ID ?? s.id);
         const name = stringOrNull(s.name);
         if (!serviceId || !name) continue;
-        const slug = slugify(name);
-        if (!STRICT_SCREENING_SERVICES.has(slug)) continue;
+        // Curated set: the dating / hard-to-verify services where SMSPool's
+        // numbers deliver and 5SIM's virtual numbers get rejected. Keyed by the
+        // stable SMSPool service ID -> our canonical slug, so they share a
+        // (service, country) with 5SIM and the router can compare them.
+        const slug = SMSPOOL_SERVICE_SLUGS[serviceId];
+        if (!slug) continue;
 
         let priceCents = SMSPOOL_PLACEHOLDER_CENTS;
+        let publishedSuccessRate: number | null = null;
         try {
           const p = await this.post<SmsPoolPrice>("/request/price", {
             country: countryId,
@@ -191,6 +201,12 @@ export class SmsPoolProvider implements OtpProvider {
           });
           const c = Math.round(toNumber(p.price ?? p.cost) * 100);
           if (c > 0) priceCents = c;
+          // SMSPool publishes a per-service success rate (0-100) — capture it
+          // as our routing signal, same shape as 5SIM's published rate.
+          const sr = toNumber(p.success_rate);
+          if (Number.isFinite(sr) && sr > 0) {
+            publishedSuccessRate = Math.max(0, Math.min(100, sr));
+          }
         } catch {
           // keep placeholder — live re-quote at purchase is authoritative
         }
@@ -205,10 +221,11 @@ export class SmsPoolProvider implements OtpProvider {
           serviceSlug: slug,
           countryIso: target.iso,
           countryName: target.name,
+          publishedSuccessRate,
         });
         added++;
       }
-      console.warn(`[smspool] ${target.iso} strict-service entries: ${added}`);
+      console.warn(`[smspool] ${target.iso} dating/hard-service entries: ${added}`);
     }
 
     // None of our target countries matched a non-empty list — the country
@@ -296,6 +313,8 @@ export class SmsPoolProvider implements OtpProvider {
 interface SmsPoolPrice {
   price?: string | number;
   cost?: string | number;
+  /** Published per-service success rate, 0-100. */
+  success_rate?: string | number;
   available?: string | number;
   amount?: string | number;
   stock?: string | number;
@@ -315,6 +334,8 @@ interface SmsPoolCheck {
   status?: number | string;
   sms?: string | null;
   full_sms?: string | null;
+  code?: string | null;
+  full_code?: string | null;
   service?: string | null;
 }
 interface SmsPoolCancel {
@@ -388,6 +409,26 @@ function mapCheckStatus(raw: number | string | undefined): ProviderOrderStatus {
 }
 
 /**
+ * Curated SMSPool services to sync, keyed by the stable SMSPool service ID ->
+ * our canonical slug. Focus: the dating / hard-to-verify services that 5SIM's
+ * virtual numbers get rejected on (so SMSPool is the only source), aligned to
+ * the same slugs 5SIM uses. Extend as we profile more; keep it bounded (one
+ * /request/price call per service per country at sync).
+ */
+const SMSPOOL_SERVICE_SLUGS: Record<string, string> = {
+  "724": "pof", // Plenty Of Fish
+  "65": "badoo",
+  "142": "bumble",
+  "403": "grindr",
+  "420": "hinge",
+  "559": "match", // Match / Meetic / Zweisam
+  "658": "okcupid",
+  "564": "meetme",
+  "836": "skout",
+  "1070": "zoosk",
+};
+
+/**
  * Countries we populate SMSPool for, with the canonical shared iso (so rows
  * join 5SIM / TextVerified). `test` matches SMSPool's country short_name/name.
  */
@@ -416,10 +457,6 @@ const DEFAULT_ACTIVATION_TTL_MS = 10 * 60 * 1000;
  *  re-quote at purchase is authoritative. */
 const SMSPOOL_PLACEHOLDER_CENTS = 150;
 
-/** Canonical service slug from a display name (aligns across providers). */
-function slugify(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9]+/g, "");
-}
 /** Stringify a numeric/string id, or null if absent. */
 function idOf(v: unknown): string | null {
   if (v == null) return null;

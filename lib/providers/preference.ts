@@ -64,12 +64,29 @@ export const STRICT_SCREENING_SERVICES = new Set<string>([
  * Remove a slug here the moment its balance is funded — its rows are already in
  * the catalog, so it goes live immediately on the next quote.
  */
-// Re-gated 2026-06: funded but NOT yet working. TextVerified pricing call is
-// missing required carrier/area-code options (400), and SMSPool services are
-// whitelist-only on our account (purchase rejected). Routing to either just
-// errors the user, so keep them out until both are actually fulfilling. 5SIM
-// handles everything via delivery-ranked operators meanwhile.
-export const DISABLED_PROVIDERS = new Set<string>(["textverified", "smspool"]);
+// SMSPool is ON: its dating/hard services (POF, Badoo, ...) provision without a
+// whitelist and deliver where 5SIM's virtual numbers get rejected. TextVerified
+// stays gated — its account balance is $0 (pricing bug fixed, just unfunded);
+// re-enable the moment it's funded.
+export const DISABLED_PROVIDERS = new Set<string>(["textverified"]);
+
+/**
+ * Canonical service slugs where SMSPool is the PRIMARY lane — the dating /
+ * hard-to-verify services that 5SIM's virtual numbers get rejected on. Matches
+ * the curated set SMSPool syncs (see smspool.ts SMSPOOL_SERVICE_SLUGS).
+ */
+export const SMSPOOL_PRIMARY_SERVICES = new Set<string>([
+  "pof",
+  "badoo",
+  "bumble",
+  "grindr",
+  "hinge",
+  "match",
+  "okcupid",
+  "meetme",
+  "skout",
+  "zoosk",
+]);
 
 /** Whether routing may select this provider right now. */
 export function isProviderRoutable(providerSlug: string): boolean {
@@ -88,6 +105,8 @@ export const UK_COUNTRY_ISO = "england";
  * that service+country, else 0. This is a SOFT signal (a high cold-start prior
  * in scoring), not a hard override — a proven, cheaper alternative still wins.
  *
+ *  - Dating / hard services (POF, Badoo, ...) -> SMSPool (delivers where 5SIM's
+ *    virtual numbers get rejected), any country.
  *  - US strict-screening services  -> TextVerified (real US numbers).
  *  - UK strict-screening services  -> SMSPool (non-VoIP UK; TextVerified is
  *    US-only, so SMSPool is the best lane there, with 5SIM as backup).
@@ -97,6 +116,11 @@ export function preferenceRankFor(
   serviceSlug: string,
   countryIso?: string | null,
 ): number {
+  // SMSPool is the primary lane for the dating/hard services everywhere.
+  if (providerSlug === "smspool" && SMSPOOL_PRIMARY_SERVICES.has(serviceSlug)) {
+    return PREFERRED_RANK;
+  }
+
   if (!STRICT_SCREENING_SERVICES.has(serviceSlug)) return 0;
 
   if (providerSlug === "textverified") return PREFERRED_RANK;

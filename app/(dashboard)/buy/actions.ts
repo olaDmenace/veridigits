@@ -3,6 +3,10 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getProvider } from "@/lib/providers";
+import {
+  ProviderApiError,
+  ProviderOutOfStockError,
+} from "@/lib/providers/types";
 import { pickBestCandidate, type ScorableCandidate } from "@/lib/providers/scoring";
 import { isProviderRoutable } from "@/lib/providers/preference";
 import { sanitizeProviderError } from "@/lib/providers/sanitize-error";
@@ -536,6 +540,60 @@ export type PurchaseError =
   | { ok: false; code: "out_of_stock"; message: string }
   | { ok: false; code: "internal"; message: string };
 
+/** Max operator/provider attempts in one activation buy (incl. the primary). */
+const MAX_PROVIDER_FALLBACK = 4;
+
+interface BuyCandidate {
+  provider_slug: string;
+  upstream_service_code: string;
+  upstream_country_code: string;
+  upstream_operator: string | null;
+}
+
+/**
+ * The routable, in-stock candidates for a (service, country), ordered the way
+ * the router prefers them — used as the purchase-time fallback chain so a
+ * single operator/provider being out of stock (or whitelist-blocked) doesn't
+ * sink the buy when another option can fulfill.
+ */
+async function rankedActivationCandidates(
+  serviceId: string,
+  countryId: string,
+): Promise<BuyCandidate[]> {
+  const { data } = await getAdminClient()
+    .from("provider_services")
+    .select(
+      "provider_slug, upstream_service_code, upstream_country_code, upstream_operator, wholesale_price_cents, recent_received_count, recent_total_count, published_success_rate, preference_rank",
+    )
+    .eq("service_id", serviceId)
+    .eq("country_id", countryId)
+    .eq("is_enabled", true)
+    .gt("available_count", 0)
+    .not("wholesale_price_cents", "is", null);
+
+  let pool = (data ?? []).filter((c) => isProviderRoutable(c.provider_slug));
+  const ordered: BuyCandidate[] = [];
+  // Greedily peel the best candidate off the pool to build the full ranking.
+  while (pool.length > 0 && ordered.length < MAX_PROVIDER_FALLBACK) {
+    const best = pickBestCandidate(pool as ScorableCandidate[]);
+    if (!best) break;
+    ordered.push({
+      provider_slug: best.provider_slug,
+      upstream_service_code: best.upstream_service_code,
+      upstream_country_code: best.upstream_country_code,
+      upstream_operator: best.upstream_operator,
+    });
+    pool = pool.filter(
+      (c) =>
+        !(
+          c.provider_slug === best.provider_slug &&
+          (c.upstream_operator ?? null) === (best.upstream_operator ?? null)
+        ),
+    );
+  }
+  return ordered;
+}
+
 /**
  * Executes a purchase against a signed hold token.
  *
@@ -639,8 +697,10 @@ export async function purchase(
     }
   }
 
-  // Hit upstream. Branch on mode.
+  // Hit upstream. Branch on mode. usedProviderSlug tracks who actually
+  // fulfilled (may differ from the quoted one when activation falls back).
   let buyResult;
+  let usedProviderSlug = payload.providerSlug;
   try {
     if (mode === "rental") {
       buyResult = await provider.rentNumber({
@@ -663,11 +723,56 @@ export async function purchase(
         };
       }
     } else {
-      buyResult = await provider.buyActivation({
-        upstreamServiceCode: payload.upstreamServiceCode,
-        upstreamCountryCode: payload.upstreamCountryCode,
-        upstreamOperator: payload.upstreamOperator,
-      });
+      // Activation with purchase-time fallback: try the quoted operator first,
+      // then the next routable, in-stock candidates (other operators / other
+      // providers like SMSPool->5SIM) so a single out-of-stock or whitelist
+      // failure doesn't sink the buy when stock exists elsewhere.
+      const fallback = await rankedActivationCandidates(
+        payload.serviceId,
+        payload.countryId,
+      );
+      const chain = [
+        {
+          provider_slug: payload.providerSlug,
+          upstream_service_code: payload.upstreamServiceCode,
+          upstream_country_code: payload.upstreamCountryCode,
+          upstream_operator: payload.upstreamOperator as string | null,
+        },
+        ...fallback.filter(
+          (c) =>
+            !(
+              c.provider_slug === payload.providerSlug &&
+              (c.upstream_operator ?? null) ===
+                (payload.upstreamOperator ?? null)
+            ),
+        ),
+      ].slice(0, MAX_PROVIDER_FALLBACK);
+
+      let lastErr: unknown = null;
+      for (const cand of chain) {
+        try {
+          buyResult = await getProvider(cand.provider_slug).buyActivation({
+            upstreamServiceCode: cand.upstream_service_code,
+            upstreamCountryCode: cand.upstream_country_code,
+            upstreamOperator: cand.upstream_operator ?? undefined,
+          });
+          usedProviderSlug = cand.provider_slug;
+          break;
+        } catch (err) {
+          lastErr = err;
+          // Out-of-stock / API error (incl. SMSPool whitelist) -> next candidate.
+          if (
+            err instanceof ProviderOutOfStockError ||
+            err instanceof ProviderApiError
+          ) {
+            continue;
+          }
+          throw err;
+        }
+      }
+      if (!buyResult) {
+        return { ok: false, ...sanitizeProviderError(lastErr, "purchase-buy") };
+      }
     }
   } catch (err) {
     return { ok: false, ...sanitizeProviderError(err, "purchase-buy") };
@@ -681,7 +786,7 @@ export async function purchase(
       user_id: user.id,
       service_id: payload.serviceId,
       country_id: payload.countryId,
-      provider_slug: payload.providerSlug,
+      provider_slug: usedProviderSlug,
       upstream_order_id: buyResult.upstreamOrderId,
       // The actual operator the upstream assigned (may differ from the quoted
       // one when we fell back to "any"), so stats attribute to what delivered.
@@ -698,8 +803,8 @@ export async function purchase(
 
   if (insertErr || !orderRow) {
     // Couldn't write the local order — cancel upstream so the wholesale
-    // is refunded to our 5SIM account, even though the user paid nothing yet.
-    await safeCancelOrder(payload.providerSlug, buyResult.upstreamOrderId);
+    // is refunded, even though the user paid nothing yet.
+    await safeCancelOrder(usedProviderSlug, buyResult.upstreamOrderId);
     return {
       ok: false,
       code: "internal",
