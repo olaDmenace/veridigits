@@ -222,24 +222,26 @@ describe("pickBestCandidate", () => {
     expect(pickBestCandidate([dud8, weak, tv])?.upstream_operator).toBe("tv");
   });
 
-  it("soft preference yields to a cheaper PROVEN-reliable alternative", () => {
-    // Tinder/Discord shape: preferred real number is pricey, but 5SIM has a
-    // genuinely reliable + far cheaper operator. Don't overpay.
-    const tv = make({
-      provider_slug: "textverified",
-      wholesale_price_cents: 150,
+  it("among reliable options, the designated lane (preference_rank) wins over a cheaper one", () => {
+    // POF/UK shape: SMSPool is the designated lane (rank 10) and reliable; 5SIM
+    // also clears the bar and is cheaper, but we honor the preference because
+    // SMSPool is the quality lane for these services.
+    const preferred = make({
+      provider_slug: "smspool",
+      wholesale_price_cents: 18,
+      published_success_rate: 73,
       preference_rank: 10,
-      upstream_operator: "tv",
+      upstream_operator: "smspool",
     });
-    const cheapReliable5sim = make({
+    const cheaper5sim = make({
       provider_slug: "5sim",
-      wholesale_price_cents: 17,
-      published_success_rate: 71,
-      upstream_operator: "virtual63",
+      wholesale_price_cents: 6,
+      published_success_rate: 54,
+      upstream_operator: "virtual59",
     });
     expect(
-      pickBestCandidate([tv, cheapReliable5sim])?.upstream_operator,
-    ).toBe("virtual63");
+      pickBestCandidate([preferred, cheaper5sim])?.upstream_operator,
+    ).toBe("smspool");
   });
 
   it("an unpreferred unknown does NOT undercut a preferred provider", () => {

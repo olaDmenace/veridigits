@@ -128,9 +128,17 @@ export function pickBestCandidate<T extends ScorableCandidate>(
       (b.wholesale_price_cents ?? Number.MAX_SAFE_INTEGER),
   );
 
-  // Cheapest operator whose effective delivery clears the reliability bar...
+  // Among operators that deliver (clear the reliability bar), prefer the
+  // designated lane (highest preference_rank — e.g. SMSPool for the dating
+  // services, real numbers for strict ones), then the cheapest. byPrice order
+  // breaks ties toward cheaper since reduce keeps the incumbent on equality.
   const reliable = byPrice.filter((c) => effectiveDelivery(c) >= RELIABILITY_FLOOR);
-  if (reliable.length > 0) return reliable[0];
+  if (reliable.length > 0) {
+    return reliable.reduce(
+      (best, c) => ((c.preference_rank ?? 0) > (best.preference_rank ?? 0) ? c : best),
+      reliable[0],
+    );
+  }
 
   // ...otherwise the highest effective delivery (byPrice order breaks ties
   // toward cheaper, since reduce keeps the incumbent on equality).
