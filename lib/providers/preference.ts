@@ -26,10 +26,17 @@ export const STRICT_SCREENING_SERVICES = new Set<string>([
   "googlevoice",
   "apple",
   "microsoft",
-  // dating — heavy SMS-screening
+  // dating — heavy SMS-screening (virtual numbers ~0% here; e.g. POF/USA is
+  // 0% on every 5SIM operator, so these must go to real numbers or show
+  // out-of-stock rather than sell a guaranteed-fail activation)
   "tinder",
   "bumble",
   "hinge",
+  "pof",
+  "okcupid",
+  "grindr",
+  "badoo",
+  "match",
   // fintech / crypto — strict KYC-adjacent SMS
   "paypal",
   "venmo",

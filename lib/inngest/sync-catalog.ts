@@ -195,6 +195,7 @@ async function reconcileProviderInner(
     wholesale_price_cents: number;
     available_count: number;
     preference_rank: number;
+    published_success_rate: number | null;
     last_synced_at: string;
     is_enabled: boolean;
   }> = [];
@@ -217,6 +218,10 @@ async function reconcileProviderInner(
       // Config-driven routing preference (TextVerified-primary for strict
       // services). Applied every sync so the rule stays the source of truth.
       preference_rank: preferenceRankFor(providerSlug, svcSlug),
+      // Upstream-published delivery quality (5SIM's per-operator rate); null
+      // for providers that don't publish one.
+      published_success_rate:
+        e.publishedSuccessRate == null ? null : e.publishedSuccessRate,
       last_synced_at: now,
       is_enabled: true,
     });

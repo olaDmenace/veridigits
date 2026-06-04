@@ -208,6 +208,10 @@ export class FiveSimProvider implements OtpProvider {
             upstreamOperator: operatorSlug,
             priceCents: Math.round(leaf.cost * 100),
             availableCount: leaf.count,
+            // 5SIM publishes a per-operator success rate (0-100). Carry it so
+            // routing can avoid known-bad operators (e.g. virtual8 at ~0%).
+            publishedSuccessRate:
+              typeof leaf.rate === "number" ? leaf.rate : null,
           });
         }
       }

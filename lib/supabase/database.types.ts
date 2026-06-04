@@ -374,6 +374,7 @@ export type Database = {
           last_synced_at: string | null
           preference_rank: number
           provider_slug: string
+          published_success_rate: number | null
           recent_received_count: number
           recent_total_count: number
           service_id: string | null
@@ -391,6 +392,7 @@ export type Database = {
           last_synced_at?: string | null
           preference_rank?: number
           provider_slug: string
+          published_success_rate?: number | null
           recent_received_count?: number
           recent_total_count?: number
           service_id?: string | null
@@ -408,6 +410,7 @@ export type Database = {
           last_synced_at?: string | null
           preference_rank?: number
           provider_slug?: string
+          published_success_rate?: number | null
           recent_received_count?: number
           recent_total_count?: number
           service_id?: string | null

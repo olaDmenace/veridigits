@@ -55,6 +55,12 @@ export interface ProviderCatalogEntry {
   /** Canonical iso for the shared `countries` table. Align cross-provider (e.g. "usa"). Defaults to upstreamCountryCode. */
   countryIso?: string;
   countryName?: string;
+  /**
+   * Upstream-published per-operator success rate, 0-100 (e.g. 5SIM's prices
+   * `rate`). A cold-start delivery-quality signal for routing. Omit when the
+   * provider doesn't publish one (TextVerified, SMSPool).
+   */
+  publishedSuccessRate?: number | null;
 }
 
 export interface PriceLookupParams {

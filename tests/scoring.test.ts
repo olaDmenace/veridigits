@@ -1,8 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   MIN_SAMPLE_SIZE,
-  RELIABILITY_FLOOR,
-  isReliable,
+  expectedDelivery,
   pickBestCandidate,
   successRate,
 } from "@/lib/providers/scoring";
@@ -16,6 +15,7 @@ function make(
     wholesale_price_cents: number | null;
     recent_received_count: number;
     recent_total_count: number;
+    published_success_rate: number | null;
     preference_rank: number | null;
   }>,
 ) {
@@ -27,6 +27,7 @@ function make(
     wholesale_price_cents: 100,
     recent_received_count: 0,
     recent_total_count: 0,
+    published_success_rate: null,
     preference_rank: 0,
     ...overrides,
   };
@@ -46,32 +47,35 @@ describe("successRate", () => {
   });
 });
 
-describe("isReliable", () => {
-  it("rejects below the sample-size floor", () => {
+describe("expectedDelivery", () => {
+  it("uses our own stats once we have enough sample", () => {
     expect(
-      isReliable({
-        recent_received_count: MIN_SAMPLE_SIZE - 1,
-        recent_total_count: MIN_SAMPLE_SIZE - 1,
+      expectedDelivery({
+        recent_received_count: 6,
+        recent_total_count: 10,
+        published_success_rate: 99,
       }),
-    ).toBe(false);
+    ).toBeCloseTo(0.6); // internal beats published once sampled
   });
 
-  it("rejects below the rate floor even with enough sample", () => {
+  it("falls back to the published rate (0-100 -> 0-1) before we have sample", () => {
     expect(
-      isReliable({
-        recent_received_count: 2,
-        recent_total_count: MIN_SAMPLE_SIZE * 2,
+      expectedDelivery({
+        recent_received_count: 0,
+        recent_total_count: 0,
+        published_success_rate: 62,
       }),
-    ).toBe(false);
+    ).toBeCloseTo(0.62);
   });
 
-  it("accepts when both thresholds are met", () => {
+  it("is null when there is no signal at all", () => {
     expect(
-      isReliable({
-        recent_received_count: Math.ceil(MIN_SAMPLE_SIZE * RELIABILITY_FLOOR) + 1,
-        recent_total_count: MIN_SAMPLE_SIZE,
+      expectedDelivery({
+        recent_received_count: 0,
+        recent_total_count: 0,
+        published_success_rate: null,
       }),
-    ).toBe(true);
+    ).toBeNull();
   });
 });
 
@@ -80,7 +84,58 @@ describe("pickBestCandidate", () => {
     expect(pickBestCandidate([])).toBeNull();
   });
 
-  it("falls back to cheapest when no candidate is reliable", () => {
+  it("uses the published rate to pick a reliable operator over the cheaper dud", () => {
+    // The exact POF/Discord shape: cheapest operator is published-0%, a dearer
+    // one is published-62%. We must pick the one that actually delivers.
+    const cheapDud = make({
+      wholesale_price_cents: 19,
+      published_success_rate: 0,
+      upstream_operator: "virtual8",
+    });
+    const dearerGood = make({
+      wholesale_price_cents: 22,
+      published_success_rate: 62,
+      upstream_operator: "virtual63",
+    });
+    expect(
+      pickBestCandidate([cheapDud, dearerGood])?.upstream_operator,
+    ).toBe("virtual63");
+  });
+
+  it("when nothing clears the floor, picks the highest published rate (not cheapest)", () => {
+    const cheapWorst = make({
+      wholesale_price_cents: 10,
+      published_success_rate: 4,
+      upstream_operator: "v8",
+    });
+    const dearerBest = make({
+      wholesale_price_cents: 30,
+      published_success_rate: 15,
+      upstream_operator: "v63",
+    });
+    expect(
+      pickBestCandidate([cheapWorst, dearerBest])?.upstream_operator,
+    ).toBe("v63");
+  });
+
+  it("refuses (returns null) when every option is a known dud (e.g. POF/USA all 0%)", () => {
+    const a = make({ published_success_rate: 0, upstream_operator: "v8" });
+    const b = make({ published_success_rate: 0, upstream_operator: "v51" });
+    const c = make({ published_success_rate: 0, upstream_operator: "v63" });
+    expect(pickBestCandidate([a, b, c])).toBeNull();
+  });
+
+  it("never refuses an unknown-quality candidate (gives new providers a chance)", () => {
+    const unknown = make({
+      provider_slug: "textverified",
+      published_success_rate: null,
+      recent_total_count: 0,
+      upstream_operator: "tv",
+    });
+    expect(pickBestCandidate([unknown])?.upstream_operator).toBe("tv");
+  });
+
+  it("falls back to cheapest among equally-unknown candidates", () => {
     const cheap = make({ wholesale_price_cents: 50, upstream_operator: "cheap" });
     const mid = make({ wholesale_price_cents: 80, upstream_operator: "mid" });
     const dear = make({ wholesale_price_cents: 200, upstream_operator: "dear" });
@@ -89,7 +144,7 @@ describe("pickBestCandidate", () => {
     );
   });
 
-  it("prefers a slightly-more-expensive reliable candidate over a cheaper unproven one", () => {
+  it("prefers a proven-reliable candidate over a cheaper unproven one", () => {
     const unproven = make({
       wholesale_price_cents: 50,
       recent_received_count: 0,
@@ -125,11 +180,13 @@ describe("pickBestCandidate", () => {
     ).toBe("cheaper");
   });
 
-  it("rejects a known-bad operator with meaningful sample even if it's cheapest", () => {
+  it("our own sample overrides a rosy published rate", () => {
+    // Published says 90% but we've measured 10% over a real sample — trust us.
     const burned = make({
       wholesale_price_cents: 40,
       recent_received_count: 1,
-      recent_total_count: 20, // 5% success — burned
+      recent_total_count: MIN_SAMPLE_SIZE * 2,
+      published_success_rate: 90,
       upstream_operator: "burned",
     });
     const okay = make({
@@ -145,6 +202,7 @@ describe("pickBestCandidate", () => {
     const cheap5sim = make({
       provider_slug: "5sim",
       wholesale_price_cents: 30,
+      published_success_rate: 62,
       preference_rank: 0,
       upstream_operator: "5sim-cheap",
     });
@@ -159,45 +217,18 @@ describe("pickBestCandidate", () => {
     ).toBe("tv-preferred");
   });
 
-  it("within the preferred tier, still applies reliability then price", () => {
-    const preferredUnproven = make({
-      provider_slug: "textverified",
-      wholesale_price_cents: 60,
-      preference_rank: 10,
-      upstream_operator: "tv-unproven",
-    });
-    const preferredReliable = make({
-      provider_slug: "textverified",
-      wholesale_price_cents: 80,
-      preference_rank: 10,
-      recent_received_count: 9,
-      recent_total_count: 10,
-      upstream_operator: "tv-reliable",
-    });
-    const cheap5sim = make({
-      provider_slug: "5sim",
-      wholesale_price_cents: 20,
-      preference_rank: 0,
-      upstream_operator: "5sim",
-    });
-    expect(
-      pickBestCandidate([cheap5sim, preferredUnproven, preferredReliable])
-        ?.upstream_operator,
-    ).toBe("tv-reliable");
-  });
-
   it("falls back to the lower tier when the preferred provider has no stock", () => {
-    // Preferred provider absent (filtered out upstream as out-of-stock) — only
-    // tier-0 candidates remain, so we route among them normally.
     const a = make({
       provider_slug: "5sim",
       wholesale_price_cents: 50,
+      published_success_rate: 70,
       preference_rank: 0,
       upstream_operator: "5sim-a",
     });
     const b = make({
       provider_slug: "smspool",
       wholesale_price_cents: 40,
+      published_success_rate: 70,
       preference_rank: 0,
       upstream_operator: "smspool-b",
     });

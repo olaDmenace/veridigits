@@ -389,7 +389,7 @@ export async function getQuote(
   const { data: candidates, error: candErr } = await supabase
     .from("provider_services")
     .select(
-      "provider_slug, upstream_service_code, upstream_country_code, upstream_operator, wholesale_price_cents, recent_received_count, recent_total_count, preference_rank",
+      "provider_slug, upstream_service_code, upstream_country_code, upstream_operator, wholesale_price_cents, recent_received_count, recent_total_count, published_success_rate, preference_rank",
     )
     .eq("service_id", serviceId)
     .eq("country_id", countryId)

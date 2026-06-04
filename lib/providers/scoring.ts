@@ -1,28 +1,29 @@
 /**
  * Provider candidate scoring.
  *
- * Pick the candidate that's most likely to deliver an SMS the user can use,
- * not just the cheapest one. The Inngest recompute-operator-success-rates job
- * keeps `recent_received_count` / `recent_total_count` fresh on a 7-day
- * rolling window per (provider, service, country, operator). We use those
- * counts here to prefer reliable operators over burned ones at the same price
- * tier.
+ * Pick the candidate most likely to actually DELIVER an SMS the user can use,
+ * not just the cheapest one. Two delivery signals, in order of trust:
  *
- * Selection rule:
- *   0. HARD PREFERENCE first: only consider candidates in the highest
- *      preference tier that currently has stock. This is what lets us route
- *      e.g. WhatsApp to a preferred provider while everything else stays
- *      cheapest-reliable. Candidates are already filtered to in-stock upstream
- *      rows by the caller, so an out-of-stock preferred provider simply isn't
- *      present and the next tier is used — that's the fallback.
- *   1. Within that tier, sort by wholesale_price_cents ASC.
- *   2. If any has enough sample to be trusted AND a success rate above the
- *      floor, take the CHEAPEST such candidate.
- *   3. Otherwise fall back to the absolute cheapest in the tier (no data yet,
- *      no point being precious).
+ *   1. Our own 7-day rolling stats (`recent_received_count` /
+ *      `recent_total_count`), kept fresh by the recompute job — trusted once we
+ *      have enough sample.
+ *   2. The upstream's published per-operator rate (`published_success_rate`,
+ *      0-100, e.g. 5SIM's `rate`) — a cold-start prior so we avoid known-bad
+ *      operators (5SIM's cheapest "virtual" operators are often ~0%) before
+ *      we've gathered our own data.
  *
- * Thresholds are conservative; we'd rather lose a little price advantage than
- * route a user to a known-bad operator. Tune as data accumulates.
+ * Selection rule (within the highest preference tier that has stock):
+ *   1. Sort by wholesale_price_cents ASC.
+ *   2. If any candidate clears the reliability floor, take the CHEAPEST such.
+ *   3. Otherwise take the candidate with the HIGHEST expected delivery (not the
+ *      cheapest — cheapest is usually the worst operator).
+ *   4. No guaranteed-fail sales: if the best we can do is a *known* dud (below
+ *      MIN_VIABLE_RATE), return null so the caller shows out-of-stock instead
+ *      of charging for a number that will never receive.
+ *
+ * Unknown-quality candidates (no sample, no published rate — e.g. TextVerified
+ * real numbers) get a neutral prior: ranked above known-bad operators, and
+ * never refused, so we still route to them and learn their real rate.
  */
 export interface ScorableCandidate {
   provider_slug: string;
@@ -32,6 +33,8 @@ export interface ScorableCandidate {
   wholesale_price_cents: number | null;
   recent_received_count: number;
   recent_total_count: number;
+  /** Upstream-published operator success rate, 0-100. Null if unpublished. */
+  published_success_rate?: number | null;
   /**
    * Routing tier; higher wins. Defaults to 0 (no preference). Set per
    * (service[,country]) to make a provider primary — a tier-10 candidate is
@@ -40,11 +43,30 @@ export interface ScorableCandidate {
   preference_rank?: number | null;
 }
 
-/** Below this sample size the success rate is too noisy to trust. */
+/** Below this sample size our own success rate is too noisy to trust. */
 export const MIN_SAMPLE_SIZE = 8;
 
-/** Below this success rate we'd rather try someone else (if they exist). */
+/** At/above this expected delivery we treat an operator as reliable. */
 export const RELIABILITY_FLOOR = 0.4;
+
+/**
+ * Prior for candidates we have no delivery signal for at all (no sample, no
+ * published rate). Ranks them above known-bad operators but below proven-good
+ * ones, and they're never refused — so a new/unrated provider still gets tried.
+ */
+export const NEUTRAL_PRIOR = 0.5;
+
+/**
+ * Below this KNOWN expected delivery we refuse to sell — better to show
+ * out-of-stock than charge for a number that will never receive (e.g. POF/USA,
+ * 0% on every 5SIM operator).
+ */
+export const MIN_VIABLE_RATE = 0.05;
+
+type QualityInput = Pick<
+  ScorableCandidate,
+  "recent_received_count" | "recent_total_count" | "published_success_rate"
+>;
 
 export function successRate(c: {
   recent_received_count: number;
@@ -54,19 +76,30 @@ export function successRate(c: {
   return c.recent_received_count / c.recent_total_count;
 }
 
-export function isReliable(c: {
-  recent_received_count: number;
-  recent_total_count: number;
-}): boolean {
-  return (
-    c.recent_total_count >= MIN_SAMPLE_SIZE &&
-    successRate(c) >= RELIABILITY_FLOOR
-  );
+/**
+ * Expected delivery probability (0-1) from the best signal we have, or null
+ * when we have no signal at all (no sample, no published rate).
+ */
+export function expectedDelivery(c: QualityInput): number | null {
+  if (c.recent_total_count >= MIN_SAMPLE_SIZE) {
+    return successRate(c);
+  }
+  if (c.published_success_rate != null) {
+    const clamped = Math.max(0, Math.min(100, c.published_success_rate));
+    return clamped / 100;
+  }
+  return null;
+}
+
+/** Expected delivery with the neutral prior substituted for "no signal". */
+function effectiveDelivery(c: QualityInput): number {
+  const d = expectedDelivery(c);
+  return d == null ? NEUTRAL_PRIOR : d;
 }
 
 /**
  * Pick the candidate to actually buy from. Input may be in any order. Returns
- * null if the list is empty.
+ * null if the list is empty or the only options are known duds.
  */
 export function pickBestCandidate<T extends ScorableCandidate>(
   candidates: T[],
@@ -88,8 +121,28 @@ export function pickBestCandidate<T extends ScorableCandidate>(
       (b.wholesale_price_cents ?? Number.MAX_SAFE_INTEGER),
   );
 
-  const reliable = byPrice.filter(isReliable);
-  if (reliable.length > 0) return reliable[0];
+  // Cheapest operator with a KNOWN delivery signal clearing the floor. Unknowns
+  // (no sample, no published rate) are NOT auto-reliable — a proven-good
+  // operator should beat a cheaper unproven one.
+  const reliable = byPrice.filter((c) => {
+    const d = expectedDelivery(c);
+    return d != null && d >= RELIABILITY_FLOOR;
+  });
+  let chosen: T;
+  if (reliable.length > 0) {
+    chosen = reliable[0];
+  } else {
+    // ...otherwise the highest expected delivery (byPrice order breaks ties
+    // toward cheaper, since reduce keeps the incumbent on equality).
+    chosen = byPrice.reduce(
+      (best, c) => (effectiveDelivery(c) > effectiveDelivery(best) ? c : best),
+      byPrice[0],
+    );
+  }
 
-  return byPrice[0];
+  // No guaranteed-fail sales: refuse a pick whose KNOWN delivery is hopeless.
+  const known = expectedDelivery(chosen);
+  if (known != null && known < MIN_VIABLE_RATE) return null;
+
+  return chosen;
 }
