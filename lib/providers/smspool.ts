@@ -126,74 +126,87 @@ export class SmsPoolProvider implements OtpProvider {
 
   async syncCatalog(): Promise<ProviderCatalogEntry[]> {
     // SMSPool's /service/retrieve_all returns only {ID, name, favourite} — no
-    // price or stock. We populate SMSPool as the US fallback for the
-    // strict-screening services TextVerified is primary for (so e.g. Apple /
-    // Instagram, which 5SIM doesn't carry in the US, get a fallback). That's a
-    // small, bounded set, so we fetch a real price per service via
-    // /request/price; if that call fails or returns nothing we still list the
-    // row with a placeholder (the live re-quote at purchase is authoritative).
-    // Numeric IDs stay the upstream code; countryIso is pinned to "usa" so the
-    // rows share a (service,country) with 5SIM / TextVerified.
+    // price or stock. We populate SMSPool for the strict-screening services in
+    // the countries where it's our quality lane: the US (fallback behind
+    // TextVerified) and the UK (PRIMARY — TextVerified is US-only, so SMSPool's
+    // non-VoIP UK numbers are the best we have there, with 5SIM as backup).
+    // Bounded set, so we fetch a real price per service via /request/price;
+    // placeholder if that's unavailable (live re-quote at purchase is
+    // authoritative). Numeric IDs stay the upstream code; countryIso is pinned
+    // to the canonical shared code ("usa" / "england") so rows share a
+    // (service, country) with 5SIM / TextVerified.
     const countriesRaw = await this.get<unknown>("/country/retrieve_all");
     const countries: SmsPoolCountry[] = Array.isArray(countriesRaw)
       ? (countriesRaw as SmsPoolCountry[])
       : [];
 
-    const us = countries.find(
-      (c) =>
-        (c.short_name != null && /^us$/i.test(String(c.short_name))) ||
-        /united states/i.test(c.name ?? ""),
-    );
-    const countryId = us ? idOf(us.ID ?? us.id) : null;
-    if (!countryId) {
+    const out: ProviderCatalogEntry[] = [];
+    let targetsFound = 0;
+    for (const target of SYNC_TARGETS) {
+      const match = countries.find((c) =>
+        target.test(String(c.short_name ?? ""), c.name ?? ""),
+      );
+      const countryId = match ? idOf(match.ID ?? match.id) : null;
+      if (!countryId) {
+        console.warn(
+          `[smspool] ${target.iso} country not found (of ${countries.length}) — skipping`,
+        );
+        continue;
+      }
+      targetsFound++;
+
+      const servicesRaw = await this.get<unknown>(
+        `/service/retrieve_all?country=${encodeURIComponent(countryId)}`,
+      );
+      const services: SmsPoolCatalogService[] = Array.isArray(servicesRaw)
+        ? (servicesRaw as SmsPoolCatalogService[])
+        : [];
+
+      let added = 0;
+      for (const s of services) {
+        const serviceId = idOf(s.ID ?? s.id);
+        const name = stringOrNull(s.name);
+        if (!serviceId || !name) continue;
+        const slug = slugify(name);
+        if (!STRICT_SCREENING_SERVICES.has(slug)) continue;
+
+        let priceCents = SMSPOOL_PLACEHOLDER_CENTS;
+        try {
+          const p = await this.post<SmsPoolPrice>("/request/price", {
+            country: countryId,
+            service: serviceId,
+          });
+          const c = Math.round(toNumber(p.price ?? p.cost) * 100);
+          if (c > 0) priceCents = c;
+        } catch {
+          // keep placeholder — live re-quote at purchase is authoritative
+        }
+
+        out.push({
+          upstreamServiceCode: serviceId,
+          upstreamServiceName: name,
+          upstreamCountryCode: countryId,
+          upstreamOperator: "default",
+          priceCents,
+          availableCount: AVAILABILITY_SENTINEL,
+          serviceSlug: slug,
+          countryIso: target.iso,
+          countryName: target.name,
+        });
+        added++;
+      }
+      console.warn(`[smspool] ${target.iso} strict-service entries: ${added}`);
+    }
+
+    // None of our target countries matched a non-empty list — the country
+    // catalog shape likely changed. Surface it rather than sync nothing.
+    if (targetsFound === 0) {
       throw new ProviderApiError(
         this.slug,
-        `US country not found (of ${countries.length})`,
+        `no target countries (US/UK) found of ${countries.length}`,
       );
     }
 
-    const servicesRaw = await this.get<unknown>(
-      `/service/retrieve_all?country=${encodeURIComponent(countryId)}`,
-    );
-    const services: SmsPoolCatalogService[] = Array.isArray(servicesRaw)
-      ? (servicesRaw as SmsPoolCatalogService[])
-      : [];
-
-    const out: ProviderCatalogEntry[] = [];
-    for (const s of services) {
-      const serviceId = idOf(s.ID ?? s.id);
-      const name = stringOrNull(s.name);
-      if (!serviceId || !name) continue;
-      const slug = slugify(name);
-      // Only back the services we route to a premium provider in the US.
-      if (!STRICT_SCREENING_SERVICES.has(slug)) continue;
-
-      let priceCents = SMSPOOL_PLACEHOLDER_CENTS;
-      try {
-        const p = await this.post<SmsPoolPrice>("/request/price", {
-          country: countryId,
-          service: serviceId,
-        });
-        const c = Math.round(toNumber(p.price ?? p.cost) * 100);
-        if (c > 0) priceCents = c;
-      } catch {
-        // keep placeholder — live re-quote at purchase is authoritative
-      }
-
-      out.push({
-        upstreamServiceCode: serviceId,
-        upstreamServiceName: name,
-        upstreamCountryCode: countryId,
-        upstreamOperator: "default",
-        priceCents,
-        availableCount: AVAILABILITY_SENTINEL,
-        serviceSlug: slug,
-        countryIso: "usa", // align with 5SIM / TextVerified US rows
-        countryName: "USA",
-      });
-    }
-
-    console.warn(`[smspool] US strict-service catalog entries: ${out.length}`);
     return out;
   }
 
@@ -360,6 +373,28 @@ function mapCheckStatus(raw: number | string | undefined): ProviderOrderStatus {
       return "pending";
   }
 }
+
+/**
+ * Countries we populate SMSPool for, with the canonical shared iso (so rows
+ * join 5SIM / TextVerified). `test` matches SMSPool's country short_name/name.
+ */
+const SYNC_TARGETS: Array<{
+  iso: string;
+  name: string;
+  test: (short: string, name: string) => boolean;
+}> = [
+  {
+    iso: "usa",
+    name: "USA",
+    test: (short, name) => /^us$/i.test(short) || /united states/i.test(name),
+  },
+  {
+    iso: "england",
+    name: "England",
+    test: (short, name) =>
+      /^(gb|uk)$/i.test(short) || /united kingdom|britain|england/i.test(name),
+  },
+];
 
 const AVAILABILITY_SENTINEL = 999;
 const DEFAULT_ACTIVATION_TTL_MS = 10 * 60 * 1000;

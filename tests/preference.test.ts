@@ -2,23 +2,40 @@ import { describe, expect, it } from "vitest";
 import {
   PREFERRED_RANK,
   STRICT_SCREENING_SERVICES,
+  UK_COUNTRY_ISO,
   preferenceRankFor,
 } from "@/lib/providers/preference";
 
 describe("preferenceRankFor", () => {
-  it("makes TextVerified primary for strict-screening services", () => {
+  it("makes TextVerified primary for strict-screening services (any/US)", () => {
     for (const slug of ["whatsapp", "apple", "tinder", "instagram", "paypal"]) {
-      expect(preferenceRankFor("textverified", slug)).toBe(PREFERRED_RANK);
+      expect(preferenceRankFor("textverified", slug, "usa")).toBe(
+        PREFERRED_RANK,
+      );
     }
   });
 
   it("gives TextVerified no preference for non-strict services", () => {
-    expect(preferenceRankFor("textverified", "someobscureservice")).toBe(0);
+    expect(preferenceRankFor("textverified", "someobscureservice", "usa")).toBe(
+      0,
+    );
   });
 
-  it("never elevates other providers, even for strict services", () => {
-    expect(preferenceRankFor("5sim", "whatsapp")).toBe(0);
-    expect(preferenceRankFor("smspool", "apple")).toBe(0);
+  it("makes SMSPool primary for strict services in the UK only", () => {
+    expect(preferenceRankFor("smspool", "whatsapp", UK_COUNTRY_ISO)).toBe(
+      PREFERRED_RANK,
+    );
+    // not in the US (TextVerified is primary there)
+    expect(preferenceRankFor("smspool", "whatsapp", "usa")).toBe(0);
+    // not for non-strict services
+    expect(preferenceRankFor("smspool", "someobscureservice", UK_COUNTRY_ISO)).toBe(
+      0,
+    );
+  });
+
+  it("never elevates 5SIM", () => {
+    expect(preferenceRankFor("5sim", "whatsapp", "usa")).toBe(0);
+    expect(preferenceRankFor("5sim", "whatsapp", UK_COUNTRY_ISO)).toBe(0);
   });
 
   it("includes the headline hard-to-verify services in the set", () => {

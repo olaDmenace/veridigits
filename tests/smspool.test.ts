@@ -189,7 +189,37 @@ describe("SmsPoolProvider.syncCatalog", () => {
     expect(entries[2].priceCents).toBeGreaterThan(0); // google → placeholder
   });
 
-  it("throws a diagnostic when the US country isn't found", async () => {
+  it("populates UK strict services aligned to 'england' when only the UK is present", async () => {
+    (global.fetch as ReturnType<typeof vi.fn>)
+      // /country/retrieve_all — no US, has UK
+      .mockResolvedValueOnce(
+        jsonResponse([
+          { ID: 2, name: "Canada", short_name: "CA" },
+          { ID: 44, name: "United Kingdom", short_name: "GB" },
+        ]),
+      )
+      // /service/retrieve_all?country=44
+      .mockResolvedValueOnce(
+        jsonResponse([
+          { ID: 10, name: "Telegram", favourite: 0 },
+          { ID: 99, name: "1688", favourite: 0 }, // not strict → ignored
+        ]),
+      )
+      // /request/price for Telegram
+      .mockResolvedValueOnce(jsonResponse({ price: "0.50" }));
+
+    const entries = await provider().syncCatalog();
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({
+      serviceSlug: "telegram",
+      upstreamServiceCode: "10",
+      upstreamCountryCode: "44",
+      countryIso: "england",
+      priceCents: 50,
+    });
+  });
+
+  it("throws a diagnostic when no target country (US/UK) is found", async () => {
     (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
       jsonResponse([{ ID: 2, name: "Canada", short_name: "CA" }]),
     );

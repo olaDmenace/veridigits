@@ -215,9 +215,10 @@ async function reconcileProviderInner(
       upstream_operator: e.upstreamOperator,
       wholesale_price_cents: e.priceCents,
       available_count: e.availableCount,
-      // Config-driven routing preference (TextVerified-primary for strict
-      // services). Applied every sync so the rule stays the source of truth.
-      preference_rank: preferenceRankFor(providerSlug, svcSlug),
+      // Config-driven routing preference (TextVerified-primary for US strict
+      // services, SMSPool-primary for UK). Applied every sync so the rule stays
+      // the source of truth.
+      preference_rank: preferenceRankFor(providerSlug, svcSlug, ctyIsoOf(e)),
       // Upstream-published delivery quality (5SIM's per-operator rate); null
       // for providers that don't publish one.
       published_success_rate:

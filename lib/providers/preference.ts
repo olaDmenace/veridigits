@@ -53,21 +53,31 @@ export const STRICT_SCREENING_SERVICES = new Set<string>([
   "ticketmaster",
 ]);
 
-/** Higher rank wins. TextVerified is the preferred lane for strict services. */
+/** Higher rank wins. Marks the preferred (quality) lane for a service+country. */
 export const PREFERRED_RANK = 10;
 
+/** Canonical country iso (shared `countries.iso_code`) for the UK. 5SIM uses this. */
+export const UK_COUNTRY_ISO = "england";
+
 /**
- * Routing rank for a (provider, canonical service slug). Returns PREFERRED_RANK
- * when the provider is the designated primary for that service, else 0.
+ * Routing rank for a (provider, canonical service slug, canonical country iso).
+ * Returns PREFERRED_RANK when the provider is the designated quality lane for
+ * that service+country, else 0. This is a SOFT signal (a high cold-start prior
+ * in scoring), not a hard override — a proven, cheaper alternative still wins.
+ *
+ *  - US strict-screening services  -> TextVerified (real US numbers).
+ *  - UK strict-screening services  -> SMSPool (non-VoIP UK; TextVerified is
+ *    US-only, so SMSPool is the best lane there, with 5SIM as backup).
  */
 export function preferenceRankFor(
   providerSlug: string,
   serviceSlug: string,
+  countryIso?: string | null,
 ): number {
-  if (
-    providerSlug === "textverified" &&
-    STRICT_SCREENING_SERVICES.has(serviceSlug)
-  ) {
+  if (!STRICT_SCREENING_SERVICES.has(serviceSlug)) return 0;
+
+  if (providerSlug === "textverified") return PREFERRED_RANK;
+  if (providerSlug === "smspool" && countryIso === UK_COUNTRY_ISO) {
     return PREFERRED_RANK;
   }
   return 0;
