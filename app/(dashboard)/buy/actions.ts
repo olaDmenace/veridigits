@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getProvider } from "@/lib/providers";
-import { pickBestCandidate } from "@/lib/providers/scoring";
+import { pickBestCandidate, type ScorableCandidate } from "@/lib/providers/scoring";
 import { isProviderRoutable } from "@/lib/providers/preference";
 import { sanitizeProviderError } from "@/lib/providers/sanitize-error";
 import {
@@ -236,7 +236,9 @@ export async function getServicesForCountry(
     const [psResult, rulesResult, servicesResult] = await Promise.all([
       supabase
         .from("provider_services")
-        .select("service_id, wholesale_price_cents, available_count")
+        .select(
+          "service_id, provider_slug, upstream_service_code, upstream_country_code, upstream_operator, wholesale_price_cents, available_count, recent_received_count, recent_total_count, published_success_rate, preference_rank",
+        )
         .eq("country_id", countryId)
         .eq("is_enabled", true)
         .gt("available_count", 0)
@@ -266,20 +268,30 @@ export async function getServicesForCountry(
     const psRows = psResult.data ?? [];
     if (psRows.length === 0) return { ok: true, services: [] };
 
-    // Reduce to cheapest wholesale per service for this country.
-    const cheapestPerService = new Map<
-      string,
-      { wholesaleCents: number; availableCount: number }
-    >();
+    // Group routable candidates per service, then price the SAME operator the
+    // quote will route to (pickBestCandidate) — not the absolute cheapest — so
+    // the list "from" price matches the live quote. A service whose only
+    // options get refused (e.g. 0%-delivery duds like POF) drops off the list,
+    // exactly as getQuote would refuse it.
+    type ListCandidate = ScorableCandidate & { available_count: number };
+    const candidatesByService = new Map<string, ListCandidate[]>();
     for (const r of psRows) {
-      if (r.wholesale_price_cents == null || !r.service_id) continue;
-      const existing = cheapestPerService.get(r.service_id);
-      if (!existing || r.wholesale_price_cents < existing.wholesaleCents) {
-        cheapestPerService.set(r.service_id, {
-          wholesaleCents: r.wholesale_price_cents,
-          availableCount: r.available_count ?? 0,
-        });
-      }
+      if (!r.service_id || r.wholesale_price_cents == null) continue;
+      if (!isProviderRoutable(r.provider_slug)) continue;
+      const arr = candidatesByService.get(r.service_id) ?? [];
+      arr.push({
+        provider_slug: r.provider_slug,
+        upstream_service_code: r.upstream_service_code,
+        upstream_country_code: r.upstream_country_code,
+        upstream_operator: r.upstream_operator,
+        wholesale_price_cents: r.wholesale_price_cents,
+        recent_received_count: r.recent_received_count ?? 0,
+        recent_total_count: r.recent_total_count ?? 0,
+        published_success_rate: r.published_success_rate,
+        preference_rank: r.preference_rank,
+        available_count: r.available_count ?? 0,
+      });
+      candidatesByService.set(r.service_id, arr);
     }
 
     const rules: PricingRule[] = (rulesResult.data ?? []).map((r) => ({
@@ -300,14 +312,18 @@ export async function getServicesForCountry(
     );
 
     const out: ServicePriceOption[] = [];
-    for (const [serviceId, info] of cheapestPerService) {
+    for (const [serviceId, candidates] of candidatesByService) {
       const service = serviceById.get(serviceId);
       if (!service) continue;
+      // Same selection as getQuote. Null = every option refused (e.g. all
+      // known-bad) — hide the service rather than show a price we won't honor.
+      const best = pickBestCandidate(candidates);
+      if (!best || best.wholesale_price_cents == null) continue;
       try {
         const { retailCents } = calculateRetailPrice({
           serviceId,
           countryId,
-          wholesaleCents: info.wholesaleCents,
+          wholesaleCents: best.wholesale_price_cents,
           rules,
         });
         out.push({
@@ -315,7 +331,7 @@ export async function getServicesForCountry(
           slug: service.slug,
           name: service.name,
           retailCents,
-          availableCount: info.availableCount,
+          availableCount: best.available_count,
         });
       } catch (err) {
         console.error(
