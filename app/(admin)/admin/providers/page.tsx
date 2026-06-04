@@ -1,6 +1,10 @@
 import { getAdminClient } from "@/lib/supabase/admin";
+import { getProvider } from "@/lib/providers";
 import { formatUsdCents } from "@/lib/utils/money";
 import { SyncButton } from "./sync-button";
+
+/** Below this upstream balance (USD) we flag the provider — it's running dry. */
+const LOW_BALANCE_USD = 5;
 
 export const metadata = { title: "Providers · Admin" };
 // Always render live — the catalog sync runs async after the Sync button's
@@ -125,6 +129,21 @@ export default async function AdminProvidersPage() {
 
   const routing = await loadRouting(admin);
 
+  // Live upstream balances — a depleted account fails every purchase, so this
+  // is the early-warning signal. Best-effort + parallel; a provider that
+  // doesn't expose a balance (or errors) shows "—".
+  const balances = new Map<string, number | null>();
+  await Promise.all(
+    rows.map(async (r) => {
+      try {
+        const provider = getProvider(r.slug);
+        balances.set(r.slug, provider.getBalance ? await provider.getBalance() : null);
+      } catch {
+        balances.set(r.slug, null);
+      }
+    }),
+  );
+
   return (
     <div className="flex flex-col gap-8">
       <div className="section-head">
@@ -157,6 +176,7 @@ export default async function AdminProvidersPage() {
                 <th>Provider</th>
                 <th>Enabled / total</th>
                 <th>Cheapest</th>
+                <th>Balance</th>
                 <th>7d success</th>
                 <th>Last synced</th>
                 <th></th>
@@ -178,6 +198,26 @@ export default async function AdminProvidersPage() {
                       {r.cheapestCents != null
                         ? formatUsdCents(r.cheapestCents)
                         : "—"}
+                    </td>
+                    <td className="num">
+                      {(() => {
+                        const bal = balances.get(r.slug);
+                        if (bal == null) return "—";
+                        const low = bal < LOW_BALANCE_USD;
+                        return (
+                          <span
+                            title={low ? "Low — top up the upstream account" : undefined}
+                            style={
+                              low
+                                ? { color: "var(--color-danger)", fontWeight: 600 }
+                                : undefined
+                            }
+                          >
+                            ${bal.toFixed(2)}
+                            {low ? " ⚠" : ""}
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="num">{rate}</td>
                     <td>

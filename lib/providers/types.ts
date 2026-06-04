@@ -88,6 +88,12 @@ export interface OtpProvider {
   finishOrder(upstreamOrderId: string): Promise<void>;
   cancelOrder(upstreamOrderId: string): Promise<void>;
   syncCatalog(): Promise<ProviderCatalogEntry[]>;
+  /**
+   * Our account's remaining wholesale balance with this upstream, in USD.
+   * Null when the provider doesn't expose it or the call fails. Used for the
+   * admin low-balance signal — a depleted balance fails every purchase.
+   */
+  getBalance?(): Promise<number | null>;
 }
 
 /** Thrown when the upstream reports the requested service/country has zero stock. */

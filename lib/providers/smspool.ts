@@ -107,6 +107,19 @@ export class SmsPoolProvider implements OtpProvider {
     return { status, messages };
   }
 
+  async getBalance(): Promise<number | null> {
+    try {
+      const b = await this.post<{ balance?: string | number }>(
+        "/request/balance",
+        {},
+      );
+      const n = toNumber(b.balance);
+      return Number.isFinite(n) && n >= 0 ? n : null;
+    } catch {
+      return null;
+    }
+  }
+
   async finishOrder(_upstreamOrderId: string): Promise<void> {
     // SMSPool has no explicit finish step — an order with a delivered code is
     // already terminal upstream. No-op.

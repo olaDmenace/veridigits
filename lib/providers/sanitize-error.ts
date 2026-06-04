@@ -31,14 +31,20 @@ export function sanitizeProviderError(
       message: err.message,
     });
 
-    // "balance" / "credit" / "funds" in the upstream message means our own
-    // wholesale balance with the upstream is depleted. To the user this is
-    // indistinguishable from being out of stock — same UX, different ops
-    // cause (top up the upstream account).
-    if (/balance|credit|funds|payment required/i.test(err.message)) {
+    // Our OWN wholesale balance with the upstream is depleted (5SIM returns
+    // "not enough user balance"). This is global to our account — every
+    // country/service fails — so we must NOT tell the user to "try a different
+    // country" (that's the merry-go-round). Honest, platform-side message, and
+    // a loud ops log so we know to top up.
+    if (/balance|not enough|insufficient|credit|funds|payment required/i.test(err.message)) {
+      console.error(
+        `[provider] UPSTREAM BALANCE DEPLETED (${err.providerSlug}) — top up the account:`,
+        err.message,
+      );
       return {
         code: "out_of_stock",
-        message: "Number temporarily unavailable. Try a different country.",
+        message:
+          "Numbers are temporarily unavailable. We're on it — please try again shortly.",
       };
     }
 

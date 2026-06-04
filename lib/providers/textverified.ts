@@ -129,6 +129,23 @@ export class TextVerifiedProvider implements OtpProvider {
     return { status, messages };
   }
 
+  async getBalance(): Promise<number | null> {
+    // Best-effort: TextVerified exposes the account balance at /account/me.
+    try {
+      const me = await this.authedJson<{ currentBalance?: number | string }>(
+        "GET",
+        "/api/pub/v2/account/me",
+      );
+      const n =
+        typeof me.currentBalance === "string"
+          ? Number(me.currentBalance)
+          : me.currentBalance;
+      return typeof n === "number" && Number.isFinite(n) ? n : null;
+    } catch {
+      return null;
+    }
+  }
+
   async finishOrder(_upstreamOrderId: string): Promise<void> {
     // No explicit finish step in TextVerified — a completed verification is
     // already terminal upstream. No-op.

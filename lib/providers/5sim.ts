@@ -164,6 +164,17 @@ export class FiveSimProvider implements OtpProvider {
     };
   }
 
+  async getBalance(): Promise<number | null> {
+    try {
+      const p = await this.authenticatedGet<{ balance?: number }>(
+        "/user/profile",
+      );
+      return typeof p.balance === "number" ? p.balance : null;
+    } catch {
+      return null;
+    }
+  }
+
   async finishOrder(upstreamOrderId: string): Promise<void> {
     await this.authenticatedGet<FivesimOrder>(
       `/user/finish/${encodeURIComponent(upstreamOrderId)}`,
