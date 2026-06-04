@@ -3,6 +3,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { getAppUrl } from "@/lib/utils/app-url";
 import { WhatsAppSupport } from "@/components/whatsapp-support";
+import { SupportMarquee } from "@/components/support-marquee";
 import "./globals.css";
 
 const APP_URL = getAppUrl();
@@ -66,6 +67,7 @@ export default function RootLayout({
         {/* eslint-enable @next/next/no-page-custom-font */}
       </head>
       <body>
+        <SupportMarquee />
         {children}
         <WhatsAppSupport />
         <Analytics />

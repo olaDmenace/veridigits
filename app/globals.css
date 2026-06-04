@@ -92,7 +92,11 @@
    BASE
 ============================================================ */
 html, body { margin: 0; padding: 0; }
-html { scroll-behavior: smooth; }
+html {
+  scroll-behavior: smooth;
+  /* Anchor targets clear the fixed marquee + the 64px sticky navbar. */
+  scroll-padding-top: calc(var(--marquee-h) + 64px);
+}
 body {
   background: var(--color-paper);
   color: var(--color-ink);
@@ -135,6 +139,9 @@ button { font: inherit; cursor: pointer; }
 ============================================================ */
 :root {
   --gutter-x: 64px;
+  /* Height of the fixed support marquee pinned above the navbar. The sticky
+     topbar sticks at this offset and a spacer reserves it in flow. */
+  --marquee-h: 40px;
 }
 @media (max-width: 1024px) { :root { --gutter-x: 40px; } }
 @media (max-width: 760px)  { :root { --gutter-x: 32px; } }
@@ -159,7 +166,7 @@ main,
 }
 
 .topbar {
-  position: sticky; top: 0; z-index: 50;
+  position: sticky; top: var(--marquee-h); z-index: 50;
   background: color-mix(in oklab, var(--color-paper) 88%, transparent);
   backdrop-filter: saturate(140%) blur(8px);
   border-bottom: 1px solid var(--color-border);
@@ -1926,4 +1933,109 @@ main,
 @media (prefers-reduced-motion: reduce) {
   .wa-fab { transition: background var(--duration-fast) var(--ease-out); }
   .wa-fab:hover { transform: none; }
+}
+
+/* ============================================================
+   SUPPORT MARQUEE (top announcement bar, lime)
+============================================================ */
+.support-marquee-link {
+  display: block;
+  height: 100%;
+  text-decoration: none;
+  color: inherit;
+}
+.support-marquee {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  /* Above the sticky navbar (z 50), below the mobile drawer overlay (z 60). */
+  z-index: 55;
+  height: var(--marquee-h);
+  overflow: hidden;
+  /* Block, NOT flex: a flex parent can shrink the track and make the groups
+     wrap/stack. The track centers itself vertically (align-items + 100% height). */
+  display: block;
+  white-space: nowrap;
+  background: var(--color-lime);
+  color: var(--color-on-lime);
+  border-bottom: 1px solid color-mix(in oklab, var(--color-on-lime) 12%, transparent);
+}
+/* Reserves the marquee's height in normal flow so content (and the sticky
+   navbar, which now sticks at top: var(--marquee-h)) starts beneath it. */
+.support-marquee-spacer {
+  height: var(--marquee-h);
+}
+.support-marquee-track {
+  display: flex;
+  flex-wrap: nowrap;
+  flex: none;
+  width: max-content;      /* exactly the two groups wide -> -50% loops seamlessly */
+  height: 100%;
+  align-items: center;
+  will-change: transform;
+  /* Slow, linear, continuous — mature, not a frantic scroll. */
+  animation: support-marquee 40s linear infinite;
+}
+.support-marquee-link:hover .support-marquee-track,
+.support-marquee:hover .support-marquee-track {
+  animation-play-state: paused;
+}
+.support-marquee-group {
+  display: flex;
+  flex-wrap: nowrap;
+  flex: none;
+  align-items: center;
+}
+.support-marquee-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+.support-marquee-item svg {
+  flex: none;
+  opacity: 0.7;
+  transform: translateY(0.5px);
+}
+.support-marquee-dot {
+  display: inline-block;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.32;
+  margin: 0 30px;
+  transform: translateY(-0.5px);
+}
+
+/* Soft fade so text eases in/out at the edges instead of hard-clipping. */
+.support-marquee::before,
+.support-marquee::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 60px;
+  z-index: 1;
+  pointer-events: none;
+}
+.support-marquee::before {
+  left: 0;
+  background: linear-gradient(90deg, var(--color-lime), color-mix(in oklab, var(--color-lime) 0%, transparent));
+}
+.support-marquee::after {
+  right: 0;
+  background: linear-gradient(270deg, var(--color-lime), color-mix(in oklab, var(--color-lime) 0%, transparent));
+}
+
+@keyframes support-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .support-marquee-track { animation: none; }
 }
