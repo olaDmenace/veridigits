@@ -588,6 +588,12 @@ export type Database = {
         }
         Relationships: []
       }
+      countries_with_stock: {
+        Row: {
+          country_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       is_admin: { Args: never; Returns: boolean }

@@ -24,19 +24,17 @@ export default async function BuyPage() {
     .single();
   const isAdmin = !!profile?.is_admin;
 
-  // Country-first flow: load the countries that have any in-stock listing.
-  // Distinct country_ids from provider_services. The 80-ish country count
-  // fits in a single query without the URL-length problem that bit us when
-  // we tried the same approach with services.
-  const { data: psRows } = await supabase
-    .from("provider_services")
-    .select("country_id")
-    .eq("is_enabled", true)
-    .gt("available_count", 0)
-    .not("wholesale_price_cents", "is", null);
+  // Country-first flow: load every country that has any in-stock listing.
+  // Read the DB-side `countries_with_stock` view (distinct country_id) rather
+  // than selecting from provider_services directly — that table has 120k+ rows
+  // and the API caps a plain select at 1000, which dropped low-volume countries
+  // (Denmark, etc.) from the picker. The view returns ~80-140 rows, no cap.
+  const { data: stockRows } = await supabase
+    .from("countries_with_stock")
+    .select("country_id");
 
   const countryIdsWithStock = new Set<string>();
-  for (const r of psRows ?? []) {
+  for (const r of stockRows ?? []) {
     if (r.country_id) countryIdsWithStock.add(r.country_id);
   }
 
