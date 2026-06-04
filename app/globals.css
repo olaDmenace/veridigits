@@ -1119,12 +1119,16 @@ main,
 }
 .otp-reveal .lbl { font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-subtle); text-transform: uppercase; letter-spacing: 0.12em; }
 .otp-reveal .code {
+  display: block; width: 100%;
+  background: none; border: 0; cursor: pointer;
   font-family: var(--font-mono); font-size: clamp(36px, 9vw, 56px); font-weight: 500;
   letter-spacing: 0.16em; margin: 12px 0 8px;
   color: var(--color-vg-300);
   font-variant-numeric: tabular-nums;
   word-break: break-all;
+  transition: opacity var(--duration-fast) var(--ease-out);
 }
+.otp-reveal .code:hover { opacity: 0.85; }
 .otp-reveal .src { font-size: 13px; color: var(--color-ink-subtle); }
 .otp-reveal .copy {
   position: absolute; top: 14px; right: 14px;
@@ -1132,7 +1136,9 @@ main,
   border: 1px solid rgba(255,255,255,.14);
   padding: 6px 10px; border-radius: var(--radius-sm);
   font-family: var(--font-mono); font-size: 11px; cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out);
 }
+.otp-reveal .copy:hover { background: rgba(255,255,255,.18); }
 
 /* SMS bubble */
 .sms-bubble {
@@ -1149,7 +1155,13 @@ main,
 }
 .sms-bubble .who { font-weight: 600; font-size: 14px; }
 .sms-bubble .when { font-family: var(--font-mono); font-size: 11px; color: var(--color-ink-muted); }
-.sms-bubble .msg { font-size: 14px; color: var(--color-ink-2); margin-top: 4px; line-height: 1.45; }
+/* Upstream (5SIM) strips spaces from the SMS body, so it can be one long run —
+   wrap it hard so it never blows out the bubble, and keep it muted since the
+   code is surfaced prominently above. */
+.sms-bubble .msg {
+  font-size: 14px; color: var(--color-ink-muted); margin-top: 4px; line-height: 1.45;
+  overflow-wrap: anywhere; word-break: break-word;
+}
 .sms-bubble .msg code {
   font-family: var(--font-mono); background: var(--color-vg-50);
   color: var(--color-vg-700); padding: 1px 6px; border-radius: 4px;

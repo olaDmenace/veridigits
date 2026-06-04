@@ -128,6 +128,18 @@ export function LiveOrderView({
   const latestMessage = messages[0];
   const extractedCode = latestMessage?.extracted_code;
 
+  const copyCode = (code: string) => {
+    navigator.clipboard?.writeText(code).then(
+      () => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1600);
+      },
+      () => {
+        /* clipboard blocked — the code is visible to select manually */
+      },
+    );
+  };
+
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-2">
@@ -181,8 +193,22 @@ export function LiveOrderView({
       {/* Code reveal — once first SMS arrives */}
       {extractedCode && status !== "refunded" ? (
         <div className="otp-reveal">
+          <button
+            type="button"
+            className="copy"
+            onClick={() => copyCode(extractedCode)}
+          >
+            {copied ? "Copied ✓" : "Copy"}
+          </button>
           <div className="lbl">Verification code</div>
-          <div className="code">{extractedCode}</div>
+          <button
+            type="button"
+            className="code"
+            onClick={() => copyCode(extractedCode)}
+            title="Click to copy"
+          >
+            {extractedCode}
+          </button>
           <div className="src">from {latestMessage.sender ?? "unknown"}</div>
         </div>
       ) : null}
