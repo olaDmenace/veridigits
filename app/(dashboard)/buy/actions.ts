@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getProvider } from "@/lib/providers";
 import { pickBestCandidate } from "@/lib/providers/scoring";
+import { isProviderRoutable } from "@/lib/providers/preference";
 import { sanitizeProviderError } from "@/lib/providers/sanitize-error";
 import {
   calculateRetailPrice,
@@ -407,7 +408,15 @@ export async function getQuote(
   if (candErr) {
     return { ok: false, code: "internal", message: candErr.message };
   }
-  if (!candidates || candidates.length === 0) {
+
+  // Drop providers that can't currently fulfill (e.g. unfunded balance). The
+  // purchase flow has no provider fallback, so routing to one of these would
+  // just hard-fail — better to fall through to the next provider here.
+  const routable = (candidates ?? []).filter((c) =>
+    isProviderRoutable(c.provider_slug),
+  );
+
+  if (routable.length === 0) {
     return {
       ok: false,
       code: "no_provider",
@@ -415,7 +424,7 @@ export async function getQuote(
     };
   }
 
-  const top = pickBestCandidate(candidates);
+  const top = pickBestCandidate(routable);
   if (!top) {
     return {
       ok: false,

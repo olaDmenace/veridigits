@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  DISABLED_PROVIDERS,
   PREFERRED_RANK,
   STRICT_SCREENING_SERVICES,
   UK_COUNTRY_ISO,
+  isProviderRoutable,
   preferenceRankFor,
 } from "@/lib/providers/preference";
 
@@ -42,5 +44,19 @@ describe("preferenceRankFor", () => {
     for (const slug of ["whatsapp", "google", "apple", "tinder"]) {
       expect(STRICT_SCREENING_SERVICES.has(slug)).toBe(true);
     }
+  });
+});
+
+describe("isProviderRoutable", () => {
+  it("routes 5SIM (the funded, always-available provider)", () => {
+    expect(isProviderRoutable("5sim")).toBe(true);
+  });
+
+  it("excludes the currently-unfunded providers", () => {
+    // Sanity: the gate is actually engaged for the providers we expect.
+    expect(DISABLED_PROVIDERS.has("textverified")).toBe(true);
+    expect(DISABLED_PROVIDERS.has("smspool")).toBe(true);
+    expect(isProviderRoutable("textverified")).toBe(false);
+    expect(isProviderRoutable("smspool")).toBe(false);
   });
 });

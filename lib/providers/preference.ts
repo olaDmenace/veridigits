@@ -53,6 +53,24 @@ export const STRICT_SCREENING_SERVICES = new Set<string>([
   "ticketmaster",
 ]);
 
+/**
+ * Providers temporarily excluded from routing — e.g. unfunded upstream balance.
+ * Their catalog rows still SYNC (so nothing is lost), but getQuote won't route
+ * to them, so orders fall to the next-best provider (5SIM's delivery-ranked
+ * operators) instead of hard-failing at purchase against an account with no
+ * balance. The purchase flow has no provider fallback, so this gate is how we
+ * avoid sending users to a provider that can't fulfill.
+ *
+ * Remove a slug here the moment its balance is funded — its rows are already in
+ * the catalog, so it goes live immediately on the next quote.
+ */
+export const DISABLED_PROVIDERS = new Set<string>(["textverified", "smspool"]);
+
+/** Whether routing may select this provider right now. */
+export function isProviderRoutable(providerSlug: string): boolean {
+  return !DISABLED_PROVIDERS.has(providerSlug);
+}
+
 /** Higher rank wins. Marks the preferred (quality) lane for a service+country. */
 export const PREFERRED_RANK = 10;
 
