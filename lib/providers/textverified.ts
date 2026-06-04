@@ -58,8 +58,10 @@ export class TextVerifiedProvider implements OtpProvider {
   async getPriceAndAvailability(
     params: PriceLookupParams,
   ): Promise<ProviderPriceQuote> {
-    // VerificationPriceCheckRequest — serviceName is the only field we can be
-    // sure of; capability/numberType are sent as the common defaults.
+    // VerificationPriceCheckRequest — the pricing endpoint REQUIRES all four
+    // options (verified live): capability, numberType, and the areaCode/carrier
+    // pricing flags. areaCode:false / carrier:false = base pricing (no premium
+    // area-code or carrier selection). Omitting either -> 400 "… is required".
     const body = await this.authedJson<TvPricing>(
       "POST",
       "/api/pub/v2/pricing/verifications",
@@ -67,9 +69,13 @@ export class TextVerifiedProvider implements OtpProvider {
         serviceName: params.upstreamServiceCode,
         capability: "sms",
         numberType: "mobile",
+        areaCode: false,
+        carrier: false,
       },
     );
-    const price = toNumber(body.totalCost);
+    // The pricing endpoint returns `price` (verified live: {serviceName, price}).
+    // Keep totalCost as a fallback in case the field name varies by plan.
+    const price = toNumber(body.price ?? body.totalCost);
     if (price <= 0) return { priceCents: 0, availableCount: 0 };
     // TextVerified pricing doesn't return a stock count; a returned price means
     // purchasable. The create call is the real availability check.
@@ -190,9 +196,15 @@ export class TextVerifiedProvider implements OtpProvider {
         const p = await this.authedJson<TvPricing>(
           "POST",
           "/api/pub/v2/pricing/verifications",
-          { serviceName: name, capability: "sms", numberType: "mobile" },
+          {
+            serviceName: name,
+            capability: "sms",
+            numberType: "mobile",
+            areaCode: false,
+            carrier: false,
+          },
         );
-        const c = Math.round(toNumber(p.totalCost) * 100);
+        const c = Math.round(toNumber(p.price ?? p.totalCost) * 100);
         if (c > 0) priceCents = c;
       } catch {
         // keep the placeholder — live re-quote at purchase is authoritative
@@ -340,6 +352,8 @@ interface TvSmsPage {
   data?: TvSms[];
 }
 interface TvPricing {
+  /** The pricing endpoint returns `price` (verified live). */
+  price?: number | string;
   totalCost?: number | string;
 }
 interface TvService {
