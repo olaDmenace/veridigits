@@ -1,15 +1,11 @@
 /**
- * Curated service + country options for the public landing hero selector.
+ * Static landing-page lookups.
  *
- * These are intentionally a popular SUBSET, not the live catalog — the homepage
- * is unauthenticated and the full catalog (139+ countries, 5,000+ services) is
- * auth-gated and re-quoted at purchase time. The hero lets a visitor express
- * intent ("WhatsApp, UK"); that selection is carried through signup/login and
- * pre-fills the real /buy picker, where live stock + price are resolved.
- *
- * Country `iso` values match the real `countries.iso_code` slugs (usa, england,
- * …) so the deep link resolves on the buy page. `fromCents` is an indicative
- * starting price (matches the Services section), shown as "from $X".
+ * - POPULAR_SERVICES: the curated tiles shown in the marketing "Services"
+ *   section. (The hero now reads the live catalog, not this list.)
+ * - COUNTRY_FLAGS: iso_code → flag emoji. The `countries` table stores
+ *   flag_emoji as null, so the UI supplies flags here; unknown isos fall back
+ *   to the two-letter code (same as the /buy picker).
  */
 
 export interface PopularService {
@@ -17,13 +13,6 @@ export interface PopularService {
   abbr: string;
   name: string;
   fromCents: number;
-}
-
-export interface PopularCountry {
-  /** Matches countries.iso_code so /buy can resolve it. */
-  iso: string;
-  name: string;
-  flag: string;
 }
 
 export const POPULAR_SERVICES: PopularService[] = [
@@ -40,21 +29,67 @@ export const POPULAR_SERVICES: PopularService[] = [
   { slug: "tinder", abbr: "tn", name: "Tinder", fromCents: 38 },
 ];
 
-export const POPULAR_COUNTRIES: PopularCountry[] = [
-  { iso: "usa", name: "United States", flag: "🇺🇸" },
-  { iso: "england", name: "United Kingdom", flag: "🇬🇧" },
-  { iso: "canada", name: "Canada", flag: "🇨🇦" },
-  { iso: "germany", name: "Germany", flag: "🇩🇪" },
-  { iso: "france", name: "France", flag: "🇫🇷" },
-  { iso: "netherlands", name: "Netherlands", flag: "🇳🇱" },
-  { iso: "spain", name: "Spain", flag: "🇪🇸" },
-  { iso: "italy", name: "Italy", flag: "🇮🇹" },
-  { iso: "poland", name: "Poland", flag: "🇵🇱" },
-  { iso: "nigeria", name: "Nigeria", flag: "🇳🇬" },
-  { iso: "india", name: "India", flag: "🇮🇳" },
-  { iso: "indonesia", name: "Indonesia", flag: "🇮🇩" },
-  { iso: "philippines", name: "Philippines", flag: "🇵🇭" },
-  { iso: "brazil", name: "Brazil", flag: "🇧🇷" },
-  { iso: "mexico", name: "Mexico", flag: "🇲🇽" },
-  { iso: "vietnam", name: "Vietnam", flag: "🇻🇳" },
-];
+/** Upstream-slug iso_code → flag emoji (DB stores null). */
+export const COUNTRY_FLAGS: Record<string, string> = {
+  usa: "🇺🇸",
+  england: "🇬🇧",
+  canada: "🇨🇦",
+  germany: "🇩🇪",
+  france: "🇫🇷",
+  netherlands: "🇳🇱",
+  spain: "🇪🇸",
+  italy: "🇮🇹",
+  poland: "🇵🇱",
+  portugal: "🇵🇹",
+  ireland: "🇮🇪",
+  sweden: "🇸🇪",
+  norway: "🇳🇴",
+  denmark: "🇩🇰",
+  finland: "🇫🇮",
+  belgium: "🇧🇪",
+  austria: "🇦🇹",
+  switzerland: "🇨🇭",
+  romania: "🇷🇴",
+  ukraine: "🇺🇦",
+  russia: "🇷🇺",
+  turkey: "🇹🇷",
+  greece: "🇬🇷",
+  czech: "🇨🇿",
+  hungary: "🇭🇺",
+  nigeria: "🇳🇬",
+  ghana: "🇬🇭",
+  kenya: "🇰🇪",
+  southafrica: "🇿🇦",
+  egypt: "🇪🇬",
+  morocco: "🇲🇦",
+  india: "🇮🇳",
+  indonesia: "🇮🇩",
+  philippines: "🇵🇭",
+  vietnam: "🇻🇳",
+  thailand: "🇹🇭",
+  malaysia: "🇲🇾",
+  pakistan: "🇵🇰",
+  bangladesh: "🇧🇩",
+  china: "🇨🇳",
+  hongkong: "🇭🇰",
+  japan: "🇯🇵",
+  cambodia: "🇰🇭",
+  myanmar: "🇲🇲",
+  laos: "🇱🇦",
+  brazil: "🇧🇷",
+  mexico: "🇲🇽",
+  argentina: "🇦🇷",
+  colombia: "🇨🇴",
+  chile: "🇨🇱",
+  peru: "🇵🇪",
+  australia: "🇦🇺",
+  newzealand: "🇳🇿",
+  israel: "🇮🇱",
+  saudiarabia: "🇸🇦",
+  uae: "🇦🇪",
+};
+
+/** Flag for an iso_code, or the uppercased code as a fallback badge. */
+export function flagFor(iso: string): string {
+  return COUNTRY_FLAGS[iso.toLowerCase()] ?? iso.slice(0, 2).toUpperCase();
+}

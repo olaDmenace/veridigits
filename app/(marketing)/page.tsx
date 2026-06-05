@@ -3,10 +3,18 @@ import { Topbar } from "@/components/topbar";
 import { BrandLogo } from "@/components/brand-logo";
 import { ScrollReveal } from "@/components/scroll-reveal";
 import { Faq as FaqAccordion } from "@/components/faq";
-import { HeroSelector } from "@/components/hero-selector";
+import { HeroSelector, type HeroCountry } from "@/components/hero-selector";
 import { POPULAR_SERVICES } from "@/lib/landing/options";
+import { getLandingCountries } from "@/lib/landing/catalog";
 
-export default function Home() {
+export default async function Home() {
+  const landingCountries = await getLandingCountries();
+  const heroCountries: HeroCountry[] = landingCountries.map((c) => ({
+    id: c.id,
+    iso: c.iso,
+    name: c.name,
+  }));
+
   return (
     <div className="marketing">
       <Topbar
@@ -25,7 +33,7 @@ export default function Home() {
       />
 
       <main>
-        <Hero />
+        <Hero countries={heroCountries} />
         <TrustStrip />
         <HowItWorks />
         <ServicesGrid />
@@ -39,7 +47,7 @@ export default function Home() {
   );
 }
 
-function Hero() {
+function Hero({ countries }: { countries: HeroCountry[] }) {
   return (
     <section className="hero hero-dark">
       <FloatingIcons />
@@ -84,7 +92,7 @@ function Hero() {
           </div>
         </div>
 
-        <HeroSelector />
+        <HeroSelector countries={countries} />
       </div>
       </div>
     </section>

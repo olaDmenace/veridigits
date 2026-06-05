@@ -2136,3 +2136,9 @@ main,
 .hero-picker-cta:disabled { opacity: .55; cursor: not-allowed; }
 
 .hero-picker-foot { font-size: 13px; text-align: center; color: var(--color-ink-muted); margin-top: 2px; }
+
+/* Service/country rows now carry a trailing price; let the name flex. */
+.hero-pop-row .nm { flex: 1; min-width: 0; text-align: left;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hero-pop-price { font-size: 12.5px; font-weight: 600; color: var(--color-ink-muted); flex: none; }
+.hero-field-btn:disabled { opacity: .6; cursor: not-allowed; }
