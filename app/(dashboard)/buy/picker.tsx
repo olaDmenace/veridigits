@@ -20,6 +20,7 @@ import { RENTAL_DURATIONS, type OrderMode } from "./constants";
 import { formatUsdCents } from "@/lib/utils/money";
 import { InfoNotice } from "@/components/info-notice";
 import { getServiceDisplay } from "@/lib/services/display";
+import { flagFor } from "@/lib/landing/options";
 import { BrandLogo } from "@/components/brand-logo";
 
 export interface CountryEntry {
@@ -341,7 +342,7 @@ function CountryPicker({
       {selected ? (
         <div className="cty-row selected">
           <span className="flag">
-            {selected.flagEmoji ?? selected.isoCode.slice(0, 2).toUpperCase()}
+            {selected.flagEmoji ?? flagFor(selected.isoCode)}
           </span>
           <span>{selected.name}</span>
           <span className="iso">{selected.isoCode.toUpperCase()}</span>
@@ -381,7 +382,7 @@ function CountryPicker({
                   }}
                 >
                   <span className="flag">
-                    {c.flagEmoji ?? c.isoCode.slice(0, 2).toUpperCase()}
+                    {c.flagEmoji ?? flagFor(c.isoCode)}
                   </span>
                   <span>{c.name}</span>
                   <span className="iso">{c.isoCode.toUpperCase()}</span>
