@@ -37,7 +37,7 @@ export default async function AdminPaymentsPage() {
     admin
       .from("fiat_payments")
       .select(
-        "id, user_id, reference, korapay_reference, currency, amount_local, amount_usd_cents_credited, fx_rate_local_per_usd, status, created_at, confirmed_at",
+        "id, user_id, reference, korapay_reference, provider, currency, amount_local, amount_usd_cents_credited, fx_rate_local_per_usd, status, created_at, confirmed_at",
       )
       .order("created_at", { ascending: false })
       .limit(PER_RAIL),
@@ -71,7 +71,7 @@ export default async function AdminPaymentsPage() {
       return {
         id: n.id,
         kind: "fiat" as const,
-        rail: "korapay",
+        rail: n.provider ?? "korapay",
         userId: n.user_id,
         email: emailById.get(n.user_id) ?? null,
         amountUsdCents: n.amount_usd_cents_credited,

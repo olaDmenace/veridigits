@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import {
   createTopup,
   createFiatTopup,
+  createMomoTopup,
+  checkMomoStatus,
   quoteFiat,
   type CreateTopupResult,
   type CreateFiatTopupResult,
@@ -113,7 +115,274 @@ export function TopUpForm() {
         </button>
       </div>
 
-      {rail === "crypto" ? <CryptoForm /> : <FiatForm currency={rail} />}
+      {rail === "crypto" ? (
+        <CryptoForm />
+      ) : rail === "GHS" ? (
+        <MomoForm />
+      ) : (
+        <FiatForm currency="NGN" />
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// Ghana — MTN MoMo direct (phone prompt + poll, no redirect)
+// ============================================================
+function MomoForm() {
+  const meta = FIAT_META.GHS;
+  const [amount, setAmount] = useState<number>(meta.defaultAmount);
+  const [customAmount, setCustomAmount] = useState<string>("");
+  const [phone, setPhone] = useState<string>("");
+  const [quote, setQuote] = useState<QuoteFiatResult | null>(null);
+  const [phase, setPhase] = useState<"form" | "waiting" | "success" | "failed">(
+    "form",
+  );
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+  const referenceRef = useRef<string | null>(null);
+
+  const usingCustom = customAmount.trim() !== "";
+  const effective = usingCustom ? Math.floor(Number(customAmount)) : amount;
+  const phoneValid = phone.replace(/\D/g, "").length >= 9;
+
+  useEffect(() => {
+    if (!Number.isFinite(effective) || effective < 1) return;
+    let cancelled = false;
+    quoteFiat("GHS", effective).then((q) => {
+      if (!cancelled) setQuote(q);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [effective]);
+
+  // Poll MTN for the outcome while we're waiting on the PIN approval.
+  useEffect(() => {
+    if (phase !== "waiting") return;
+    const ref = referenceRef.current;
+    if (!ref) return;
+    let stop = false;
+    let polls = 0;
+    const MAX_POLLS = 40; // ~2 minutes at 3s
+
+    async function tick() {
+      if (stop) return;
+      polls += 1;
+      try {
+        const r = await checkMomoStatus(ref!);
+        if (!stop && r.ok) {
+          if (r.status === "success") {
+            setPhase("success");
+            return;
+          }
+          if (r.status === "failed") {
+            setError(
+              "The payment wasn't completed. You may have declined or it timed out.",
+            );
+            setPhase("failed");
+            return;
+          }
+        }
+      } catch {
+        /* transient — keep polling */
+      }
+      if (!stop && polls < MAX_POLLS) {
+        setTimeout(tick, 3000);
+      } else if (!stop) {
+        setError(
+          "Still waiting on confirmation. If you approved it, your wallet will credit shortly — check your dashboard.",
+        );
+        setPhase("failed");
+      }
+    }
+
+    const t = setTimeout(tick, 3000);
+    return () => {
+      stop = true;
+      clearTimeout(t);
+    };
+  }, [phase]);
+
+  function submit() {
+    setError(null);
+    const fd = new FormData();
+    fd.append("amount", String(effective));
+    fd.append("phone", phone);
+    startTransition(async () => {
+      const r = await createMomoTopup(fd);
+      if (r.ok) {
+        referenceRef.current = r.reference;
+        setPhase("waiting");
+      } else {
+        setError(r.error);
+      }
+    });
+  }
+
+  function reset() {
+    referenceRef.current = null;
+    setError(null);
+    setPhase("form");
+  }
+
+  if (phase === "waiting") {
+    return (
+      <div
+        className="card flex flex-col items-center gap-4 text-center"
+        style={{ padding: 32 }}
+      >
+        <div className="eyebrow">Check your phone</div>
+        <h2 className="h3">Approve the MoMo prompt</h2>
+        <p className="body" style={{ maxWidth: 360 }}>
+          We sent a payment request to <strong>{phone}</strong>. Enter your MoMo
+          PIN on your phone to complete the top-up. This page updates
+          automatically.
+        </p>
+        <div className="caption">Waiting for confirmation…</div>
+      </div>
+    );
+  }
+
+  if (phase === "success") {
+    return (
+      <div
+        className="card flex flex-col items-center gap-4 text-center"
+        style={{ padding: 32 }}
+      >
+        <div className="eyebrow">Done</div>
+        <h2 className="h3">Funds credited to your wallet</h2>
+        <p className="body" style={{ maxWidth: 360 }}>
+          Your MoMo payment went through and your balance is updated.
+        </p>
+        <div className="flex gap-3">
+          <a href="/dashboard" className="btn btn-primary">
+            <span className="dot"></span>
+            Back to dashboard
+          </a>
+          <a href="/buy" className="btn btn-secondary">
+            Buy a number
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="card flex flex-col gap-6" style={{ padding: 24 }}>
+      <div>
+        <div className="eyebrow">Amount</div>
+        <div className="topup-grid" style={{ marginTop: 12 }}>
+          {meta.presets.map((p) => (
+            <button
+              key={p}
+              type="button"
+              className={`topup-tile ${
+                !usingCustom && amount === p ? "selected" : ""
+              }`}
+              onClick={() => {
+                setAmount(p);
+                setCustomAmount("");
+              }}
+            >
+              <div className="lbl">GHS</div>
+              <div className="amt">{formatLocal("GHS", p)}</div>
+            </button>
+          ))}
+        </div>
+        <div style={{ marginTop: 14 }}>
+          <label className="label" htmlFor="custom-ghs">
+            Or a custom amount
+          </label>
+          <input
+            id="custom-ghs"
+            type="number"
+            inputMode="numeric"
+            min={meta.min}
+            max={meta.max}
+            step={meta.step}
+            placeholder={meta.customPlaceholder}
+            className="input"
+            value={customAmount}
+            onChange={(e) => setCustomAmount(e.target.value)}
+          />
+        </div>
+      </div>
+
+      <div>
+        <label className="label" htmlFor="momo-phone">
+          MTN MoMo number
+        </label>
+        <input
+          id="momo-phone"
+          type="tel"
+          inputMode="tel"
+          autoComplete="tel"
+          placeholder="e.g. 024 123 4567"
+          className="input"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+        />
+      </div>
+
+      <div className="card-flat" style={{ padding: 14 }}>
+        <div className="caption" style={{ marginBottom: 4 }}>
+          You&apos;ll receive
+        </div>
+        {quote && quote.ok ? (
+          <div className="flex items-baseline gap-2">
+            <span className="h3 mono" style={{ fontWeight: 500 }}>
+              {formatUsdCents(quote.usdCents)}
+            </span>
+            <span className="caption">
+              @ {meta.symbol}
+              {quote.rate.toFixed(2)} / $ (locked at quote)
+            </span>
+          </div>
+        ) : quote && !quote.ok ? (
+          <div className="caption" style={{ color: "var(--color-danger)" }}>
+            {quote.error}
+          </div>
+        ) : (
+          <div className="caption">Calculating…</div>
+        )}
+      </div>
+
+      {error ? (
+        <div
+          className="badge badge-danger"
+          style={{
+            height: "auto",
+            padding: "10px 12px",
+            textTransform: "none",
+            fontFamily: "var(--font-sans)",
+            fontSize: "13px",
+            letterSpacing: 0,
+            fontWeight: 500,
+          }}
+        >
+          {error}
+        </div>
+      ) : null}
+
+      <button
+        type="button"
+        className="btn btn-primary btn-lg"
+        disabled={
+          pending || !quote || !quote.ok || effective < meta.min || !phoneValid
+        }
+        onClick={submit}
+      >
+        <span className="dot"></span>
+        {pending
+          ? "Sending prompt…"
+          : `Pay ${formatLocal("GHS", effective)} with MoMo`}
+      </button>
+
+      <p className="caption text-center">
+        We&apos;ll send a payment request to your phone — approve it with your
+        MoMo PIN. Funds credit to your wallet the moment MTN confirms.
+      </p>
     </div>
   );
 }

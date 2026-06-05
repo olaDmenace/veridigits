@@ -137,6 +137,8 @@ export type Database = {
           fx_rate_local_per_usd: number
           id: string
           korapay_reference: string | null
+          momo_reference_id: string | null
+          provider: string
           reference: string
           status: string
           user_id: string
@@ -152,6 +154,8 @@ export type Database = {
           fx_rate_local_per_usd: number
           id?: string
           korapay_reference?: string | null
+          momo_reference_id?: string | null
+          provider?: string
           reference: string
           status: string
           user_id: string
@@ -167,6 +171,8 @@ export type Database = {
           fx_rate_local_per_usd?: number
           id?: string
           korapay_reference?: string | null
+          momo_reference_id?: string | null
+          provider?: string
           reference?: string
           status?: string
           user_id?: string

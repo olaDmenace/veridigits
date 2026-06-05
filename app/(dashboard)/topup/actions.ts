@@ -9,6 +9,15 @@ import {
   type KorapayChannel,
   type KorapayCurrency,
 } from "@/lib/payments/korapay";
+import {
+  getMtnMomo,
+  MtnMomoError,
+  momoCurrencyFor,
+} from "@/lib/payments/mtn-momo";
+import {
+  settleMomoByReference,
+  type MomoSettleStatus,
+} from "@/lib/payments/momo-settle";
 import { quoteFiatTopUp } from "@/lib/fx/rates";
 import { getAppUrl } from "@/lib/utils/app-url";
 
@@ -327,4 +336,147 @@ export async function createFiatTopup(
     .eq("id", row.id);
 
   return { ok: true, checkoutUrl: result.checkoutUrl, reference };
+}
+
+// ============================================================
+// MTN MoMo (Ghana, GHS) — direct RequestToPay (no redirect)
+// ============================================================
+
+/** Normalize a Ghana MoMo number to MSISDN digits (233XXXXXXXXX). */
+function normalizeGhanaMsisdn(raw: string): string | null {
+  const digits = String(raw).replace(/\D/g, "");
+  if (!digits) return null;
+  if (digits.length === 10 && digits.startsWith("0")) {
+    return `233${digits.slice(1)}`; // 0XXXXXXXXX -> 233XXXXXXXXX
+  }
+  if (digits.length === 12 && digits.startsWith("233")) return digits;
+  if (digits.length === 9) return `233${digits}`; // local without leading 0
+  return null;
+}
+
+export type CreateMomoTopupResult =
+  | { ok: true; reference: string }
+  | { ok: false; error: string };
+
+/**
+ * Starts an MTN MoMo top-up: inserts a pending fiat_payments row (provider
+ * mtn_momo) with the locked USD-cents, then fires RequestToPay which pushes a
+ * PIN prompt to the payer's phone. The client then polls checkMomoStatus; the
+ * wallet is credited (once) when MTN reports SUCCESSFUL.
+ */
+export async function createMomoTopup(
+  formData: FormData,
+): Promise<CreateMomoTopupResult> {
+  const cfg = FIAT.GHS;
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user || !user.email) return { ok: false, error: "Sign in to top up." };
+
+  const local = Math.floor(Number(formData.get("amount") ?? 0));
+  if (!Number.isInteger(local) || local < cfg.min || local > cfg.max) {
+    return {
+      ok: false,
+      error: `Amount must be between ${cfg.symbol}${cfg.min.toLocaleString()} and ${cfg.symbol}${cfg.max.toLocaleString()}.`,
+    };
+  }
+
+  const msisdn = normalizeGhanaMsisdn(String(formData.get("phone") ?? ""));
+  if (!msisdn) return { ok: false, error: "Enter a valid Ghana MoMo number." };
+
+  let quote;
+  try {
+    quote = await quoteFiatTopUp("GHS", local);
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "FX rate unavailable",
+    };
+  }
+  if (quote.usdCents < 1) {
+    return { ok: false, error: "Amount too small after FX conversion." };
+  }
+
+  const reference = `vd_${user.id.slice(0, 8)}_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
+  const momoReferenceId = crypto.randomUUID();
+  const admin = getAdminClient();
+
+  const { data: row, error: insertErr } = await admin
+    .from("fiat_payments")
+    .insert({
+      user_id: user.id,
+      reference,
+      currency: "GHS",
+      provider: "mtn_momo",
+      amount_local: local,
+      amount_usd_cents_credited: quote.usdCents,
+      fx_rate_local_per_usd: quote.ratePerUsd,
+      momo_reference_id: momoReferenceId,
+      status: "pending",
+    })
+    .select("id")
+    .single();
+
+  if (insertErr || !row) {
+    return { ok: false, error: insertErr?.message ?? "couldn't queue top-up" };
+  }
+
+  try {
+    const momo = getMtnMomo();
+    const origin = getAppUrl();
+    await momo.requestToPay({
+      referenceId: momoReferenceId,
+      amount: String(local),
+      currency: momoCurrencyFor(),
+      externalId: reference,
+      payerMsisdn: msisdn,
+      payerMessage: "Veridigits wallet top-up",
+      payeeNote: "Veridigits top-up",
+      callbackUrl: `${origin}/api/webhooks/mtn-momo`,
+    });
+  } catch (err) {
+    await admin.from("fiat_payments").delete().eq("id", row.id);
+    if (err instanceof MtnMomoError) {
+      return { ok: false, error: "Couldn't reach MTN MoMo. Please try again." };
+    }
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "payment processor unavailable",
+    };
+  }
+
+  return { ok: true, reference };
+}
+
+export type CheckMomoResult =
+  | { ok: true; status: MomoSettleStatus }
+  | { ok: false; error: string };
+
+/**
+ * Client poll: re-verifies the MoMo transaction with MTN and credits on first
+ * SUCCESSFUL. Scoped to the caller's own reference.
+ */
+export async function checkMomoStatus(
+  reference: string,
+): Promise<CheckMomoResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Sign in." };
+
+  const admin = getAdminClient();
+  const { data: row } = await admin
+    .from("fiat_payments")
+    .select("user_id")
+    .eq("reference", reference)
+    .maybeSingle();
+  if (!row || row.user_id !== user.id) {
+    return { ok: false, error: "Unknown payment." };
+  }
+
+  const status = await settleMomoByReference(reference);
+  return { ok: true, status };
 }
