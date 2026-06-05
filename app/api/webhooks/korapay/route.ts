@@ -11,7 +11,7 @@ import type { Json } from "@/lib/supabase/database.types";
  * keyed with the secret key — verified inside KorapayProcessor).
  *
  * On `charge.success` + status=success, we credit the user's wallet by the
- * pre-locked USD-cents amount stored on the ngn_payments row at quote time.
+ * pre-locked USD-cents amount stored on the fiat_payments row at quote time.
  * The spot FX rate at webhook time is intentionally ignored — the customer
  * was quoted USD-cents at initialize and gets exactly that.
  *
@@ -58,9 +58,9 @@ export async function POST(request: NextRequest) {
   const admin = getAdminClient();
 
   const { data: row } = await admin
-    .from("ngn_payments")
+    .from("fiat_payments")
     .select(
-      "id, user_id, amount_ngn, amount_usd_cents_credited, status, confirmed_at",
+      "id, user_id, currency, amount_local, amount_usd_cents_credited, status, confirmed_at",
     )
     .eq("reference", reference)
     .single();
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
 
   // Always persist the payload for audit + bump the korapay_reference if present.
   await admin
-    .from("ngn_payments")
+    .from("fiat_payments")
     .update({
       status: newStatus,
       webhook_payload: verification.payload as unknown as Json,
@@ -93,9 +93,9 @@ export async function POST(request: NextRequest) {
         userId: row.user_id,
         amountCents: row.amount_usd_cents_credited,
         type: "topup",
-        referenceType: "ngn_payment",
+        referenceType: "fiat_payment",
         referenceId: row.id,
-        note: `korapay:${reference}`,
+        note: `korapay:${row.currency}:${reference}`,
       });
     } catch (err) {
       return NextResponse.json(
@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
     }
 
     await admin
-      .from("ngn_payments")
+      .from("fiat_payments")
       .update({ confirmed_at: new Date().toISOString() })
       .eq("id", row.id);
   }

@@ -156,12 +156,14 @@ export default async function PaymentReceivedPage({
   );
 }
 
+const FIAT_SYMBOL: Record<string, string> = { NGN: "₦", GHS: "₵" };
+
 interface ResolvedPayment {
   userId: string;
   amountUsdCents: number;
   displayAmount: string;
   normalizedStatus: "pending" | "confirming" | "credited" | "failed";
-  rail: "ngn" | "crypto";
+  rail: "fiat" | "crypto";
 }
 
 async function resolvePaymentByRef(
@@ -170,19 +172,21 @@ async function resolvePaymentByRef(
 ): Promise<ResolvedPayment | null> {
   const admin = getAdminClient();
 
-  if (rail === "ngn") {
+  // Local fiat rails redirect with ?rail=<currency lowercased> (ngn, ghs).
+  if (rail === "ngn" || rail === "ghs") {
     const { data } = await admin
-      .from("ngn_payments")
-      .select("user_id, amount_ngn, amount_usd_cents_credited, status")
+      .from("fiat_payments")
+      .select("user_id, currency, amount_local, amount_usd_cents_credited, status")
       .eq("reference", ref)
       .maybeSingle();
     if (!data) return null;
+    const sym = FIAT_SYMBOL[data.currency] ?? "";
     return {
       userId: data.user_id,
       amountUsdCents: data.amount_usd_cents_credited,
-      displayAmount: `₦${Number(data.amount_ngn).toLocaleString("en-NG")}`,
-      normalizedStatus: normalizeNgn(data.status),
-      rail: "ngn",
+      displayAmount: `${sym}${Number(data.amount_local).toLocaleString()}`,
+      normalizedStatus: normalizeFiat(data.status),
+      rail: "fiat",
     };
   }
 
@@ -214,7 +218,7 @@ async function fetchEmailForUserId(userId: string): Promise<string | null> {
   return data.user.email;
 }
 
-function normalizeNgn(
+function normalizeFiat(
   status: string,
 ): "pending" | "confirming" | "credited" | "failed" {
   if (status === "success") return "credited";

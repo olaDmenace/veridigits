@@ -126,14 +126,15 @@ export type Database = {
           },
         ]
       }
-      ngn_payments: {
+      fiat_payments: {
         Row: {
-          amount_ngn: number
+          amount_local: number
           amount_usd_cents_credited: number
           checkout_url: string | null
           confirmed_at: string | null
           created_at: string
-          fx_rate_ngn_per_usd: number
+          currency: string
+          fx_rate_local_per_usd: number
           id: string
           korapay_reference: string | null
           reference: string
@@ -142,12 +143,13 @@ export type Database = {
           webhook_payload: Json | null
         }
         Insert: {
-          amount_ngn: number
+          amount_local: number
           amount_usd_cents_credited: number
           checkout_url?: string | null
           confirmed_at?: string | null
           created_at?: string
-          fx_rate_ngn_per_usd: number
+          currency?: string
+          fx_rate_local_per_usd: number
           id?: string
           korapay_reference?: string | null
           reference: string
@@ -156,12 +158,13 @@ export type Database = {
           webhook_payload?: Json | null
         }
         Update: {
-          amount_ngn?: number
+          amount_local?: number
           amount_usd_cents_credited?: number
           checkout_url?: string | null
           confirmed_at?: string | null
           created_at?: string
-          fx_rate_ngn_per_usd?: number
+          currency?: string
+          fx_rate_local_per_usd?: number
           id?: string
           korapay_reference?: string | null
           reference?: string

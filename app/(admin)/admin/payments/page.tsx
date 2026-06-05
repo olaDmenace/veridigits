@@ -6,14 +6,17 @@ export const dynamic = "force-dynamic";
 
 const PER_RAIL = 100;
 
+const FIAT_SYMBOL: Record<string, string> = { NGN: "₦", GHS: "₵" };
+
 interface UnifiedPayment {
   id: string;
-  kind: "crypto" | "ngn";
+  kind: "crypto" | "fiat";
   rail: string;
   userId: string;
   email: string | null;
   amountUsdCents: number;
   amountDisplay: string;
+  badgeLabel: string;
   status: string;
   createdAt: string;
   confirmedAt: string | null;
@@ -23,7 +26,7 @@ interface UnifiedPayment {
 export default async function AdminPaymentsPage() {
   const admin = getAdminClient();
 
-  const [cryptoRes, ngnRes, authList] = await Promise.all([
+  const [cryptoRes, fiatRes, authList] = await Promise.all([
     admin
       .from("crypto_payments")
       .select(
@@ -32,9 +35,9 @@ export default async function AdminPaymentsPage() {
       .order("created_at", { ascending: false })
       .limit(PER_RAIL),
     admin
-      .from("ngn_payments")
+      .from("fiat_payments")
       .select(
-        "id, user_id, reference, korapay_reference, amount_ngn, amount_usd_cents_credited, fx_rate_ngn_per_usd, status, created_at, confirmed_at",
+        "id, user_id, reference, korapay_reference, currency, amount_local, amount_usd_cents_credited, fx_rate_local_per_usd, status, created_at, confirmed_at",
       )
       .order("created_at", { ascending: false })
       .limit(PER_RAIL),
@@ -57,24 +60,29 @@ export default async function AdminPaymentsPage() {
       amountDisplay:
         formatUsdCents(c.amount_usd_cents) +
         (c.crypto_currency ? ` (${c.crypto_currency.toUpperCase()})` : ""),
+      badgeLabel: "Crypto",
       status: c.status,
       createdAt: c.created_at,
       confirmedAt: c.confirmed_at,
       externalId: c.external_id,
     })),
-    ...(ngnRes.data ?? []).map((n) => ({
-      id: n.id,
-      kind: "ngn" as const,
-      rail: "korapay",
-      userId: n.user_id,
-      email: emailById.get(n.user_id) ?? null,
-      amountUsdCents: n.amount_usd_cents_credited,
-      amountDisplay: `₦${Number(n.amount_ngn).toLocaleString()} → ${formatUsdCents(n.amount_usd_cents_credited)} @ ${Number(n.fx_rate_ngn_per_usd).toLocaleString()}/USD`,
-      status: n.status,
-      createdAt: n.created_at,
-      confirmedAt: n.confirmed_at,
-      externalId: n.reference,
-    })),
+    ...(fiatRes.data ?? []).map((n) => {
+      const sym = FIAT_SYMBOL[n.currency] ?? "";
+      return {
+        id: n.id,
+        kind: "fiat" as const,
+        rail: "korapay",
+        userId: n.user_id,
+        email: emailById.get(n.user_id) ?? null,
+        amountUsdCents: n.amount_usd_cents_credited,
+        amountDisplay: `${sym}${Number(n.amount_local).toLocaleString()} → ${formatUsdCents(n.amount_usd_cents_credited)} @ ${Number(n.fx_rate_local_per_usd).toLocaleString()}/USD`,
+        badgeLabel: n.currency,
+        status: n.status,
+        createdAt: n.created_at,
+        confirmedAt: n.confirmed_at,
+        externalId: n.reference,
+      };
+    }),
   ].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
   const totals = computeTotals(unified);
@@ -114,11 +122,11 @@ export default async function AdminPaymentsPage() {
           <div className="caption">last {PER_RAIL} per rail</div>
         </div>
         <div className="card flex flex-col gap-2">
-          <div className="eyebrow">Crypto vs NGN</div>
+          <div className="eyebrow">Crypto vs Fiat</div>
           <div className="h2 mono">
-            {totals.byKind.crypto} / {totals.byKind.ngn}
+            {totals.byKind.crypto} / {totals.byKind.fiat}
           </div>
-          <div className="caption">crypto / NGN top-ups in view</div>
+          <div className="caption">crypto / fiat (NGN+GHS) top-ups in view</div>
         </div>
       </div>
 
@@ -159,9 +167,7 @@ export default async function AdminPaymentsPage() {
                       </div>
                     </td>
                     <td>
-                      <span className="badge badge-info">
-                        {p.kind === "ngn" ? "NGN" : "Crypto"}
-                      </span>
+                      <span className="badge badge-info">{p.badgeLabel}</span>
                       <div className="caption mono" style={{ marginTop: 4 }}>
                         {p.rail}
                       </div>
@@ -208,7 +214,7 @@ function computeTotals(payments: UnifiedPayment[]) {
     pendingValue: 0,
     pendingCount: 0,
     failedCount: 0,
-    byKind: { crypto: 0, ngn: 0 },
+    byKind: { crypto: 0, fiat: 0 },
   };
   for (const p of payments) {
     totals.byKind[p.kind]++;

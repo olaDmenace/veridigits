@@ -113,7 +113,8 @@ describe("KorapayProcessor.initializeCharge", () => {
   it("posts the correct body and returns checkout_url", async () => {
     const processor = new KorapayProcessor(SECRET);
     const result = await processor.initializeCharge({
-      amountNgn: 10_000,
+      amount: 10_000,
+      currency: "NGN",
       reference: "vd_abc123",
       customer: { email: "user@example.com" },
       notificationUrl: "https://veridigits.com/api/webhooks/korapay",
@@ -138,11 +139,30 @@ describe("KorapayProcessor.initializeCharge", () => {
     );
   });
 
-  it("throws if amountNgn is not a positive integer", async () => {
+  it("sends currency=GHS and mobile_money channel for Ghana", async () => {
+    const processor = new KorapayProcessor(SECRET);
+    await processor.initializeCharge({
+      amount: 100,
+      currency: "GHS",
+      reference: "vd_gh1",
+      customer: { email: "user@example.com" },
+      notificationUrl: "https://veridigits.com/api/webhooks/korapay",
+      channels: ["mobile_money", "card"],
+    });
+    const fetchMock = fetch as unknown as ReturnType<typeof vi.fn>;
+    const init = fetchMock.mock.calls[0][1] as RequestInit;
+    const body = JSON.parse(String(init.body));
+    expect(body.amount).toBe(100);
+    expect(body.currency).toBe("GHS");
+    expect(body.channels).toEqual(["mobile_money", "card"]);
+  });
+
+  it("throws if amount is not a positive integer", async () => {
     const processor = new KorapayProcessor(SECRET);
     await expect(
       processor.initializeCharge({
-        amountNgn: 0,
+        amount: 0,
+        currency: "NGN",
         reference: "x",
         customer: { email: "user@example.com" },
         notificationUrl: "https://example.com/webhook",

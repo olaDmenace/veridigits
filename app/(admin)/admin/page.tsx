@@ -46,7 +46,7 @@ export default async function AdminOverview() {
       .select("created_at, status, amount_usd_cents")
       .gte("created_at", thirtyDaysAgoIso),
     admin
-      .from("ngn_payments")
+      .from("fiat_payments")
       .select("created_at, status, amount_usd_cents_credited")
       .gte("created_at", thirtyDaysAgoIso),
     admin.from("profiles").select("*", { count: "exact", head: true }),

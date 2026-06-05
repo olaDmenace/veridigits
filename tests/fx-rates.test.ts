@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { quoteNgnTopUp, _resetFxCache } from "@/lib/fx/rates";
+import { quoteNgnTopUp, quoteFiatTopUp, _resetFxCache } from "@/lib/fx/rates";
 
 afterEach(() => {
   _resetFxCache();
@@ -75,5 +75,43 @@ describe("quoteNgnTopUp", () => {
     // Within cache window, we get the cached value back.
     const second = await quoteNgnTopUp(15_000);
     expect(second.rateNgnPerUsd).toBe(1500);
+  });
+});
+
+describe("quoteFiatTopUp (GHS)", () => {
+  beforeEach(() => {
+    delete process.env.GHS_FX_BUFFER_BPS;
+  });
+
+  it("converts cedis to USD-cents using the GHS rate + buffer", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({ result: "success", rates: { GHS: 15 } }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      ),
+    );
+    const q = await quoteFiatTopUp("GHS", 150);
+    // Spot: 150/15 * 100 = 1000 cents; default 3% buffer -> 970.
+    expect(q.usdCents).toBe(970);
+    expect(q.currency).toBe("GHS");
+    expect(q.ratePerUsd).toBe(15);
+    expect(q.bufferBps).toBe(300);
+  });
+
+  it("reads the GHS-specific rate, not NGN", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({ result: "success", rates: { NGN: 1600, GHS: 12 } }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      ),
+    );
+    const q = await quoteFiatTopUp("GHS", 120);
+    expect(q.ratePerUsd).toBe(12);
   });
 });

@@ -10,16 +10,21 @@ import crypto from "node:crypto";
  * sub-object — using the secret key as the HMAC key. NOT the raw body.
  * Get this wrong and every webhook will be rejected.
  *
- * Currency: amounts on initialize and in webhook payloads are in NAIRA
- * major units (integer), not kobo. Korapay confirmed this in the live
- * dashboard's transaction listings.
+ * Currency: amounts on initialize and in webhook payloads are in MAJOR units
+ * (integer) for every supported currency — naira (not kobo), cedis (not
+ * pesewas). Korapay confirmed naira in the live dashboard; GHS follows the
+ * same major-unit convention.
  */
 
 const KORAPAY_API_URL =
   "https://api.korapay.com/merchant/api/v1/charges/initialize";
 
+/** Local currencies we collect via Korapay's hosted checkout. */
+export type KorapayCurrency = "NGN" | "GHS";
+
 export interface KorapayInitializeParams {
-  amountNgn: number; // positive integer, naira whole units
+  amount: number; // positive integer, whole major units (naira / cedis)
+  currency: KorapayCurrency;
   reference: string; // unique per transaction
   customer: { email: string; name?: string };
   notificationUrl: string; // our webhook
@@ -95,8 +100,13 @@ export class KorapayProcessor {
   async initializeCharge(
     params: KorapayInitializeParams,
   ): Promise<KorapayInitializeResult> {
-    if (!Number.isInteger(params.amountNgn) || params.amountNgn <= 0) {
-      throw new KorapayError("amountNgn must be a positive integer (naira)");
+    if (!Number.isInteger(params.amount) || params.amount <= 0) {
+      throw new KorapayError(
+        "amount must be a positive integer (whole major units)",
+      );
+    }
+    if (!params.currency) {
+      throw new KorapayError("currency is required");
     }
     if (!params.reference) {
       throw new KorapayError("reference is required");
@@ -106,8 +116,8 @@ export class KorapayProcessor {
     }
 
     const body: Record<string, unknown> = {
-      amount: params.amountNgn,
-      currency: "NGN",
+      amount: params.amount,
+      currency: params.currency,
       reference: params.reference,
       customer: {
         email: params.customer.email,

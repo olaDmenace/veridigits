@@ -3,8 +3,13 @@
 import { createClient } from "@/lib/supabase/server";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { getProcessor, PaymentProcessorError } from "@/lib/payments";
-import { getKorapay, KorapayError } from "@/lib/payments/korapay";
-import { quoteNgnTopUp } from "@/lib/fx/rates";
+import {
+  getKorapay,
+  KorapayError,
+  type KorapayChannel,
+  type KorapayCurrency,
+} from "@/lib/payments/korapay";
+import { quoteFiatTopUp } from "@/lib/fx/rates";
 import { getAppUrl } from "@/lib/utils/app-url";
 
 export type CreateTopupResult =
@@ -136,37 +141,79 @@ export async function createTopup(formData: FormData): Promise<CreateTopupResult
 }
 
 // ============================================================
-// NGN (Korapay)
+// Local fiat rails (Korapay) — NGN (Nigeria), GHS (Ghana)
 // ============================================================
 
-const MIN_NGN = 2_000;
-const MAX_NGN = 5_000_000;
+interface FiatConfig {
+  /** Min/max in whole local units (naira / cedis). */
+  min: number;
+  max: number;
+  /** Korapay channels offered for this currency's hosted checkout. */
+  channels: KorapayChannel[];
+  /** Currency symbol for error messages. */
+  symbol: string;
+}
 
-export type QuoteNgnResult =
-  | { ok: true; ngn: number; usdCents: number; rate: number; bufferBps: number }
+const FIAT: Record<KorapayCurrency, FiatConfig> = {
+  // Nigeria — card, bank transfer, pay-with-bank.
+  NGN: {
+    min: 2_000,
+    max: 5_000_000,
+    channels: ["card", "bank_transfer", "pay_with_bank"],
+    symbol: "₦",
+  },
+  // Ghana — mobile money (MTN / Telecel / AirtelTigo) is dominant, plus card.
+  GHS: {
+    min: 20,
+    max: 100_000,
+    channels: ["mobile_money", "card"],
+    symbol: "₵",
+  },
+};
+
+function isFiatCurrency(v: unknown): v is KorapayCurrency {
+  return v === "NGN" || v === "GHS";
+}
+
+export type QuoteFiatResult =
+  | {
+      ok: true;
+      currency: KorapayCurrency;
+      local: number;
+      usdCents: number;
+      rate: number;
+      bufferBps: number;
+    }
   | { ok: false; error: string };
 
 /**
- * Returns the locked USD-cents and FX rate for a given NGN amount. The
- * client calls this to show the user how many cents they'll get; the same
- * helper is reused inside createNgnTopup so the displayed quote matches the
- * row we insert.
+ * Returns the locked USD-cents and FX rate for a given local amount. The
+ * client calls this to preview how many cents they'll get; createFiatTopup
+ * reuses the same helper so the displayed quote matches the row we insert.
  */
-export async function quoteNgn(ngnRaw: number): Promise<QuoteNgnResult> {
-  const ngn = Math.floor(Number(ngnRaw));
-  if (!Number.isInteger(ngn) || ngn < MIN_NGN || ngn > MAX_NGN) {
+export async function quoteFiat(
+  currency: KorapayCurrency,
+  localRaw: number,
+): Promise<QuoteFiatResult> {
+  if (!isFiatCurrency(currency)) {
+    return { ok: false, error: "Unsupported currency." };
+  }
+  const cfg = FIAT[currency];
+  const local = Math.floor(Number(localRaw));
+  if (!Number.isInteger(local) || local < cfg.min || local > cfg.max) {
     return {
       ok: false,
-      error: `Amount must be between ₦${MIN_NGN.toLocaleString()} and ₦${MAX_NGN.toLocaleString()}.`,
+      error: `Amount must be between ${cfg.symbol}${cfg.min.toLocaleString()} and ${cfg.symbol}${cfg.max.toLocaleString()}.`,
     };
   }
   try {
-    const q = await quoteNgnTopUp(ngn);
+    const q = await quoteFiatTopUp(currency, local);
     return {
       ok: true,
-      ngn: q.ngnAmount,
+      currency,
+      local: q.localAmount,
       usdCents: q.usdCents,
-      rate: q.rateNgnPerUsd,
+      rate: q.ratePerUsd,
       bufferBps: q.bufferBps,
     };
   } catch (err) {
@@ -177,39 +224,45 @@ export async function quoteNgn(ngnRaw: number): Promise<QuoteNgnResult> {
   }
 }
 
-export type CreateNgnTopupResult =
+export type CreateFiatTopupResult =
   | { ok: true; checkoutUrl: string; reference: string }
   | { ok: false; error: string };
 
 /**
- * Creates a Korapay checkout for a NGN top-up.
+ * Creates a Korapay hosted-checkout for a local-currency top-up (NGN or GHS).
  *
- * Inserts a `ngn_payments` row in `pending` status with the locked
- * USD-cents-to-credit before talking to Korapay — so if Korapay's API
- * crashes mid-call we can still reconcile via the webhook. The row's
- * `amount_usd_cents_credited` is the source of truth at webhook time;
- * the spot rate is never re-fetched on confirmation.
+ * Inserts a `fiat_payments` row in `pending` status with the locked
+ * USD-cents-to-credit BEFORE talking to Korapay — so if Korapay's API crashes
+ * mid-call we can still reconcile via the webhook. The row's
+ * `amount_usd_cents_credited` is the source of truth at webhook time; the spot
+ * rate is never re-fetched on confirmation.
  */
-export async function createNgnTopup(
+export async function createFiatTopup(
+  currency: KorapayCurrency,
   formData: FormData,
-): Promise<CreateNgnTopupResult> {
+): Promise<CreateFiatTopupResult> {
+  if (!isFiatCurrency(currency)) {
+    return { ok: false, error: "Unsupported currency." };
+  }
+  const cfg = FIAT[currency];
+
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user || !user.email) return { ok: false, error: "Sign in to top up." };
 
-  const ngn = Math.floor(Number(formData.get("amountNgn") ?? 0));
-  if (!Number.isInteger(ngn) || ngn < MIN_NGN || ngn > MAX_NGN) {
+  const local = Math.floor(Number(formData.get("amount") ?? 0));
+  if (!Number.isInteger(local) || local < cfg.min || local > cfg.max) {
     return {
       ok: false,
-      error: `Amount must be between ₦${MIN_NGN.toLocaleString()} and ₦${MAX_NGN.toLocaleString()}.`,
+      error: `Amount must be between ${cfg.symbol}${cfg.min.toLocaleString()} and ${cfg.symbol}${cfg.max.toLocaleString()}.`,
     };
   }
 
   let quote;
   try {
-    quote = await quoteNgnTopUp(ngn);
+    quote = await quoteFiatTopUp(currency, local);
   } catch (err) {
     return {
       ok: false,
@@ -225,13 +278,14 @@ export async function createNgnTopup(
   const admin = getAdminClient();
 
   const { data: row, error: insertErr } = await admin
-    .from("ngn_payments")
+    .from("fiat_payments")
     .insert({
       user_id: user.id,
       reference,
-      amount_ngn: ngn,
+      currency,
+      amount_local: local,
       amount_usd_cents_credited: quote.usdCents,
-      fx_rate_ngn_per_usd: quote.rateNgnPerUsd,
+      fx_rate_local_per_usd: quote.ratePerUsd,
       status: "pending",
     })
     .select("id")
@@ -246,16 +300,17 @@ export async function createNgnTopup(
     const korapay = getKorapay();
     const origin = getAppUrl();
     result = await korapay.initializeCharge({
-      amountNgn: ngn,
+      amount: local,
+      currency,
       reference,
       customer: { email: user.email },
       notificationUrl: `${origin}/api/webhooks/korapay`,
-      redirectUrl: `${origin}/topup/success?rail=ngn&ref=${encodeURIComponent(reference)}`,
+      redirectUrl: `${origin}/topup/success?rail=${currency.toLowerCase()}&ref=${encodeURIComponent(reference)}`,
       narration: "Veridigits wallet top-up",
-      channels: ["card", "bank_transfer", "pay_with_bank"],
+      channels: cfg.channels,
     });
   } catch (err) {
-    await admin.from("ngn_payments").delete().eq("id", row.id);
+    await admin.from("fiat_payments").delete().eq("id", row.id);
     if (err instanceof KorapayError) return { ok: false, error: err.message };
     return {
       ok: false,
@@ -264,7 +319,7 @@ export async function createNgnTopup(
   }
 
   await admin
-    .from("ngn_payments")
+    .from("fiat_payments")
     .update({
       checkout_url: result.checkoutUrl,
       korapay_reference: result.reference,

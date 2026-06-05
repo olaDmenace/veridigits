@@ -3,15 +3,16 @@
 import { useEffect, useState, useTransition } from "react";
 import {
   createTopup,
-  createNgnTopup,
-  quoteNgn,
+  createFiatTopup,
+  quoteFiat,
   type CreateTopupResult,
-  type CreateNgnTopupResult,
-  type QuoteNgnResult,
+  type CreateFiatTopupResult,
+  type QuoteFiatResult,
 } from "./actions";
 import { formatUsdCents } from "@/lib/utils/money";
 
-const NGN_PRESETS = [5_000, 10_000, 25_000, 50_000] as const;
+type FiatCurrency = "NGN" | "GHS";
+
 const USD_PRESETS = [10_00, 25_00, 50_00, 100_00] as const;
 
 const CRYPTO_OPTIONS = [
@@ -24,26 +25,84 @@ const CRYPTO_OPTIONS = [
   { code: "ltc", label: "LTC" },
 ] as const;
 
-type Rail = "ngn" | "crypto";
-
-function formatNgn(n: number): string {
-  return `₦${n.toLocaleString("en-NG")}`;
+interface FiatMeta {
+  symbol: string;
+  locale: string;
+  min: number;
+  max: number;
+  step: number;
+  presets: number[];
+  defaultAmount: number;
+  customPlaceholder: string;
+  channels: string;
+  payNote: string;
 }
 
+const FIAT_META: Record<FiatCurrency, FiatMeta> = {
+  NGN: {
+    symbol: "₦",
+    locale: "en-NG",
+    min: 2_000,
+    max: 5_000_000,
+    step: 500,
+    presets: [5_000, 10_000, 25_000, 50_000],
+    defaultAmount: 10_000,
+    customPlaceholder: "e.g. 15000",
+    channels: "Card, bank transfer, or pay-with-bank",
+    payNote: "card or bank details",
+  },
+  GHS: {
+    symbol: "₵",
+    locale: "en-GH",
+    min: 20,
+    max: 100_000,
+    step: 10,
+    presets: [50, 100, 250, 500],
+    defaultAmount: 100,
+    customPlaceholder: "e.g. 150",
+    channels: "Mobile money (MTN, Telecel, AirtelTigo) or card",
+    payNote: "mobile money or card details",
+  },
+};
+
+type Rail = "NGN" | "GHS" | "crypto";
+
+function formatLocal(currency: FiatCurrency, n: number): string {
+  const m = FIAT_META[currency];
+  return `${m.symbol}${(Number.isFinite(n) ? n : 0).toLocaleString(m.locale)}`;
+}
+
+// Ghana stays dark until Korapay has GHS collections enabled on the account.
+// Flip NEXT_PUBLIC_ENABLE_GHS=true to surface the Cedi rail.
+const GHS_ENABLED = process.env.NEXT_PUBLIC_ENABLE_GHS === "true";
+
 export function TopUpForm() {
-  const [rail, setRail] = useState<Rail>("ngn");
+  const [rail, setRail] = useState<Rail>("NGN");
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="rail-tabs">
+      <div
+        className="rail-tabs"
+        style={GHS_ENABLED ? undefined : { gridTemplateColumns: "1fr 1fr" }}
+      >
         <button
           type="button"
-          className={`rail-tab ${rail === "ngn" ? "selected" : ""}`}
-          onClick={() => setRail("ngn")}
+          className={`rail-tab ${rail === "NGN" ? "selected" : ""}`}
+          onClick={() => setRail("NGN")}
         >
           <span className="lbl">Naira</span>
-          <span className="caption">Card, bank transfer, or pay-with-bank</span>
+          <span className="caption">Card, transfer, or pay-with-bank</span>
         </button>
+        {GHS_ENABLED ? (
+          <button
+            type="button"
+            className={`rail-tab ${rail === "GHS" ? "selected" : ""}`}
+            onClick={() => setRail("GHS")}
+          >
+            <span className="lbl">Cedi</span>
+            <span className="caption">Mobile money (MTN, Telecel…) or card</span>
+          </button>
+        ) : null}
         <button
           type="button"
           className={`rail-tab ${rail === "crypto" ? "selected" : ""}`}
@@ -54,44 +113,53 @@ export function TopUpForm() {
         </button>
       </div>
 
-      {rail === "ngn" ? <NgnForm /> : <CryptoForm />}
+      {rail === "crypto" ? <CryptoForm /> : <FiatForm currency={rail} />}
     </div>
   );
 }
 
 // ============================================================
-// NGN — Korapay
+// Local fiat — Korapay (NGN / GHS)
 // ============================================================
-function NgnForm() {
-  const [amount, setAmount] = useState<number>(10_000);
+function FiatForm({ currency }: { currency: FiatCurrency }) {
+  const meta = FIAT_META[currency];
+  const [amount, setAmount] = useState<number>(meta.defaultAmount);
   const [customAmount, setCustomAmount] = useState<string>("");
   const [pending, startTransition] = useTransition();
-  const [result, setResult] = useState<CreateNgnTopupResult | null>(null);
-  const [quote, setQuote] = useState<QuoteNgnResult | null>(null);
+  const [result, setResult] = useState<CreateFiatTopupResult | null>(null);
+  const [quote, setQuote] = useState<QuoteFiatResult | null>(null);
 
   const usingCustom = customAmount.trim() !== "";
   const effective = usingCustom ? Math.floor(Number(customAmount)) : amount;
 
-  // Re-quote whenever the effective amount changes. We deliberately leave
-  // the previous quote on screen while the new one is fetching — feels
-  // smoother than a flash of "Calculating…" between every keystroke.
+  // Reset selection to the currency's default whenever the rail changes.
+  useEffect(() => {
+    setAmount(meta.defaultAmount);
+    setCustomAmount("");
+    setResult(null);
+    setQuote(null);
+  }, [currency, meta.defaultAmount]);
+
+  // Re-quote whenever the effective amount changes. We deliberately leave the
+  // previous quote on screen while the new one is fetching — feels smoother
+  // than a flash of "Calculating…" between every keystroke.
   useEffect(() => {
     if (!Number.isFinite(effective) || effective < 1) return;
     let cancelled = false;
-    quoteNgn(effective).then((q) => {
+    quoteFiat(currency, effective).then((q) => {
       if (!cancelled) setQuote(q);
     });
     return () => {
       cancelled = true;
     };
-  }, [effective]);
+  }, [currency, effective]);
 
   function submit() {
     setResult(null);
     const fd = new FormData();
-    fd.append("amountNgn", String(effective));
+    fd.append("amount", String(effective));
     startTransition(async () => {
-      const r = await createNgnTopup(fd);
+      const r = await createFiatTopup(currency, fd);
       setResult(r);
       if (r.ok) {
         // Redirect to Korapay-hosted checkout.
@@ -105,7 +173,7 @@ function NgnForm() {
       <div>
         <div className="eyebrow">Amount</div>
         <div className="topup-grid" style={{ marginTop: 12 }}>
-          {NGN_PRESETS.map((p) => (
+          {meta.presets.map((p) => (
             <button
               key={p}
               type="button"
@@ -117,23 +185,23 @@ function NgnForm() {
                 setCustomAmount("");
               }}
             >
-              <div className="lbl">NGN</div>
-              <div className="amt">{formatNgn(p)}</div>
+              <div className="lbl">{currency}</div>
+              <div className="amt">{formatLocal(currency, p)}</div>
             </button>
           ))}
         </div>
         <div style={{ marginTop: 14 }}>
-          <label className="label" htmlFor="custom-ngn">
+          <label className="label" htmlFor="custom-fiat">
             Or a custom amount
           </label>
           <input
-            id="custom-ngn"
+            id="custom-fiat"
             type="number"
             inputMode="numeric"
-            min={2000}
-            max={5_000_000}
-            step={500}
-            placeholder="e.g. 15000"
+            min={meta.min}
+            max={meta.max}
+            step={meta.step}
+            placeholder={meta.customPlaceholder}
             className="input"
             value={customAmount}
             onChange={(e) => setCustomAmount(e.target.value)}
@@ -151,7 +219,8 @@ function NgnForm() {
               {formatUsdCents(quote.usdCents)}
             </span>
             <span className="caption">
-              @ ₦{quote.rate.toFixed(2)} / $ (locked at quote)
+              @ {meta.symbol}
+              {quote.rate.toFixed(2)} / $ (locked at quote)
             </span>
           </div>
         ) : quote && !quote.ok ? (
@@ -183,19 +252,19 @@ function NgnForm() {
       <button
         type="button"
         className="btn btn-primary btn-lg"
-        disabled={pending || !quote || !quote.ok || effective < 2000}
+        disabled={pending || !quote || !quote.ok || effective < meta.min}
         onClick={submit}
       >
         <span className="dot"></span>
         {pending
           ? "Opening secure checkout…"
-          : `Pay ${formatNgn(Number.isFinite(effective) ? effective : 0)}`}
+          : `Pay ${formatLocal(currency, effective)}`}
       </button>
 
       <p className="caption text-center">
-        Secure checkout opens on korapay.com. We never see your card or bank
-        details. Funds credit to your wallet automatically once Korapay
-        confirms the payment.
+        Secure checkout opens on korapay.com. We never see your {meta.payNote}.
+        Funds credit to your wallet automatically once Korapay confirms the
+        payment.
       </p>
     </div>
   );

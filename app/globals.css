@@ -1164,7 +1164,10 @@ main,
 /* Top-up tile */
 /* Rail tabs (Naira vs Crypto on /topup) */
 .rail-tabs {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+}
+@media (max-width: 560px) {
+  .rail-tabs { grid-template-columns: 1fr; }
 }
 .rail-tab {
   display: flex; flex-direction: column; align-items: flex-start;

@@ -7,7 +7,8 @@ export type WalletTxType =
 
 export type WalletTxReferenceType =
   | "crypto_payment"
-  | "ngn_payment"
+  | "ngn_payment" // legacy NGN top-ups (pre-fiat_payments rename)
+  | "fiat_payment" // NGN/GHS/… local-rail top-ups via Korapay
   | "order"
   | "manual";
 
