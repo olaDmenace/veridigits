@@ -38,6 +38,18 @@ if (!subKey) {
   );
   process.exit(1);
 }
+// A MoMo/APIM subscription key is a 32-char hex string with no spaces. Catch
+// the common paste mistake (copying a label like "... Primary Key" with it).
+if (/\s/.test(subKey) || !/^[0-9a-fA-F]{32}$/.test(subKey)) {
+  console.error(
+    `MTN_MOMO_SUBSCRIPTION_KEY doesn't look like a valid key: got ${subKey.length} chars` +
+      (/\s/.test(subKey) ? " containing spaces" : "") +
+      ".\nExpected exactly 32 hex characters, no spaces or labels.\n" +
+      "On momodeveloper.mtn.com → Profile, use the copy icon next to your " +
+      "Collections subscription's PRIMARY KEY, and paste only that value.",
+  );
+  process.exit(1);
+}
 
 const appUrl = fromEnvLocal("NEXT_PUBLIC_APP_URL") || "https://veridigits.com";
 let callbackHost = "veridigits.com";
