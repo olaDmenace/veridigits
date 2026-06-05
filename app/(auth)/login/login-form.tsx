@@ -21,6 +21,11 @@ export function LoginForm({
     FormData
   >(logIn, undefined);
 
+  const signupHref =
+    initialRedirect && initialRedirect.startsWith("/")
+      ? `/signup?next=${encodeURIComponent(initialRedirect)}`
+      : "/signup";
+
   return (
     <div className="card flex flex-col gap-6">
       <div className="flex flex-col gap-2 text-center">
@@ -90,7 +95,7 @@ export function LoginForm({
 
       <p className="caption text-center">
         Don&apos;t have an account?{" "}
-        <Link href="/signup" className="link-lime">
+        <Link href={signupHref} className="link-lime">
           Sign up
         </Link>
       </p>

@@ -3,6 +3,8 @@ import { Topbar } from "@/components/topbar";
 import { BrandLogo } from "@/components/brand-logo";
 import { ScrollReveal } from "@/components/scroll-reveal";
 import { Faq as FaqAccordion } from "@/components/faq";
+import { HeroSelector } from "@/components/hero-selector";
+import { POPULAR_SERVICES } from "@/lib/landing/options";
 
 export default function Home() {
   return (
@@ -82,94 +84,7 @@ function Hero() {
           </div>
         </div>
 
-        <div className="phone-stage reveal">
-          <div className="phone">
-            <div className="phone-screen">
-              <div className="phone-notch"></div>
-              <div className="phone-statusbar">
-                <span>9:41</span>
-                <span className="right">
-                  <span>5G</span> <span>●●●●</span>
-                </span>
-              </div>
-              <div className="phone-content">
-                <div className="phone-card-active">
-                  <div>
-                    <div className="label">Active · Telegram · US</div>
-                    <div className="code">+1 415 555 0142</div>
-                  </div>
-                  <div>
-                    <div className="timer-lbl">Expires</div>
-                    <div className="timer">16s</div>
-                  </div>
-                </div>
-
-                <div className="msg-list-head">
-                  <div className="ttl">Inbox</div>
-                  <div className="cnt">04</div>
-                </div>
-
-                <div className="sms-row new">
-                  <BrandLogo slug="telegram" size={32} />
-                  <div style={{ flex: 1 }}>
-                    <div className="top">
-                      <span className="name">Telegram</span>
-                      <span className="ago">now</span>
-                    </div>
-                    <div className="body">
-                      Login code: <code>503126</code>
-                    </div>
-                  </div>
-                </div>
-                <div className="sms-row">
-                  <BrandLogo slug="whatsapp" size={32} />
-                  <div style={{ flex: 1 }}>
-                    <div className="top">
-                      <span className="name">WhatsApp</span>
-                      <span className="ago">2m</span>
-                    </div>
-                    <div className="body">
-                      Your code is <code>847-291</code>. Don&apos;t share.
-                    </div>
-                  </div>
-                </div>
-                <div className="sms-row">
-                  <BrandLogo slug="google" size={32} />
-                  <div style={{ flex: 1 }}>
-                    <div className="top">
-                      <span className="name">Google</span>
-                      <span className="ago">5m</span>
-                    </div>
-                    <div className="body">
-                      <code>G-928451</code> is your verification code.
-                    </div>
-                  </div>
-                </div>
-                <div className="sms-row">
-                  <BrandLogo slug="tiktok" size={32} />
-                  <div style={{ flex: 1 }}>
-                    <div className="top">
-                      <span className="name">TikTok</span>
-                      <span className="ago">8m</span>
-                    </div>
-                    <div className="body">
-                      <code>6729</code> is your TikTok code.
-                    </div>
-                  </div>
-                </div>
-
-                <div className="receiving">
-                  <span className="dots">
-                    <i></i>
-                    <i></i>
-                    <i></i>
-                  </span>
-                  Receiving SMS…
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <HeroSelector />
       </div>
       </div>
     </section>
@@ -306,23 +221,8 @@ function CheckIcon() {
   );
 }
 
-const POPULAR_SERVICES: Array<{
-  slug: string;
-  abbr: string;
-  name: string;
-  fromCents: number;
-}> = [
-  { slug: "telegram", abbr: "tg", name: "Telegram", fromCents: 15 },
-  { slug: "whatsapp", abbr: "wa", name: "WhatsApp", fromCents: 25 },
-  { slug: "google", abbr: "G", name: "Google", fromCents: 18 },
-  { slug: "tiktok", abbr: "tk", name: "TikTok", fromCents: 22 },
-  { slug: "discord", abbr: "di", name: "Discord", fromCents: 12 },
-  { slug: "instagram", abbr: "ig", name: "Instagram", fromCents: 30 },
-  { slug: "facebook", abbr: "fb", name: "Facebook", fromCents: 28 },
-  { slug: "x", abbr: "x", name: "X (Twitter)", fromCents: 20 },
-  { slug: "snapchat", abbr: "sn", name: "Snapchat", fromCents: 22 },
-  { slug: "uber", abbr: "ub", name: "Uber", fromCents: 35 },
-  { slug: "tinder", abbr: "tn", name: "Tinder", fromCents: 38 },
+const SERVICES_GRID = [
+  ...POPULAR_SERVICES,
   { slug: "_more", abbr: "+", name: "5,000+ more", fromCents: 5 },
 ];
 
@@ -345,7 +245,7 @@ function ServicesGrid() {
       </div>
 
       <div className="svc-grid stagger">
-        {POPULAR_SERVICES.map((s) => (
+        {SERVICES_GRID.map((s) => (
           <div key={s.name} className="svc-tile">
             <BrandLogo slug={s.slug} abbr={s.abbr} size={36} />
             <div className="flex-1">

@@ -2039,3 +2039,100 @@ main,
 @media (prefers-reduced-motion: reduce) {
   .support-marquee-track { animation: none; }
 }
+
+/* ============================================================
+   HERO SELECTOR (interactive service + country picker)
+   Replaces the static phone mock in the hero's right column.
+============================================================ */
+.hero-picker {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  margin-left: auto;            /* sit toward the right, where the phone was */
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+  box-shadow: var(--shadow-lg);
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+@media (max-width: 900px) { .hero-picker { margin: 0 auto; } }
+
+.hero-picker-head { display: flex; flex-direction: column; gap: 10px; }
+.hero-picker-title {
+  font-size: 18px; font-weight: 600; letter-spacing: -0.01em;
+  color: var(--color-ink);
+}
+
+.hero-picker-fields { display: flex; flex-direction: column; gap: 12px; }
+.hero-field { position: relative; display: flex; flex-direction: column; gap: 6px; }
+.hero-field-lbl {
+  font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--color-ink-subtle);
+}
+.hero-field-btn {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  height: 52px; padding: 0 14px; width: 100%;
+  background: var(--color-paper);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  font-size: 15px; font-weight: 500; color: var(--color-ink);
+  transition: border-color .15s, box-shadow .15s, background .15s;
+}
+.hero-field-btn:hover { border-color: var(--color-border-strong); }
+.hero-field-btn.is-open {
+  border-color: var(--color-vg-600);
+  box-shadow: 0 0 0 3px rgba(159,232,112,.25);
+  background: #fff;
+}
+.hero-field-val { display: inline-flex; align-items: center; gap: 10px; min-width: 0; }
+.hero-field-val > * { flex-shrink: 0; }
+.hero-field-placeholder { color: var(--color-ink-subtle); }
+.hero-field-chev { color: var(--color-ink-subtle); transition: transform .15s; }
+.hero-field-btn.is-open .hero-field-chev { transform: rotate(180deg); }
+.hero-flag { font-size: 20px; line-height: 1; }
+
+.hero-pop {
+  position: absolute; z-index: 20; top: calc(100% + 8px); left: 0; right: 0;
+  background: #fff; border: 1px solid var(--color-border); border-radius: 14px;
+  box-shadow: var(--shadow-lg);
+  padding: 10px; display: flex; flex-direction: column; gap: 10px;
+}
+.hero-pop-search { height: 40px; }
+.hero-pop-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+  max-height: 244px; overflow-y: auto;
+}
+.hero-pop-tile {
+  display: flex; flex-direction: column; align-items: center; gap: 7px;
+  padding: 11px 6px; border-radius: 10px; border: 1px solid transparent;
+  background: transparent; text-align: center;
+  transition: background .12s, border-color .12s;
+}
+.hero-pop-tile:hover { background: var(--color-subtle); }
+.hero-pop-tile.selected { border-color: var(--color-vg-600); background: rgba(159,232,112,.12); }
+.hero-pop-tile .nm { font-size: 12px; font-weight: 500; color: var(--color-ink-2); }
+.hero-pop-list { display: flex; flex-direction: column; max-height: 264px; overflow-y: auto; }
+.hero-pop-row {
+  display: flex; align-items: center; gap: 10px; padding: 10px;
+  border-radius: 10px; background: transparent; text-align: left; width: 100%;
+  font-size: 14px; color: var(--color-ink);
+  transition: background .12s;
+}
+.hero-pop-row:hover { background: var(--color-subtle); }
+.hero-pop-row.selected { background: rgba(159,232,112,.14); font-weight: 600; }
+.hero-pop-empty { padding: 8px; }
+
+.hero-picker-price {
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; min-height: 20px;
+}
+.hero-picker-price .lbl { font-size: 12px; color: var(--color-ink-subtle); }
+.hero-picker-price .val { font-size: 18px; font-weight: 600; color: var(--color-ink); }
+.hero-picker-price .note { font-size: 12px; color: var(--color-ink-subtle); flex-basis: 100%; }
+
+.hero-picker-cta { width: 100%; justify-content: center; }
+.hero-picker-cta:disabled { opacity: .55; cursor: not-allowed; }
+
+.hero-picker-foot { font-size: 13px; text-align: center; color: var(--color-ink-muted); margin-top: 2px; }

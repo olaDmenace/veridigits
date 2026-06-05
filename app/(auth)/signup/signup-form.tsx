@@ -5,7 +5,7 @@ import { useActionState, useState } from "react";
 import { signUp, type AuthFormState } from "../actions";
 import { PasswordField } from "@/components/password-field";
 
-export function SignupForm() {
+export function SignupForm({ initialNext }: { initialNext?: string }) {
   const [state, formAction, isPending] = useActionState<
     AuthFormState | undefined,
     FormData
@@ -14,6 +14,12 @@ export function SignupForm() {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const mismatch = confirm.length > 0 && password !== confirm;
+
+  // Carry the deep link to the login screen too, so switching doesn't drop it.
+  const loginHref =
+    initialNext && initialNext.startsWith("/")
+      ? `/login?redirect=${encodeURIComponent(initialNext)}`
+      : "/login";
 
   if (state?.ok && state.needsConfirmation) {
     return (
@@ -26,7 +32,11 @@ export function SignupForm() {
         <p className="caption">
           Didn&apos;t get it? Check spam, or{" "}
           <Link
-            href="/signup"
+            href={
+              initialNext && initialNext.startsWith("/")
+                ? `/signup?next=${encodeURIComponent(initialNext)}`
+                : "/signup"
+            }
             className="font-medium text-[var(--color-ink)] underline-offset-2 hover:underline"
           >
             try again
@@ -45,6 +55,10 @@ export function SignupForm() {
       </div>
 
       <form action={formAction} className="flex flex-col gap-4">
+        {initialNext && initialNext.startsWith("/") ? (
+          <input type="hidden" name="next" value={initialNext} />
+        ) : null}
+
         <div className="field-grid">
           <div>
             <label className="label" htmlFor="email">
@@ -185,7 +199,7 @@ export function SignupForm() {
 
       <p className="caption text-center">
         Already have an account?{" "}
-        <Link href="/login" className="link-lime">
+        <Link href={loginHref} className="link-lime">
           Sign in
         </Link>
       </p>

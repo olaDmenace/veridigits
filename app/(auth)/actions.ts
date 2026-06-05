@@ -36,6 +36,11 @@ export async function signUp(
     return { ok: false, error, ...echo };
   }
 
+  // Post-auth destination from the hero deep link (e.g. /buy?country=…&service=…).
+  // Only honor same-origin relative paths to avoid an open-redirect.
+  const nextRaw = String(formData.get("next") ?? "");
+  const next = nextRaw.startsWith("/") ? nextRaw : "/dashboard";
+
   const supabase = await createClient();
   const origin = getAppUrl();
 
@@ -52,7 +57,7 @@ export async function signUp(
     email,
     password,
     options: {
-      emailRedirectTo: `${origin}/auth/callback`,
+      emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent(next)}`,
       // Read by the handle_new_user() trigger to populate the profile row.
       data: {
         display_name: displayName || null,
@@ -73,7 +78,7 @@ export async function signUp(
   }
 
   revalidatePath("/", "layout");
-  redirect("/dashboard");
+  redirect(next);
 }
 
 export async function logIn(

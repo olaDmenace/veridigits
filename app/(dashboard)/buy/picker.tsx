@@ -1,6 +1,13 @@
 "use client";
 
-import { useMemo, useState, useTransition, useActionState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+  useActionState,
+} from "react";
 import {
   getServicesForCountry,
   getQuote,
@@ -41,10 +48,13 @@ export function BuyPicker({
   countries,
   initialCountryId = null,
   initialServices = [],
+  initialServiceSlug = null,
 }: {
   countries: CountryEntry[];
   initialCountryId?: string | null;
   initialServices?: ServicePriceOption[];
+  /** Service slug to auto-select on load (from a landing-hero deep link). */
+  initialServiceSlug?: string | null;
 }) {
   const [mode, setMode] = useState<OrderMode>("activation");
   const [durationHours, setDurationHours] = useState<number>(
@@ -142,6 +152,23 @@ export function BuyPicker({
       }
     });
   }
+
+  // Auto-select the service from a landing-hero deep link, once. Runs as soon
+  // as the matching service appears in the (server-prefetched) list for the
+  // initial country, then fetches a live quote — so the user lands on /buy with
+  // their pick already priced. Guarded so it never hijacks a later manual change.
+  const autoPicked = useRef(false);
+  useEffect(() => {
+    if (autoPicked.current) return;
+    if (!initialServiceSlug || !countryId) return;
+    const match = services.find(
+      (s) => s.slug.toLowerCase() === initialServiceSlug.toLowerCase(),
+    );
+    if (!match) return;
+    autoPicked.current = true;
+    selectService(match.serviceId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialServiceSlug, services, countryId]);
 
   function handleSetMode(m: OrderMode) {
     if (m === mode) return;

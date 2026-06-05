@@ -8,7 +8,12 @@ export const metadata = {
   title: "Buy a number · Veridigits",
 };
 
-export default async function BuyPage() {
+export default async function BuyPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ country?: string; service?: string }>;
+}) {
+  const { country: countryParam, service: serviceParam } = await searchParams;
   const supabase = await createClient();
 
   const {
@@ -102,9 +107,16 @@ export default async function BuyPage() {
     );
   }
 
-  // Pre-pick the first country alphabetically and fetch its services so the
-  // user lands on /buy with the services list populated.
-  const initialCountryId = countries[0]?.id ?? null;
+  // Honor a deep link from the landing hero (?country=<iso>&service=<slug>):
+  // resolve the requested country to its id, falling back to the first country
+  // alphabetically. The service slug is passed to the picker, which auto-selects
+  // it (and fetches a live quote) once that country's services load.
+  const requestedIso = countryParam?.trim().toLowerCase();
+  const matchedCountry = requestedIso
+    ? countries.find((c) => c.isoCode.toLowerCase() === requestedIso)
+    : undefined;
+  const initialCountryId = matchedCountry?.id ?? countries[0]?.id ?? null;
+  const initialServiceSlug = serviceParam?.trim().toLowerCase() || null;
   let initialServices: ServicePriceOption[] = [];
   if (initialCountryId) {
     try {
@@ -132,6 +144,7 @@ export default async function BuyPage() {
         countries={countries}
         initialCountryId={initialCountryId}
         initialServices={initialServices}
+        initialServiceSlug={initialServiceSlug}
       />
     </div>
   );
