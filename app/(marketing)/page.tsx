@@ -117,7 +117,6 @@ const FLOATERS: Array<{ slug: string; size: number; cls: string }> = [
 function FloatingIcons() {
   return (
     <div className="hero-orbit" aria-hidden>
-      <div className="hero-glow" />
       {FLOATERS.map((f) => (
         <span key={f.slug} className={`fi ${f.cls}`}>
           <BrandLogo

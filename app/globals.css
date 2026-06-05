@@ -357,12 +357,9 @@ main,
   letter-spacing: 0.14em;
   color: var(--color-vg-700);
 }
-.eyebrow::before {
-  content: ""; width: 28px; height: 2px;
-  background: var(--color-vg-500); border-radius: 2px;
-}
+/* Leading dash removed by request — no ::before marker on eyebrows. */
+.eyebrow::before { content: none; }
 .eyebrow.muted { color: var(--color-ink-muted); }
-.eyebrow.muted::before { background: var(--color-ink-subtle); }
 
 /* Eyebrow pill — rounded chip with a live pulse dot. */
 .eyebrow-pill {
@@ -458,13 +455,6 @@ main,
   -webkit-mask-image: radial-gradient(68% 60% at 72% 34%, #000 28%, transparent 76%);
           mask-image: radial-gradient(68% 60% at 72% 34%, #000 28%, transparent 76%);
 }
-.hero-glow {
-  position: absolute; z-index: 0;
-  top: 16%; right: 8%; width: 460px; height: 460px;
-  background: radial-gradient(circle, rgba(159,232,112,.40), transparent 65%);
-  filter: blur(24px);
-  pointer-events: none;
-}
 
 /* floating brand chips */
 .fi {
@@ -504,7 +494,6 @@ main,
 }
 @media (max-width: 760px) {
   .hero-orbit .fi { display: none; }
-  .hero-glow { top: 2%; right: 50%; transform: translateX(50%); width: 320px; height: 320px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .fi { animation: none; }
@@ -835,29 +824,27 @@ main,
 .btn:focus-visible { outline: none; box-shadow: var(--shadow-glow); transition-delay: 0ms; }
 .btn:active { transform: translateY(0.5px); transition-delay: 0ms; }
 
-/* Primary CTA — Wise lime. */
+/* Primary CTA — Wise lime. (Button drop-shadows removed by request.) */
 .btn-primary {
   background: var(--color-lime); color: var(--color-on-lime);
-  box-shadow: var(--shadow-sm);
 }
 .btn-primary:hover { background: var(--color-lime-600); }
 
-/* Shared "mature" hover lift on solid buttons. */
+/* Shared "mature" hover lift on solid buttons (lift only, no shadow). */
 .btn-primary:hover, .btn-ink:hover, .btn-secondary:hover,
 .btn-on-dark:hover, .btn-danger:hover, .btn-accent:hover {
   transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
 }
 
 /* Ink — the quiet, dark CTA. */
-.btn-ink { background: var(--color-ink); color: #fff; box-shadow: var(--shadow-sm); }
+.btn-ink { background: var(--color-ink); color: #fff; }
 .btn-ink:hover { background: #000; }
 
 /* Kept as an alias of primary for any older markup that used .btn-accent. */
 .btn-accent { background: var(--color-lime); color: var(--color-on-lime); }
 .btn-accent:hover { background: var(--color-lime-600); }
 
-.btn-secondary { background: var(--color-surface); color: var(--color-ink); border-color: var(--color-border-strong); box-shadow: var(--shadow-xs); }
+.btn-secondary { background: var(--color-surface); color: var(--color-ink); border-color: var(--color-border-strong); }
 .btn-secondary:hover { background: var(--color-subtle); border-color: var(--color-ink-subtle); }
 
 .btn-outline { background: transparent; color: var(--color-vg-700); border-color: var(--color-vg-500); }
@@ -1615,7 +1602,9 @@ main,
   background: var(--color-footer);
   color: #fff;
   padding-top: 64px;
-  margin-top: 32px;
+  /* No top margin: the preceding section's own bottom padding provides the
+     breathing room, so the footer sits flush (kills the white gap under FAQ). */
+  margin-top: 0;
 }
 .site-footer .logo { color: #fff; }
 .site-footer .logo .mark { background: var(--color-lime); color: var(--color-on-lime); }
