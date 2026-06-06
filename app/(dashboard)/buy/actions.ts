@@ -237,8 +237,36 @@ export async function getServicesForCountry(
       };
     }
 
-    const [psResult, rulesResult, servicesResult] = await Promise.all([
-      supabase
+    const rulesResult = await admin
+      .from("pricing_rules")
+      .select(
+        "id, service_id, country_id, markup_percent, flat_fee_cents, min_retail_cents, priority, is_active",
+      )
+      .eq("is_active", true);
+    if (rulesResult.error) {
+      return { ok: false, where: "pricing_rules", error: rulesResult.error.message };
+    }
+
+    // provider_services for this country — paginated. SMSPool's full catalog can
+    // put well over 1000 rows on a single busy country (the US alone is ~1,200
+    // services); the default PostgREST cap would silently truncate the list.
+    type PsRow = {
+      service_id: string | null;
+      provider_slug: string;
+      upstream_service_code: string;
+      upstream_country_code: string;
+      upstream_operator: string | null;
+      wholesale_price_cents: number | null;
+      available_count: number | null;
+      recent_received_count: number | null;
+      recent_total_count: number | null;
+      published_success_rate: number | null;
+      preference_rank: number | null;
+    };
+    const PROVIDER_SERVICES_PAGE = 1000;
+    const psRows: PsRow[] = [];
+    for (let from = 0; ; from += PROVIDER_SERVICES_PAGE) {
+      const { data, error } = await supabase
         .from("provider_services")
         .select(
           "service_id, provider_slug, upstream_service_code, upstream_country_code, upstream_operator, wholesale_price_cents, available_count, recent_received_count, recent_total_count, published_success_rate, preference_rank",
@@ -246,30 +274,14 @@ export async function getServicesForCountry(
         .eq("country_id", countryId)
         .eq("is_enabled", true)
         .gt("available_count", 0)
-        .not("wholesale_price_cents", "is", null),
-      admin
-        .from("pricing_rules")
-        .select(
-          "id, service_id, country_id, markup_percent, flat_fee_cents, min_retail_cents, priority, is_active",
-        )
-        .eq("is_active", true),
-      supabase
-        .from("services")
-        .select("id, slug, name")
-        .eq("is_enabled", true),
-    ]);
-
-    if (psResult.error) {
-      return { ok: false, where: "provider_services", error: psResult.error.message };
+        .not("wholesale_price_cents", "is", null)
+        .range(from, from + PROVIDER_SERVICES_PAGE - 1);
+      if (error) {
+        return { ok: false, where: "provider_services", error: error.message };
+      }
+      psRows.push(...((data ?? []) as unknown as PsRow[]));
+      if (!data || data.length < PROVIDER_SERVICES_PAGE) break;
     }
-    if (rulesResult.error) {
-      return { ok: false, where: "pricing_rules", error: rulesResult.error.message };
-    }
-    if (servicesResult.error) {
-      return { ok: false, where: "services", error: servicesResult.error.message };
-    }
-
-    const psRows = psResult.data ?? [];
     if (psRows.length === 0) return { ok: true, services: [] };
 
     // Group routable candidates per service, then price the SAME operator the
@@ -311,9 +323,23 @@ export async function getServicesForCountry(
       };
     }
 
-    const serviceById = new Map(
-      (servicesResult.data ?? []).map((s) => [s.id, s] as const),
-    );
+    // Fetch only the services we actually have candidates for, chunked so the
+    // `.in()` list stays under the URL length + 1000-row cap.
+    const serviceById = new Map<string, { id: string; slug: string; name: string }>();
+    const serviceIds = [...candidatesByService.keys()];
+    const SERVICE_LOOKUP_CHUNK = 300;
+    for (let i = 0; i < serviceIds.length; i += SERVICE_LOOKUP_CHUNK) {
+      const chunk = serviceIds.slice(i, i + SERVICE_LOOKUP_CHUNK);
+      const { data, error } = await supabase
+        .from("services")
+        .select("id, slug, name")
+        .eq("is_enabled", true)
+        .in("id", chunk);
+      if (error) {
+        return { ok: false, where: "services", error: error.message };
+      }
+      for (const s of data ?? []) serviceById.set(s.id, s);
+    }
 
     const out: ServicePriceOption[] = [];
     for (const [serviceId, candidates] of candidatesByService) {

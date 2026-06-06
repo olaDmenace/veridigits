@@ -149,7 +149,7 @@ describe("SmsPoolProvider.cancelOrder", () => {
 });
 
 describe("SmsPoolProvider.syncCatalog", () => {
-  it("US dating services by ID -> canonical slug; captures price + success_rate; skips uncurated", async () => {
+  it("syncs the full US price book: cheapest pool wins, curated slug + success_rate, auto-slug for the rest", async () => {
     (global.fetch as ReturnType<typeof vi.fn>)
       // /country/retrieve_all
       .mockResolvedValueOnce(
@@ -158,49 +158,85 @@ describe("SmsPoolProvider.syncCatalog", () => {
           { ID: 1, name: "United States", short_name: "US" },
         ]),
       )
-      // /service/retrieve_all?country=1
+      // /request/pricing?country=1 — every service × pool in one call
       .mockResolvedValueOnce(
         jsonResponse([
-          { ID: 724, name: "Plenty Of Fish", favourite: 0 },
-          { ID: 65, name: "Badoo", favourite: 0 },
-          { ID: 99, name: "1688", favourite: 0 }, // not curated → ignored
+          { service: 724, service_name: "Plenty Of Fish", price: "0.42", pool: 12 },
+          { service: 724, service_name: "Plenty Of Fish", price: "0.40", pool: 7 }, // cheaper pool wins
+          { service: 1244, service_name: "CocaCola", price: "0.04", pool: 7 }, // uncurated → auto-slug
+          { service: 1660, service_name: "HandshakeAI", price: "0.12", pool: 7 }, // curated → handshake
         ]),
       )
-      // /request/price for the 2 curated services (1688 filtered before pricing)
+      // /request/price for curated services present (724 then 1660)
       .mockResolvedValueOnce(jsonResponse({ price: "0.40", success_rate: 62 }))
-      .mockResolvedValueOnce(jsonResponse({ price: "0" })); // no price → placeholder
+      .mockResolvedValueOnce(jsonResponse({ price: "0.12", success_rate: 86 }));
 
     const entries = await provider().syncCatalog();
-    expect(entries).toHaveLength(2);
-    expect(entries.map((e) => e.serviceSlug)).toEqual(["pof", "badoo"]);
+    expect(entries.map((e) => e.serviceSlug)).toEqual([
+      "pof",
+      "cocacola",
+      "handshake",
+    ]);
     expect(entries[0]).toMatchObject({
       upstreamServiceCode: "724",
       upstreamCountryCode: "1",
       countryIso: "usa",
-      priceCents: 40,
+      priceCents: 40, // cheapest pool
       publishedSuccessRate: 62,
     });
-    expect(entries[1].priceCents).toBeGreaterThan(0); // badoo → placeholder
+    // Uncurated long-tail: auto-slug, real price, null published rate (safe).
+    expect(entries[1]).toMatchObject({
+      upstreamServiceCode: "1244",
+      serviceSlug: "cocacola",
+      priceCents: 4,
+      publishedSuccessRate: null,
+    });
+    expect(entries[2]).toMatchObject({
+      upstreamServiceCode: "1660",
+      serviceSlug: "handshake",
+      priceCents: 12,
+      publishedSuccessRate: 86,
+    });
   });
 
-  it("populates UK dating services aligned to 'england' when only the UK is present", async () => {
+  it("a curated slug wins a collision with an auto-slugified name, even when pricier", async () => {
     (global.fetch as ReturnType<typeof vi.fn>)
-      // /country/retrieve_all — no US, has UK
+      .mockResolvedValueOnce(
+        jsonResponse([{ ID: 1, name: "United States", short_name: "US" }]),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse([
+          { service: 9999, service_name: "Hand-Shake", price: "0.01", pool: 7 }, // auto → "handshake"
+          { service: 1660, service_name: "HandshakeAI", price: "0.12", pool: 7 }, // curated → "handshake"
+        ]),
+      )
+      // success_rate for curated 1660
+      .mockResolvedValueOnce(jsonResponse({ price: "0.12", success_rate: 86 }));
+
+    const entries = await provider().syncCatalog();
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({
+      serviceSlug: "handshake",
+      upstreamServiceCode: "1660", // curated row, not the cheaper auto one
+      priceCents: 12,
+      publishedSuccessRate: 86,
+    });
+  });
+
+  it("aligns UK rows to the 'england' canonical iso", async () => {
+    (global.fetch as ReturnType<typeof vi.fn>)
       .mockResolvedValueOnce(
         jsonResponse([
           { ID: 2, name: "Canada", short_name: "CA" },
           { ID: 44, name: "United Kingdom", short_name: "GB" },
         ]),
       )
-      // /service/retrieve_all?country=44
       .mockResolvedValueOnce(
         jsonResponse([
-          { ID: 724, name: "Plenty Of Fish", favourite: 0 },
-          { ID: 99, name: "1688", favourite: 0 }, // not curated → ignored
+          { service: 724, service_name: "Plenty Of Fish", price: "0.50", pool: 7 },
         ]),
       )
-      // /request/price for POF
-      .mockResolvedValueOnce(jsonResponse({ price: "0.50", success_rate: 55 }))
+      .mockResolvedValueOnce(jsonResponse({ price: "0.50", success_rate: 55 }));
 
     const entries = await provider().syncCatalog();
     expect(entries).toHaveLength(1);

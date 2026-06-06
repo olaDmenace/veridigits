@@ -5,6 +5,9 @@ import { preferenceRankFor } from "@/lib/providers/preference";
 
 const ENABLED_PROVIDERS = ["5sim", "smspool", "textverified"] as const;
 const UPSERT_BATCH_SIZE = 1000;
+// Keep `.in(...)` lists small enough to stay under both the URL length limit
+// and PostgREST's 1000-row response cap when resolving ids for a large catalog.
+const ID_LOOKUP_CHUNK = 300;
 
 /**
  * Pulls the upstream catalog from each enabled provider and reconciles
@@ -141,16 +144,20 @@ async function reconcileProviderInner(
     }
   }
 
-  // 2. Upsert services (canonical slug-based).
+  // 2. Upsert services (canonical slug-based). Batched: SMSPool's full catalog
+  // pushes this into the thousands, past a single-statement comfort zone.
   const servicesPayload = [...serviceSlugs].map((slug) => ({
     slug,
     name: serviceNames.get(slug) ?? slug,
   }));
-  const { error: servicesErr } = await supabase
-    .from("services")
-    .upsert(servicesPayload, { onConflict: "slug", ignoreDuplicates: false });
-  if (servicesErr) {
-    throw new Error(`upsert services failed: ${servicesErr.message}`);
+  for (let i = 0; i < servicesPayload.length; i += UPSERT_BATCH_SIZE) {
+    const batch = servicesPayload.slice(i, i + UPSERT_BATCH_SIZE);
+    const { error: servicesErr } = await supabase
+      .from("services")
+      .upsert(batch, { onConflict: "slug", ignoreDuplicates: false });
+    if (servicesErr) {
+      throw new Error(`upsert services failed: ${servicesErr.message}`);
+    }
   }
 
   // 3. Upsert countries (canonical iso_code).
@@ -168,20 +175,13 @@ async function reconcileProviderInner(
     throw new Error(`upsert countries failed: ${countriesErr.message}`);
   }
 
-  // 4. Fetch id maps for FK lookup.
-  const [{ data: serviceRows }, { data: countryRows }] = await Promise.all([
-    supabase.from("services").select("id, slug").in("slug", [...serviceSlugs]),
-    supabase
-      .from("countries")
-      .select("id, iso_code")
-      .in("iso_code", [...countrySlugs]),
+  // 4. Fetch id maps for FK lookup. Chunked: a single `.in()` over the full
+  // SMSPool catalog would both overflow the URL length and hit PostgREST's
+  // 1000-row response cap, silently dropping services past the first 1000.
+  const [serviceIdBySlug, countryIdByIso] = await Promise.all([
+    fetchIdMap(supabase, "services", "slug", [...serviceSlugs]),
+    fetchIdMap(supabase, "countries", "iso_code", [...countrySlugs]),
   ]);
-
-  const serviceIdBySlug = new Map<string, string>();
-  for (const row of serviceRows ?? []) serviceIdBySlug.set(row.slug, row.id);
-
-  const countryIdByIso = new Map<string, string>();
-  for (const row of countryRows ?? []) countryIdByIso.set(row.iso_code, row.id);
 
   // 5. Build provider_services rows.
   const now = new Date().toISOString();
@@ -276,6 +276,34 @@ async function reconcileProviderInner(
     entriesProcessed: dedupedRows.length,
     disabledStale: disabledCount ?? 0,
   };
+}
+
+/**
+ * Resolve a column → id map for a set of values, chunked so neither the URL
+ * length nor PostgREST's 1000-row cap can silently truncate the result. Used to
+ * map canonical service slugs / country isos to their row ids.
+ */
+async function fetchIdMap(
+  supabase: ReturnType<typeof getAdminClient>,
+  table: "services" | "countries",
+  column: "slug" | "iso_code",
+  values: string[],
+): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  for (let i = 0; i < values.length; i += ID_LOOKUP_CHUNK) {
+    const chunk = values.slice(i, i + ID_LOOKUP_CHUNK);
+    const { data, error } = await supabase
+      .from(table)
+      .select(`id, ${column}`)
+      .in(column, chunk);
+    if (error) {
+      throw new Error(`id lookup on ${table}.${column} failed: ${error.message}`);
+    }
+    for (const row of (data ?? []) as unknown as Array<Record<string, string>>) {
+      map.set(row[column], row.id);
+    }
+  }
+  return map;
 }
 
 function titleCase(slug: string): string {

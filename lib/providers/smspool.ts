@@ -145,14 +145,22 @@ export class SmsPoolProvider implements OtpProvider {
   }
 
   async syncCatalog(): Promise<ProviderCatalogEntry[]> {
-    // Populate SMSPool for the curated dating / hard-to-verify services
-    // (SMSPOOL_SERVICE_SLUGS) in the US + UK. These are exactly the services
-    // 5SIM's virtual numbers get rejected on (POF, Badoo, Grindr, ...) — and
-    // SMSPool provisions them without a whitelist. Bounded set, so we fetch a
-    // real price + success rate per service via /request/price; placeholder
-    // price if unavailable (live re-quote at purchase is authoritative).
-    // serviceSlug is the canonical slug so rows share a (service, country) with
-    // 5SIM and the router can compare them.
+    // Sync SMSPool's FULL catalog for the US + UK (where its real, non-VoIP
+    // numbers are the differentiated value over 5SIM). The bulk price book
+    // (/request/pricing?country=N) returns every service × pool in ONE call, so
+    // we don't pay 1 price-call per service. We collapse pools to the cheapest
+    // price per service and emit one row each.
+    //
+    // serviceSlug is the canonical slug shared with 5SIM/TextVerified:
+    //   - curated, hand-verified slugs (SMSPOOL_SERVICE_SLUGS) take precedence;
+    //   - everything else is slugify(name) — compact + lowercase, matching
+    //     5SIM's slug shape so the same logical service merges across providers.
+    //
+    // The price book carries no success_rate. We keep ONE /request/price call
+    // per curated service (a bounded set) so the dating/hard services retain
+    // their published delivery signal; the long tail starts with a null
+    // published rate (safe — the scorer offers it on a neutral prior and our
+    // measured 7-day stats take over once orders flow).
     const countriesRaw = await this.get<unknown>("/country/retrieve_all");
     const countries: SmsPoolCountry[] = Array.isArray(countriesRaw)
       ? (countriesRaw as SmsPoolCountry[])
@@ -173,59 +181,94 @@ export class SmsPoolProvider implements OtpProvider {
       }
       targetsFound++;
 
-      const servicesRaw = await this.get<unknown>(
-        `/service/retrieve_all?country=${encodeURIComponent(countryId)}`,
+      // Bulk price book: one call, every service × pool for this country.
+      const pricingRaw = await this.get<unknown>(
+        `/request/pricing?country=${encodeURIComponent(countryId)}`,
       );
-      const services: SmsPoolCatalogService[] = Array.isArray(servicesRaw)
-        ? (servicesRaw as SmsPoolCatalogService[])
+      const rows: SmsPoolPricingRow[] = Array.isArray(pricingRaw)
+        ? (pricingRaw as SmsPoolPricingRow[])
         : [];
 
-      let added = 0;
-      for (const s of services) {
-        const serviceId = idOf(s.ID ?? s.id);
-        const name = stringOrNull(s.name);
-        if (!serviceId || !name) continue;
-        // Curated set: the dating / hard-to-verify services where SMSPool's
-        // numbers deliver and 5SIM's virtual numbers get rejected. Keyed by the
-        // stable SMSPool service ID -> our canonical slug, so they share a
-        // (service, country) with 5SIM and the router can compare them.
-        const slug = SMSPOOL_SERVICE_SLUGS[serviceId];
-        if (!slug) continue;
+      // Collapse pools → cheapest purchasable price per service. The buy call
+      // sends no pool, so SMSPool auto-selects; the cheapest pool is the best
+      // proxy for what we'll pay (live re-quote at purchase is authoritative).
+      const cheapest = new Map<string, { name: string; priceCents: number }>();
+      for (const r of rows) {
+        const sid = idOf(r.service);
+        const name = stringOrNull(r.service_name);
+        const cents = Math.round(toNumber(r.price) * 100);
+        if (!sid || !name || cents <= 0) continue;
+        const ex = cheapest.get(sid);
+        if (!ex || cents < ex.priceCents) cheapest.set(sid, { name, priceCents: cents });
+      }
 
-        let priceCents = SMSPOOL_PLACEHOLDER_CENTS;
-        let publishedSuccessRate: number | null = null;
+      if (cheapest.size === 0) {
+        console.warn(
+          `[smspool] ${target.iso}: empty price book (${rows.length} rows) — skipping`,
+        );
+        continue;
+      }
+
+      // Published success rate for the curated quality services only — bounded
+      // by |SMSPOOL_SERVICE_SLUGS|, not the catalog size.
+      const successById = new Map<string, number>();
+      for (const sid of Object.keys(SMSPOOL_SERVICE_SLUGS)) {
+        if (!cheapest.has(sid)) continue;
         try {
           const p = await this.post<SmsPoolPrice>("/request/price", {
             country: countryId,
-            service: serviceId,
+            service: sid,
           });
-          const c = Math.round(toNumber(p.price ?? p.cost) * 100);
-          if (c > 0) priceCents = c;
-          // SMSPool publishes a per-service success rate (0-100) — capture it
-          // as our routing signal, same shape as 5SIM's published rate.
           const sr = toNumber(p.success_rate);
           if (Number.isFinite(sr) && sr > 0) {
-            publishedSuccessRate = Math.max(0, Math.min(100, sr));
+            successById.set(sid, Math.max(0, Math.min(100, sr)));
           }
         } catch {
-          // keep placeholder — live re-quote at purchase is authoritative
+          // leave null — long-tail behavior; live re-quote still works
         }
+      }
 
-        out.push({
-          upstreamServiceCode: serviceId,
-          upstreamServiceName: name,
+      // Build entries keyed by canonical slug so two upstream names that
+      // slugify alike don't both resolve to the same (service, country) row
+      // downstream and get dropped by the reconcile dedup. Curated wins a
+      // collision; otherwise the cheaper price wins.
+      type Tagged = ProviderCatalogEntry & { _curated: boolean };
+      const bySlug = new Map<string, Tagged>();
+      for (const [sid, info] of cheapest) {
+        const curatedSlug = SMSPOOL_SERVICE_SLUGS[sid];
+        const slug = curatedSlug ?? slugify(info.name);
+        if (!slug) continue;
+        const entry: Tagged = {
+          upstreamServiceCode: sid,
+          upstreamServiceName: info.name,
           upstreamCountryCode: countryId,
           upstreamOperator: "default",
-          priceCents,
+          priceCents: info.priceCents,
           availableCount: AVAILABILITY_SENTINEL,
           serviceSlug: slug,
           countryIso: target.iso,
           countryName: target.name,
-          publishedSuccessRate,
-        });
-        added++;
+          publishedSuccessRate: successById.get(sid) ?? null,
+          _curated: Boolean(curatedSlug),
+        };
+        const ex = bySlug.get(slug);
+        if (!ex) {
+          bySlug.set(slug, entry);
+        } else if (entry._curated && !ex._curated) {
+          bySlug.set(slug, entry);
+        } else if (entry._curated === ex._curated && entry.priceCents < ex.priceCents) {
+          bySlug.set(slug, entry);
+        }
       }
-      console.warn(`[smspool] ${target.iso} dating/hard-service entries: ${added}`);
+
+      for (const e of bySlug.values()) {
+        const { _curated, ...rest } = e;
+        void _curated;
+        out.push(rest);
+      }
+      console.warn(
+        `[smspool] ${target.iso}: ${bySlug.size} services from price book (${cheapest.size} priced)`,
+      );
     }
 
     // None of our target countries matched a non-empty list — the country
@@ -348,16 +391,14 @@ interface SmsPoolCountry {
   name?: string;
   short_name?: string;
 }
-interface SmsPoolCatalogService {
-  ID?: string | number;
-  id?: string | number;
-  name?: string;
+/** One row of the bulk price book (/request/pricing?country=N): a service in a
+ *  given pool with its wholesale price. One service spans multiple pools. */
+interface SmsPoolPricingRow {
+  service?: string | number;
+  service_name?: string;
+  country?: string | number;
+  pool?: string | number;
   price?: string | number;
-  cost?: string | number;
-  available?: string | number;
-  stock?: string | number;
-  count?: string | number;
-  amount?: string | number;
 }
 
 /** SMSPool buy result → common shape. Throws on a non-success payload. */
@@ -456,10 +497,16 @@ const SYNC_TARGETS: Array<{
 
 const AVAILABILITY_SENTINEL = 999;
 const DEFAULT_ACTIVATION_TTL_MS = 10 * 60 * 1000;
-/** Cap per-service price calls per sync so the job stays well-bounded. */
-/** Cached price used when /request/price is unavailable at sync time; the live
- *  re-quote at purchase is authoritative. */
-const SMSPOOL_PLACEHOLDER_CENTS = 150;
+
+/**
+ * Canonical service slug from an SMSPool service name. Lowercase, alphanumerics
+ * only — matching 5SIM's compact slug shape ("Google Voice" → "googlevoice")
+ * so the same logical service merges into one canonical `services` row across
+ * providers. Returns "" when the name has no alphanumerics (caller skips it).
+ */
+function slugify(name: string): string {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, "");
+}
 
 /** Stringify a numeric/string id, or null if absent. */
 function idOf(v: unknown): string | null {
