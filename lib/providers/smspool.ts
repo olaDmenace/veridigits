@@ -426,6 +426,10 @@ const SMSPOOL_SERVICE_SLUGS: Record<string, string> = {
   "564": "meetme",
   "836": "skout",
   "1070": "zoosk",
+  // SMSPool-only services that 5SIM doesn't carry at all. Pinned here so their
+  // canonical slug is hand-verified (no collision with a 5SIM slug).
+  "742": "prolific", // Prolific (research-participant platform)
+  "1660": "handshake", // HandshakeAI
 };
 
 /**
