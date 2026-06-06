@@ -90,7 +90,28 @@ async function loadRouting(
   }
 
   for (const g of groups.values()) {
-    g.providers.sort(
+    // Collapse to one lane PER PROVIDER. A provider has many operator rows for
+    // the same (service, country) — without this, 5SIM appears N times (a
+    // duplicate React key, and misleading chips). Keep the strongest signal per
+    // provider: best rank, pooled stock, enabled if any operator is, cheapest.
+    const byProvider = new Map<string, RoutingGroup["providers"][number]>();
+    for (const p of g.providers) {
+      const ex = byProvider.get(p.slug);
+      if (!ex) {
+        byProvider.set(p.slug, { ...p });
+        continue;
+      }
+      ex.rank = Math.max(ex.rank, p.rank);
+      ex.available += p.available;
+      ex.enabled = ex.enabled || p.enabled;
+      ex.priceCents =
+        ex.priceCents == null
+          ? p.priceCents
+          : p.priceCents == null
+            ? ex.priceCents
+            : Math.min(ex.priceCents, p.priceCents);
+    }
+    g.providers = [...byProvider.values()].sort(
       (a, b) =>
         b.rank - a.rank ||
         (a.priceCents ?? Number.MAX_SAFE_INTEGER) -
