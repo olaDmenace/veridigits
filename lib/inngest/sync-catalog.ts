@@ -94,7 +94,7 @@ export const syncCatalogFn = inngest.createFunction(
   },
 );
 
-async function reconcileProvider(
+export async function reconcileProvider(
   providerSlug: string,
 ): Promise<{ entriesProcessed: number; disabledStale: number; error?: string }> {
   try {
