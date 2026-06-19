@@ -25,15 +25,14 @@ import { canonicalCountryIso, flagEmoji } from "./country-map";
  * the registry — this class only speaks the SMSPool API behind the common
  * OtpProvider interface.
  *
- * ─── VERIFY-ON-FIRST-LIVE-RUN ──────────────────────────────────────────────
- * This environment has no outbound network, so the response *shapes* below are
- * from SMSPool's documented contract, not a live probe. Three spots are the
- * only ones that can be wrong, and each is isolated for a one-line fix:
- *   1) mapCheckStatus()  — the numeric /sms/check status → our status mapping
- *   2) parsePurchase()   — field names on the /purchase/sms response
- *   3) getPriceAndAvailability() — SMSPool exposes price but not a clear stock
- *      count, so availability is inferred (see note there).
- * Confirm these against a real order once, then delete this banner.
+ * ─── VERIFY-ON-FIRST-PAID-ORDER ────────────────────────────────────────────
+ * Catalog endpoints are confirmed live (sync pulls /country/retrieve_all +
+ * /request/pricing). Two purchase-path response shapes are still coded from
+ * SMSPool's documented contract, not a real order — confirm each against one
+ * live paid order, then delete this banner:
+ *   1) mapCheckStatus() — the numeric /sms/check status → our status mapping.
+ *      A wrong "received" code would mis-fire capture/charge.
+ *   2) parsePurchase()  — field names on the /purchase/sms response.
  */
 export class SmsPoolProvider implements OtpProvider {
   readonly slug = "smspool";
