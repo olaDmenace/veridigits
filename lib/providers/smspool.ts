@@ -12,6 +12,7 @@ import {
   type ProviderPriceQuote,
   type RentalBuyParams,
 } from "./types";
+import { canonicalCountryIso } from "./country-map";
 
 /**
  * SMSPool upstream provider.
@@ -145,73 +146,106 @@ export class SmsPoolProvider implements OtpProvider {
   }
 
   async syncCatalog(): Promise<ProviderCatalogEntry[]> {
-    // Sync SMSPool's FULL catalog for the US + UK (where its real, non-VoIP
-    // numbers are the differentiated value over 5SIM). The bulk price book
+    // Sync SMSPool's FULL country catalog. Each country's bulk price book
     // (/request/pricing?country=N) returns every service × pool in ONE call, so
-    // we don't pay 1 price-call per service. We collapse pools to the cheapest
+    // the per-country cost is a single GET; we collapse pools to the cheapest
     // price per service and emit one row each.
+    //
+    // Each country is aligned to a canonical iso (canonicalCountryIso): the
+    // 123 countries 5SIM also carries MERGE into 5SIM's existing rows (so they
+    // become cross-provider fallback candidates); the ~26 SMSPool-exclusive
+    // countries (Switzerland, Turkey, Japan, Singapore, …) become brand-new
+    // canonical countries — coverage 5SIM can't provide.
     //
     // serviceSlug is the canonical slug shared with 5SIM/TextVerified:
     //   - curated, hand-verified slugs (SMSPOOL_SERVICE_SLUGS) take precedence;
     //   - everything else is slugify(name) — compact + lowercase, matching
     //     5SIM's slug shape so the same logical service merges across providers.
-    //
-    // The price book carries no success_rate. We keep ONE /request/price call
-    // per curated service (a bounded set) so the dating/hard services retain
-    // their published delivery signal; the long tail starts with a null
-    // published rate (safe — the scorer offers it on a neutral prior and our
-    // measured 7-day stats take over once orders flow).
     const countriesRaw = await this.get<unknown>("/country/retrieve_all");
-    const countries: SmsPoolCountry[] = Array.isArray(countriesRaw)
-      ? (countriesRaw as SmsPoolCountry[])
+    const countries = normalizeCountryList(countriesRaw);
+    if (countries.length === 0) {
+      throw new ProviderApiError(
+        this.slug,
+        "country list empty or unrecognized shape",
+      );
+    }
+
+    // Real, buyable countries only: need an id + alpha-2, and skip SMSPool's
+    // virtual pools ("US_V", "AU_V") — merging those into a real country would
+    // mix virtual and physical numbers under a single listing.
+    const targets = countries.filter((c) => {
+      const id = idOf(c.ID ?? c.id);
+      const short = String(c.short_name ?? "");
+      return Boolean(id) && short.length > 0 && !short.includes("_");
+    });
+
+    // Bounded concurrency: ~150 sequential price-book calls would push the sync
+    // toward the function timeout; a small pool keeps it well within it without
+    // hammering SMSPool. Results stay in country order (index-preserving).
+    const batches = await mapWithConcurrency(targets, SYNC_CONCURRENCY, (c) =>
+      this.syncCountry(c).catch((err) => {
+        // One country's failure is isolated; the rest of the catalog still syncs.
+        console.warn(
+          `[smspool] ${c.name ?? c.short_name ?? "?"} sync failed — skipping: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+        return [] as ProviderCatalogEntry[];
+      }),
+    );
+    const out = batches.flat();
+
+    // Every country returned an empty/failed price book — the country or pricing
+    // endpoint shape likely changed. Surface it rather than syncing nothing.
+    if (out.length === 0) {
+      throw new ProviderApiError(
+        this.slug,
+        `no priced services across ${targets.length} countries — catalog shape may have changed`,
+      );
+    }
+
+    return out;
+  }
+
+  /** Build the catalog entries for a single SMSPool country (one price-book call). */
+  private async syncCountry(
+    country: SmsPoolCountry,
+  ): Promise<ProviderCatalogEntry[]> {
+    const countryId = idOf(country.ID ?? country.id);
+    if (!countryId) return [];
+    const canonicalIso = canonicalCountryIso(country.short_name, country.name);
+    if (!canonicalIso) return [];
+    const displayName = stringOrNull(country.name) ?? canonicalIso;
+
+    // Bulk price book: one call, every service × pool for this country.
+    const pricingRaw = await this.get<unknown>(
+      `/request/pricing?country=${encodeURIComponent(countryId)}`,
+    );
+    const rows: SmsPoolPricingRow[] = Array.isArray(pricingRaw)
+      ? (pricingRaw as SmsPoolPricingRow[])
       : [];
 
-    const out: ProviderCatalogEntry[] = [];
-    let targetsFound = 0;
-    for (const target of SYNC_TARGETS) {
-      const match = countries.find((c) =>
-        target.test(String(c.short_name ?? ""), c.name ?? ""),
-      );
-      const countryId = match ? idOf(match.ID ?? match.id) : null;
-      if (!countryId) {
-        console.warn(
-          `[smspool] ${target.iso} country not found (of ${countries.length}) — skipping`,
-        );
-        continue;
-      }
-      targetsFound++;
+    // Collapse pools → cheapest purchasable price per service. The buy call
+    // sends no pool, so SMSPool auto-selects; the cheapest pool is the best
+    // proxy for what we'll pay (live re-quote at purchase is authoritative).
+    const cheapest = new Map<string, { name: string; priceCents: number }>();
+    for (const r of rows) {
+      const sid = idOf(r.service);
+      const name = stringOrNull(r.service_name);
+      const cents = Math.round(toNumber(r.price) * 100);
+      if (!sid || !name || cents <= 0) continue;
+      const ex = cheapest.get(sid);
+      if (!ex || cents < ex.priceCents) cheapest.set(sid, { name, priceCents: cents });
+    }
+    if (cheapest.size === 0) return [];
 
-      // Bulk price book: one call, every service × pool for this country.
-      const pricingRaw = await this.get<unknown>(
-        `/request/pricing?country=${encodeURIComponent(countryId)}`,
-      );
-      const rows: SmsPoolPricingRow[] = Array.isArray(pricingRaw)
-        ? (pricingRaw as SmsPoolPricingRow[])
-        : [];
-
-      // Collapse pools → cheapest purchasable price per service. The buy call
-      // sends no pool, so SMSPool auto-selects; the cheapest pool is the best
-      // proxy for what we'll pay (live re-quote at purchase is authoritative).
-      const cheapest = new Map<string, { name: string; priceCents: number }>();
-      for (const r of rows) {
-        const sid = idOf(r.service);
-        const name = stringOrNull(r.service_name);
-        const cents = Math.round(toNumber(r.price) * 100);
-        if (!sid || !name || cents <= 0) continue;
-        const ex = cheapest.get(sid);
-        if (!ex || cents < ex.priceCents) cheapest.set(sid, { name, priceCents: cents });
-      }
-
-      if (cheapest.size === 0) {
-        console.warn(
-          `[smspool] ${target.iso}: empty price book (${rows.length} rows) — skipping`,
-        );
-        continue;
-      }
-
-      // Published success rate for the curated quality services only — bounded
-      // by |SMSPOOL_SERVICE_SLUGS|, not the catalog size.
-      const successById = new Map<string, number>();
+    // Published success rate is one extra /request/price call per curated
+    // service — bound the cost to the high-value countries (US/UK), where the
+    // dating/hard services live. Everywhere else starts on a null prior: the
+    // scorer treats that as neutral and our measured 7-day stats take over as
+    // orders flow.
+    const successById = new Map<string, number>();
+    if (ENRICH_COUNTRIES.has(String(country.short_name ?? "").toUpperCase())) {
       for (const sid of Object.keys(SMSPOOL_SERVICE_SLUGS)) {
         if (!cheapest.has(sid)) continue;
         try {
@@ -227,60 +261,48 @@ export class SmsPoolProvider implements OtpProvider {
           // leave null — long-tail behavior; live re-quote still works
         }
       }
-
-      // Build entries keyed by canonical slug so two upstream names that
-      // slugify alike don't both resolve to the same (service, country) row
-      // downstream and get dropped by the reconcile dedup. Curated wins a
-      // collision; otherwise the cheaper price wins.
-      type Tagged = ProviderCatalogEntry & { _curated: boolean };
-      const bySlug = new Map<string, Tagged>();
-      for (const [sid, info] of cheapest) {
-        const curatedSlug = SMSPOOL_SERVICE_SLUGS[sid];
-        const slug = curatedSlug ?? slugify(info.name);
-        if (!slug) continue;
-        const entry: Tagged = {
-          upstreamServiceCode: sid,
-          upstreamServiceName: info.name,
-          upstreamCountryCode: countryId,
-          upstreamOperator: "default",
-          priceCents: info.priceCents,
-          availableCount: AVAILABILITY_SENTINEL,
-          serviceSlug: slug,
-          countryIso: target.iso,
-          countryName: target.name,
-          publishedSuccessRate: successById.get(sid) ?? null,
-          _curated: Boolean(curatedSlug),
-        };
-        const ex = bySlug.get(slug);
-        if (!ex) {
-          bySlug.set(slug, entry);
-        } else if (entry._curated && !ex._curated) {
-          bySlug.set(slug, entry);
-        } else if (entry._curated === ex._curated && entry.priceCents < ex.priceCents) {
-          bySlug.set(slug, entry);
-        }
-      }
-
-      for (const e of bySlug.values()) {
-        const { _curated, ...rest } = e;
-        void _curated;
-        out.push(rest);
-      }
-      console.warn(
-        `[smspool] ${target.iso}: ${bySlug.size} services from price book (${cheapest.size} priced)`,
-      );
     }
 
-    // None of our target countries matched a non-empty list — the country
-    // catalog shape likely changed. Surface it rather than sync nothing.
-    if (targetsFound === 0) {
-      throw new ProviderApiError(
-        this.slug,
-        `no target countries (US/UK) found of ${countries.length}`,
-      );
+    // Build entries keyed by canonical slug so two upstream names that slugify
+    // alike don't both resolve to the same (service, country) row downstream and
+    // get dropped by the reconcile dedup. Curated wins a collision; otherwise
+    // the cheaper price wins.
+    type Tagged = ProviderCatalogEntry & { _curated: boolean };
+    const bySlug = new Map<string, Tagged>();
+    for (const [sid, info] of cheapest) {
+      const curatedSlug = SMSPOOL_SERVICE_SLUGS[sid];
+      const slug = curatedSlug ?? slugify(info.name);
+      if (!slug) continue;
+      const entry: Tagged = {
+        upstreamServiceCode: sid,
+        upstreamServiceName: info.name,
+        upstreamCountryCode: countryId,
+        upstreamOperator: "default",
+        priceCents: info.priceCents,
+        availableCount: AVAILABILITY_SENTINEL,
+        serviceSlug: slug,
+        countryIso: canonicalIso,
+        countryName: displayName,
+        publishedSuccessRate: successById.get(sid) ?? null,
+        _curated: Boolean(curatedSlug),
+      };
+      const ex = bySlug.get(slug);
+      if (!ex) {
+        bySlug.set(slug, entry);
+      } else if (entry._curated && !ex._curated) {
+        bySlug.set(slug, entry);
+      } else if (entry._curated === ex._curated && entry.priceCents < ex.priceCents) {
+        bySlug.set(slug, entry);
+      }
     }
 
-    return out;
+    const entries: ProviderCatalogEntry[] = [];
+    for (const e of bySlug.values()) {
+      const { _curated, ...rest } = e;
+      void _curated;
+      entries.push(rest);
+    }
+    return entries;
   }
 
   /** GET for catalog endpoints (key appended — SMSPool accepts/expects it). */
@@ -390,6 +412,8 @@ interface SmsPoolCountry {
   id?: string | number;
   name?: string;
   short_name?: string;
+  cc?: string | number;
+  region?: string;
 }
 /** One row of the bulk price book (/request/pricing?country=N): a service in a
  *  given pool with its wholesale price. One service spans multiple pools. */
@@ -474,26 +498,50 @@ const SMSPOOL_SERVICE_SLUGS: Record<string, string> = {
 };
 
 /**
- * Countries we populate SMSPool for, with the canonical shared iso (so rows
- * join 5SIM / TextVerified). `test` matches SMSPool's country short_name/name.
+ * Countries (by SMSPool alpha-2) where we pay the extra per-curated-service
+ * /request/price call to capture a published success rate. Bounded on purpose:
+ * the dating/hard services that need a cold-start delivery signal concentrate
+ * in the US/UK. Every other country starts on a null prior and earns its real
+ * rate from measured 7-day stats once orders flow.
  */
-const SYNC_TARGETS: Array<{
-  iso: string;
-  name: string;
-  test: (short: string, name: string) => boolean;
-}> = [
-  {
-    iso: "usa",
-    name: "USA",
-    test: (short, name) => /^us$/i.test(short) || /united states/i.test(name),
-  },
-  {
-    iso: "england",
-    name: "England",
-    test: (short, name) =>
-      /^(gb|uk)$/i.test(short) || /united kingdom|britain|england/i.test(name),
-  },
-];
+const ENRICH_COUNTRIES = new Set(["US", "GB"]);
+
+/** How many countries' price books to fetch in parallel during a full sync. */
+const SYNC_CONCURRENCY = 6;
+
+/** Coerce SMSPool's /country/retrieve_all response into a country array. */
+function normalizeCountryList(raw: unknown): SmsPoolCountry[] {
+  if (Array.isArray(raw)) return raw as SmsPoolCountry[];
+  if (raw && typeof raw === "object") {
+    const obj = raw as Record<string, unknown>;
+    for (const key of ["countries", "data", "result"]) {
+      if (Array.isArray(obj[key])) return obj[key] as SmsPoolCountry[];
+    }
+  }
+  return [];
+}
+
+/**
+ * Map over items with a bounded number of in-flight promises, preserving input
+ * order in the result. Keeps the full-catalog sync (~150 price-book calls) fast
+ * without firing every request at once.
+ */
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let next = 0;
+  const workerCount = Math.max(1, Math.min(limit, items.length));
+  const workers = Array.from({ length: workerCount }, async () => {
+    for (let i = next++; i < items.length; i = next++) {
+      results[i] = await fn(items[i], i);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
 
 const AVAILABILITY_SENTINEL = 999;
 const DEFAULT_ACTIVATION_TTL_MS = 10 * 60 * 1000;
