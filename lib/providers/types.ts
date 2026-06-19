@@ -62,6 +62,12 @@ export interface ProviderCatalogEntry {
   countryIso?: string;
   countryName?: string;
   /**
+   * Country flag emoji (e.g. 🇨🇭), set when the provider knows the country's
+   * ISO-2. Used to populate `countries.flag_emoji` for providers (SMSPool)
+   * whose canonical iso is a name-slug the shared bridge can't reverse-resolve.
+   */
+  countryFlag?: string | null;
+  /**
    * Upstream-published per-operator success rate, 0-100 (e.g. 5SIM's prices
    * `rate`). A cold-start delivery-quality signal for routing. Omit when the
    * provider doesn't publish one (TextVerified, SMSPool).

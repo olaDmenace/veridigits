@@ -2,6 +2,7 @@ import { inngest } from "./client";
 import { getProvider } from "@/lib/providers";
 import { getAdminClient } from "@/lib/supabase/admin";
 import { preferenceRankFor } from "@/lib/providers/preference";
+import { flagForCanonicalIso } from "@/lib/providers/country-map";
 
 const ENABLED_PROVIDERS = ["5sim", "smspool", "textverified"] as const;
 const UPSERT_BATCH_SIZE = 1000;
@@ -131,6 +132,7 @@ async function reconcileProviderInner(
   const serviceNames = new Map<string, string>();
   const countrySlugs = new Set<string>();
   const countryNames = new Map<string, string>();
+  const countryFlags = new Map<string, string>();
   for (const e of entries) {
     const svcSlug = svcSlugOf(e);
     const ctyIso = ctyIsoOf(e);
@@ -141,6 +143,13 @@ async function reconcileProviderInner(
     countrySlugs.add(ctyIso);
     if (!countryNames.has(ctyIso)) {
       countryNames.set(ctyIso, e.countryName ?? titleCase(ctyIso));
+    }
+    // Flag: prefer the provider-supplied one (SMSPool resolves it from ISO-2,
+    // covering exclusive countries whose canonical iso is a name-slug); else
+    // derive from the canonical 5SIM slug via the bridge.
+    if (!countryFlags.has(ctyIso)) {
+      const flag = e.countryFlag ?? flagForCanonicalIso(ctyIso);
+      if (flag) countryFlags.set(ctyIso, flag);
     }
   }
 
@@ -160,10 +169,17 @@ async function reconcileProviderInner(
     }
   }
 
-  // 3. Upsert countries (canonical iso_code).
+  // 3. Upsert countries (canonical iso_code + name + flag).
+  //
+  // flag_emoji is safe to set here without clobbering: every country a provider
+  // emits resolves to a non-null flag (SMSPool from its ISO-2, others via the
+  // bridge), EXCEPT 5SIM-only slugs the bridge can't reverse (e.g. frenchguiana)
+  // — and those are emitted by 5SIM alone, so no other provider's flag is ever
+  // nulled. Shared countries always resolve in-bridge, so they never go null.
   const countriesPayload = [...countrySlugs].map((slug) => ({
     iso_code: slug,
     name: countryNames.get(slug) ?? titleCase(slug),
+    flag_emoji: countryFlags.get(slug) ?? null,
   }));
   const { error: countriesErr } = await supabase
     .from("countries")

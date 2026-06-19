@@ -298,6 +298,7 @@ describe("SmsPoolProvider.syncCatalog", () => {
     expect(entries[0]).toMatchObject({
       countryIso: "switzerland", // no 5SIM row — falls back to name-slug
       countryName: "Switzerland",
+      countryFlag: "🇨🇭", // resolved from ISO-2 even though canonical iso is a name-slug
       upstreamCountryCode: "134",
       serviceSlug: "telegram",
       publishedSuccessRate: null, // not enriched outside US/UK
