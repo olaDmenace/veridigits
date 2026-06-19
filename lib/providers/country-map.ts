@@ -215,3 +215,44 @@ export function canonicalCountryIso(
   const slug = normCountry(name ?? "");
   return slug.length > 0 ? slug : null;
 }
+
+/**
+ * Reverse of ISO2_TO_FIVESIM_SLUG: 5SIM canonical slug -> ISO-3166 alpha-2.
+ * `frenchguiana` is added back by hand: the forward map pins FR -> france (5SIM
+ * collides both under "fr"), so the reverse would otherwise miss French Guiana,
+ * whose real alpha-2 is GF — restoring it here keeps its flag resolvable.
+ */
+export const FIVESIM_SLUG_TO_ISO2: Readonly<Record<string, string>> = {
+  ...Object.fromEntries(
+    Object.entries(ISO2_TO_FIVESIM_SLUG).map(([iso2, slug]) => [slug, iso2]),
+  ),
+  frenchguiana: "GF",
+};
+
+/**
+ * Flag emoji from an ISO-3166 alpha-2 code ("CH" -> 🇨🇭), built from the two
+ * Unicode regional-indicator symbols. Returns null for anything that isn't a
+ * 2-letter code.
+ */
+export function flagEmoji(iso2: string | null | undefined): string | null {
+  const code = String(iso2 ?? "").trim().toUpperCase();
+  if (!/^[A-Z]{2}$/.test(code)) return null;
+  const base = 0x1f1e6; // regional indicator symbol letter "A"
+  return String.fromCodePoint(
+    base + (code.charCodeAt(0) - 65),
+    base + (code.charCodeAt(1) - 65),
+  );
+}
+
+/**
+ * Flag emoji for a canonical country iso (a 5SIM slug). Resolves the slug back
+ * to its ISO-2 via the bridge, then to a flag. Null for SMSPool-exclusive
+ * name-slugs (not in the bridge) — those carry their flag on the catalog entry
+ * instead, derived from the provider's own ISO-2.
+ */
+export function flagForCanonicalIso(
+  canonicalIso: string | null | undefined,
+): string | null {
+  const slug = String(canonicalIso ?? "").trim();
+  return flagEmoji(FIVESIM_SLUG_TO_ISO2[slug]);
+}

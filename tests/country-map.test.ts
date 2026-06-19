@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   canonicalCountryIso,
   normCountry,
+  flagEmoji,
+  flagForCanonicalIso,
   ISO2_TO_FIVESIM_SLUG,
 } from "@/lib/providers/country-map";
 
@@ -50,5 +52,37 @@ describe("normCountry", () => {
     expect(normCountry("United States")).toBe("unitedstates");
     expect(normCountry("Côte d'Ivoire")).toBe("ctedivoire");
     expect(normCountry("")).toBe("");
+  });
+});
+
+describe("flagEmoji", () => {
+  it("builds the flag from an ISO-2 code", () => {
+    expect(flagEmoji("CH")).toBe("🇨🇭");
+    expect(flagEmoji("us")).toBe("🇺🇸"); // case-insensitive
+    expect(flagEmoji("GB")).toBe("🇬🇧");
+  });
+
+  it("returns null for anything that isn't a 2-letter code", () => {
+    expect(flagEmoji("USA")).toBeNull();
+    expect(flagEmoji("U")).toBeNull();
+    expect(flagEmoji("U1")).toBeNull();
+    expect(flagEmoji("")).toBeNull();
+    expect(flagEmoji(null)).toBeNull();
+  });
+});
+
+describe("flagForCanonicalIso", () => {
+  it("resolves a 5SIM canonical slug back to its flag via the bridge", () => {
+    expect(flagForCanonicalIso("usa")).toBe("🇺🇸");
+    expect(flagForCanonicalIso("england")).toBe("🇬🇧");
+    expect(flagForCanonicalIso("bhutane")).toBe("🇧🇹"); // name-slug quirk
+    expect(flagForCanonicalIso("france")).toBe("🇫🇷");
+  });
+
+  it("returns null for slugs not in the bridge (SMSPool-exclusive name-slugs)", () => {
+    // These carry their flag on the catalog entry instead (from the provider's ISO-2).
+    expect(flagForCanonicalIso("switzerland")).toBeNull();
+    expect(flagForCanonicalIso("turkey")).toBeNull();
+    expect(flagForCanonicalIso("")).toBeNull();
   });
 });

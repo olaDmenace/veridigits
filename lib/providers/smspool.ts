@@ -12,7 +12,7 @@ import {
   type ProviderPriceQuote,
   type RentalBuyParams,
 } from "./types";
-import { canonicalCountryIso } from "./country-map";
+import { canonicalCountryIso, flagEmoji } from "./country-map";
 
 /**
  * SMSPool upstream provider.
@@ -216,6 +216,9 @@ export class SmsPoolProvider implements OtpProvider {
     const canonicalIso = canonicalCountryIso(country.short_name, country.name);
     if (!canonicalIso) return [];
     const displayName = stringOrNull(country.name) ?? canonicalIso;
+    // SMSPool's short_name IS the ISO-2, so we can resolve a flag even for the
+    // exclusive countries whose canonical iso is a name-slug (no bridge entry).
+    const countryFlag = flagEmoji(country.short_name);
 
     // Bulk price book: one call, every service × pool for this country.
     const pricingRaw = await this.get<unknown>(
@@ -283,6 +286,7 @@ export class SmsPoolProvider implements OtpProvider {
         serviceSlug: slug,
         countryIso: canonicalIso,
         countryName: displayName,
+        countryFlag,
         publishedSuccessRate: successById.get(sid) ?? null,
         _curated: Boolean(curatedSlug),
       };
