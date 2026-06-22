@@ -8,12 +8,19 @@ import { getAdminClient } from "@/lib/supabase/admin";
  *     means nothing was charged, so there is nothing to refund).
  *   - If SMS was received but the order wasn't finished: mark completed.
  *
- * Runs every minute as a backstop for the per-order poll function.
+ * Runs every 5 minutes as a backstop for the per-order poll function
+ * (`poll-order`), which is the primary, event-driven expiry/finalize path.
+ * This sweep only catches stragglers poll missed, so it doesn't need
+ * minute precision — the only cost of a slower cadence is that an expired
+ * order's upstream cancel and the user's freed concurrent-active slot lag
+ * by up to the interval. Nothing is charged (defer-debit), so there's no
+ * money implication to the delay. Tune the interval to taste: `*/2` for
+ * snappier slot release, `*/15` to cut Inngest runs further.
  */
 export const expireOrdersFn = inngest.createFunction(
   {
     id: "expire-orders",
-    triggers: [{ cron: "* * * * *" }],
+    triggers: [{ cron: "*/5 * * * *" }],
   },
   async ({ step, logger }) => {
     const supabase = getAdminClient();
