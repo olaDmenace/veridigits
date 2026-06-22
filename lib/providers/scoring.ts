@@ -140,10 +140,21 @@ export function pickBestCandidate<T extends ScorableCandidate>(
     );
   }
 
-  // ...otherwise the highest effective delivery (byPrice order breaks ties
-  // toward cheaper, since reduce keeps the incumbent on equality).
-  return byPrice.reduce(
+  // ...otherwise nobody clears the bar. Prefer candidates we have a HARD
+  // delivery signal for (our own sample or the upstream-published rate) over
+  // prior-only unknowns: evidence of poor delivery must beat the optimism of
+  // ignorance. Without this, a brand-new cheap route with NO captured rate gets
+  // the 0.45 neutral prior and outranks a measured-but-low competitor — which is
+  // exactly how Telegram/USA routed to a 0%-delivery SMSPool number we'd never
+  // measured, instead of 5SIM's honestly-low-rated (but actually-delivering)
+  // operators. Only when NO candidate has any hard signal do we rank on priors.
+  const measured = byPrice.filter((c) => expectedDelivery(c) != null);
+  const pool = measured.length > 0 ? measured : byPrice;
+
+  // Highest effective delivery wins; byPrice order breaks ties toward cheaper,
+  // since reduce keeps the incumbent on equality.
+  return pool.reduce(
     (best, c) => (effectiveDelivery(c) > effectiveDelivery(best) ? c : best),
-    byPrice[0],
+    pool[0],
   );
 }

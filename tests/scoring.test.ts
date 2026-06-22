@@ -118,6 +118,41 @@ describe("pickBestCandidate", () => {
     ).toBe("v63");
   });
 
+  it("an unmeasured route does not outrank a measured-but-low one (Telegram/USA)", () => {
+    // The exact incident: SMSPool telegram/USA is cheapest but we have NO
+    // delivery signal for it (null published, 0 sample) — in reality it
+    // delivers ~0%. 5SIM's operators publish honest-but-low rates. The
+    // unmeasured SMSPool row must NOT win on its optimistic prior; route to the
+    // best measured operator instead.
+    const smspoolUnknown = make({
+      provider_slug: "smspool",
+      wholesale_price_cents: 60,
+      published_success_rate: null,
+      recent_total_count: 0,
+      preference_rank: 0,
+      upstream_operator: "default",
+    });
+    const fivesimBest = make({
+      provider_slug: "5sim",
+      wholesale_price_cents: 74,
+      published_success_rate: 25.81,
+      upstream_operator: "virtual63",
+    });
+    const fivesimWeak = make({
+      provider_slug: "5sim",
+      wholesale_price_cents: 77,
+      published_success_rate: 11.11,
+      upstream_operator: "virtual8",
+    });
+    const picked = pickBestCandidate([
+      smspoolUnknown,
+      fivesimBest,
+      fivesimWeak,
+    ]);
+    expect(picked?.provider_slug).toBe("5sim");
+    expect(picked?.upstream_operator).toBe("virtual63");
+  });
+
   it("still offers a number when every option is a low/0%-rated dud (open everything)", () => {
     // We sell whatever 5SIM has in stock — the rate is just an estimate, and a
     // miss never charges. Cheapest among equal duds wins.
