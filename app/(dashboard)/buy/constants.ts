@@ -30,3 +30,33 @@ export function rentalMultiplier(hours: number): number {
   const tier = RENTAL_DURATIONS.find((d) => d.hours >= hours);
   return (tier ?? RENTAL_DURATIONS[RENTAL_DURATIONS.length - 1]).multiplier;
 }
+
+/**
+ * SMSPool rental day-tiers by canonical country iso (shared `countries.iso_code`).
+ * Client-safe mirror of `SMSPOOL_RENTALS` in lib/providers/smspool.ts (the source
+ * of truth) so the picker can show the real, country-specific durations without a
+ * server round-trip. Rentals exist only for these countries; keep in sync.
+ */
+export const RENTAL_TIERS_BY_ISO: Record<string, number[]> = {
+  usa: [1, 7, 28],
+  england: [30, 180, 360],
+  canada: [30],
+};
+
+export interface RentalDurationOption {
+  hours: number;
+  days: number;
+  label: string;
+}
+
+/** Rental duration options for a country, or [] when rentals aren't offered there. */
+export function rentalDurationsForIso(
+  iso: string | null | undefined,
+): RentalDurationOption[] {
+  const tiers = (iso && RENTAL_TIERS_BY_ISO[iso]) || [];
+  return tiers.map((days) => ({
+    hours: days * 24,
+    days,
+    label: days === 1 ? "1 day" : `${days} days`,
+  }));
+}

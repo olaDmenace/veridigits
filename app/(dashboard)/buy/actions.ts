@@ -10,6 +10,7 @@ import {
 import { pickBestCandidate, type ScorableCandidate } from "@/lib/providers/scoring";
 import { isProviderRoutable } from "@/lib/providers/preference";
 import { sanitizeProviderError } from "@/lib/providers/sanitize-error";
+import { SmsPoolProvider, smspoolRentalFor } from "@/lib/providers/smspool";
 import {
   calculateRetailPrice,
   type PricingRule,
@@ -23,7 +24,7 @@ import {
   HoldTokenError,
   type HoldTokenPayload,
 } from "@/lib/utils/hold-token";
-import { rentalMultiplier, type OrderMode } from "./constants";
+import type { OrderMode } from "./constants";
 // Don't re-export OrderMode from here. `"use server"` files in Next 16 +
 // Turbopack only allow async-function exports — even `export type` gets
 // emitted as a runtime reference and crashes at module evaluation with
@@ -429,6 +430,13 @@ export async function getQuote(
     return { ok: false, code: "internal", message: "not signed in" };
   }
 
+  // Rentals are a separate SMSPool product (own catalog, fixed day-tiers) and
+  // only exist for a few countries — they don't come from the activation
+  // provider_services candidates, so branch out before that lookup.
+  if (mode === "rental") {
+    return getRentalQuote(user.id, serviceId, countryId, durationHours);
+  }
+
   // Pull all enabled, in-stock provider_services rows for this (service, country).
   // We pick from these using pickBestCandidate, which prefers reliable operators
   // (good 7-day success rate, enough sample) over the absolute cheapest when both
@@ -514,13 +522,8 @@ export async function getQuote(
     markup_percent: Number(r.markup_percent),
   }));
 
-  // For rental, scale the activation wholesale by a duration multiplier as
-  // a rough estimate. Real price comes from upstream at purchase time;
-  // we use a wider deviation tolerance (20%) for rental.
-  const wholesaleForQuote =
-    mode === "rental" && durationHours
-      ? liveQuote.priceCents * rentalMultiplier(durationHours)
-      : liveQuote.priceCents;
+  // Past the rental branch above, mode is always activation here.
+  const wholesaleForQuote = liveQuote.priceCents;
 
   const { retailCents } = calculateRetailPrice({
     serviceId,
@@ -539,8 +542,8 @@ export async function getQuote(
     upstreamOperator: top.upstream_operator ?? "any",
     wholesaleCents: wholesaleForQuote,
     retailCents,
-    mode,
-    durationHours: mode === "rental" ? durationHours : undefined,
+    mode: "activation",
+    durationHours: undefined,
   });
 
   return {
@@ -549,8 +552,112 @@ export async function getQuote(
     retailCents,
     availableCount: liveQuote.availableCount,
     holdToken,
-    mode,
-    estimated: mode === "rental",
+    mode: "activation",
+    estimated: false,
+  };
+}
+
+/**
+ * Rental quote. SMSPool rentals are keyed by a country rentalID + a fixed
+ * day-tier (not activation candidates), so we map the canonical country iso ->
+ * SMSPool rental, fetch the LIVE wholesale price for the chosen tier, run it
+ * through the same pricing engine, and sign a rental hold token routed to
+ * SMSPool. Available only for the few countries SMSPool offers rentals in.
+ */
+async function getRentalQuote(
+  userId: string,
+  serviceId: string,
+  countryId: string,
+  durationHours?: number,
+): Promise<QuoteResult | QuoteError> {
+  if (!durationHours) {
+    return { ok: false, code: "internal", message: "missing rental duration" };
+  }
+  const supabase = await createClient();
+  const { data: country } = await supabase
+    .from("countries")
+    .select("iso_code")
+    .eq("id", countryId)
+    .single();
+  if (!country) {
+    return { ok: false, code: "no_provider", message: "Unknown country." };
+  }
+  const rental = smspoolRentalFor(country.iso_code);
+  if (!rental) {
+    return {
+      ok: false,
+      code: "no_provider",
+      message: "Rentals aren't available for this country.",
+    };
+  }
+  const days = Math.round(durationHours / 24);
+  if (!rental.days.includes(days)) {
+    return {
+      ok: false,
+      code: "no_provider",
+      message: "That rental length isn't available for this country.",
+    };
+  }
+
+  const provider = getProvider("smspool");
+  if (!(provider instanceof SmsPoolProvider)) {
+    return { ok: false, code: "internal", message: "rental provider unavailable" };
+  }
+
+  let wholesaleCents: number;
+  try {
+    wholesaleCents = await provider.getRentalPriceCents(rental.rentalID, days);
+  } catch (err) {
+    return { ok: false, ...sanitizeProviderError(err, "getRentalQuote") };
+  }
+  if (wholesaleCents <= 0) {
+    return {
+      ok: false,
+      code: "out_of_stock",
+      message: "Rentals are temporarily unavailable for this country.",
+    };
+  }
+
+  const { data: rulesData } = await getAdminClient()
+    .from("pricing_rules")
+    .select(
+      "id, service_id, country_id, markup_percent, flat_fee_cents, min_retail_cents, priority, is_active",
+    )
+    .eq("is_active", true);
+  const rules: PricingRule[] = (rulesData ?? []).map((r) => ({
+    ...r,
+    markup_percent: Number(r.markup_percent),
+  }));
+
+  const { retailCents } = calculateRetailPrice({
+    serviceId,
+    countryId,
+    wholesaleCents,
+    rules,
+  });
+
+  const holdToken = signHoldToken({
+    userId,
+    serviceId,
+    countryId,
+    providerSlug: "smspool",
+    upstreamServiceCode: "", // MVP rentals buy the unlocked line (no service_id)
+    upstreamCountryCode: String(rental.rentalID),
+    upstreamOperator: "any",
+    wholesaleCents,
+    retailCents,
+    mode: "rental",
+    durationHours,
+  });
+
+  return {
+    ok: true,
+    providerSlug: "smspool",
+    retailCents,
+    availableCount: 1,
+    holdToken,
+    mode: "rental",
+    estimated: false,
   };
 }
 
