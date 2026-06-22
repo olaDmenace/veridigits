@@ -14,8 +14,8 @@ import { getAdminClient } from "@/lib/supabase/admin";
  * minute precision — the only cost of a slower cadence is that an expired
  * order's upstream cancel and the user's freed concurrent-active slot lag
  * by up to the interval. Nothing is charged (defer-debit), so there's no
- * money implication to the delay. Tune the interval to taste: `*/2` for
- * snappier slot release, `*/15` to cut Inngest runs further.
+ * money implication to the delay. Tune the cron below: every 2 minutes for
+ * snappier slot release, every 15 to cut Inngest runs further.
  */
 export const expireOrdersFn = inngest.createFunction(
   {
