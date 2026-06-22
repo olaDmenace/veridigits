@@ -16,7 +16,11 @@ import {
   type QuoteResult,
   type ServicePriceOption,
 } from "./actions";
-import { RENTAL_DURATIONS, type OrderMode } from "./constants";
+import {
+  rentalDurationsForIso,
+  type OrderMode,
+  type RentalDurationOption,
+} from "./constants";
 import { formatUsdCents } from "@/lib/utils/money";
 import { InfoNotice } from "@/components/info-notice";
 import { getServiceDisplay } from "@/lib/services/display";
@@ -58,9 +62,7 @@ export function BuyPicker({
   initialServiceSlug?: string | null;
 }) {
   const [mode, setMode] = useState<OrderMode>("activation");
-  const [durationHours, setDurationHours] = useState<number>(
-    RENTAL_DURATIONS[0].hours,
-  );
+  const [durationHours, setDurationHours] = useState<number>(24);
   const [countryId, setCountryId] = useState<string | null>(initialCountryId);
   const [serviceId, setServiceId] = useState<string | null>(null);
   const [countrySearch, setCountrySearch] = useState("");
@@ -102,6 +104,18 @@ export function BuyPicker({
     setServicesError(null);
     setQuote(EMPTY_QUOTE);
     setLoadingServices(true);
+
+    // Keep rental state coherent across a country switch: drop back to
+    // activation if the new country has no rentals, else snap the duration to
+    // one of its valid tiers.
+    if (mode === "rental") {
+      const opts = tiersFor(id);
+      if (opts.length === 0) {
+        setMode("activation");
+      } else if (!opts.some((o) => o.hours === durationHours)) {
+        setDurationHours(opts[0].hours);
+      }
+    }
 
     startTransition(async () => {
       try {
@@ -171,8 +185,28 @@ export function BuyPicker({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialServiceSlug, services, countryId]);
 
+  /** Rental day-tiers offered for a given country id ([] when none). */
+  function tiersFor(cid: string | null): RentalDurationOption[] {
+    return rentalDurationsForIso(
+      countries.find((c) => c.id === cid)?.isoCode,
+    );
+  }
+
   function handleSetMode(m: OrderMode) {
     if (m === mode) return;
+    if (m === "rental") {
+      const opts = tiersFor(countryId);
+      if (opts.length === 0) return; // no rentals here — the tab is disabled
+      // Snap to a valid tier for this country (the activation default of 24h
+      // may not be a purchasable rental tier, e.g. UK starts at 30 days).
+      const hrs = opts.some((o) => o.hours === durationHours)
+        ? durationHours
+        : opts[0].hours;
+      setDurationHours(hrs);
+      setMode("rental");
+      if (serviceId) refetchQuote(serviceId, "rental", hrs);
+      return;
+    }
     setMode(m);
     if (serviceId) refetchQuote(serviceId, m, durationHours);
   }
@@ -185,6 +219,8 @@ export function BuyPicker({
 
   const selectedCountry = countries.find((c) => c.id === countryId) ?? null;
   const selectedService = services.find((s) => s.serviceId === serviceId) ?? null;
+  const rentalOptions = rentalDurationsForIso(selectedCountry?.isoCode);
+  const rentalAvailable = rentalOptions.length > 0;
 
   return (
     <div className="flex flex-col gap-4">
@@ -193,6 +229,8 @@ export function BuyPicker({
         onSetMode={handleSetMode}
         durationHours={durationHours}
         onSetDuration={handleSetDuration}
+        rentalOptions={rentalOptions}
+        rentalAvailable={rentalAvailable}
       />
 
       <QuotePanel
@@ -234,11 +272,15 @@ function ModeBar({
   onSetMode,
   durationHours,
   onSetDuration,
+  rentalOptions,
+  rentalAvailable,
 }: {
   mode: OrderMode;
   onSetMode: (m: OrderMode) => void;
   durationHours: number;
   onSetDuration: (h: number) => void;
+  rentalOptions: RentalDurationOption[];
+  rentalAvailable: boolean;
 }) {
   return (
     <div className="card flex flex-col gap-4">
@@ -246,8 +288,8 @@ function ModeBar({
         <div>
           <div className="eyebrow">Mode</div>
           <p className="caption" style={{ marginTop: 6 }}>
-            Activation = one-time, ~20 minutes. Rental = unlimited SMS over the
-            duration.
+            Activation = one-time, ~20 minutes. Rental = your own number for
+            days, available for the US, UK, and Canada.
           </p>
         </div>
         <div className="mode-toggle" role="tablist" aria-label="Order mode">
@@ -264,19 +306,26 @@ function ModeBar({
             type="button"
             role="tab"
             aria-selected={mode === "rental"}
+            aria-disabled={!rentalAvailable}
+            disabled={!rentalAvailable}
+            title={
+              rentalAvailable
+                ? undefined
+                : "Rentals are available for the US, UK, and Canada only"
+            }
             className={`mode-toggle-btn ${mode === "rental" ? "is-active" : ""}`}
-            onClick={() => onSetMode("rental")}
+            onClick={() => rentalAvailable && onSetMode("rental")}
           >
             Rental
           </button>
         </div>
       </div>
 
-      {mode === "rental" ? (
+      {mode === "rental" && rentalAvailable ? (
         <div className="flex flex-col gap-2">
           <div className="eyebrow">Duration</div>
           <div className="chips">
-            {RENTAL_DURATIONS.map((d) => (
+            {rentalOptions.map((d) => (
               <button
                 key={d.hours}
                 type="button"
@@ -289,8 +338,8 @@ function ModeBar({
             ))}
           </div>
           <p className="caption" style={{ marginTop: 4 }}>
-            Rental prices shown are estimates — final cost is set at purchase
-            time, within a ±20% band of the estimate.
+            A private number that receives every SMS for the full rental period.
+            Price shown is the live rate for the selected length.
           </p>
         </div>
       ) : null}
@@ -553,9 +602,8 @@ function QuotePanel({
   }
 
   const q = quote.data;
-  const durationLabel =
-    RENTAL_DURATIONS.find((d) => d.hours === durationHours)?.label ??
-    `${durationHours}h`;
+  const rentalDays = Math.round(durationHours / 24);
+  const durationLabel = rentalDays === 1 ? "1 day" : `${rentalDays} days`;
 
   return (
     <div className="card flex flex-col gap-4" style={{ padding: 24, minHeight: 200 }}>

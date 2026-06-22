@@ -15,6 +15,53 @@ import {
 import { canonicalCountryIso, flagEmoji } from "./country-map";
 
 /**
+ * SMSPool rentals — verified live 2026-06-22 via `POST /rental/retrieve_all
+ * {type:1}`. Rentals are a SEPARATE product from activations: keyed by a
+ * country `rentalID` + a fixed set of purchasable day-tiers (not our
+ * service/country/operator activation shape). SMSPool offers rentals for only
+ * these three countries, so rental routing is limited to them. Keyed by the
+ * shared canonical `countries.iso_code` (5SIM's name-slugs). Prices are NOT
+ * hardcoded — they're re-fetched live at quote time; only the rentalID and the
+ * available day-tiers are stable enough to pin here.
+ */
+export const SMSPOOL_RENTALS: Record<
+  string,
+  { rentalID: number; days: number[] }
+> = {
+  usa: { rentalID: 11, days: [1, 7, 28] },
+  england: { rentalID: 13, days: [30, 180, 360] },
+  canada: { rentalID: 14, days: [30] },
+};
+
+/** Whether SMSPool offers a rental for this canonical country iso. */
+export function smspoolRentalFor(
+  countryIso: string,
+): { rentalID: number; days: number[] } | null {
+  return SMSPOOL_RENTALS[countryIso] ?? null;
+}
+
+// SMSPool's rental lifecycle (retrieve SMS, refund) is keyed by BOTH `orderid`
+// and `rental_code`, but our OtpProvider interface carries a single
+// `upstreamOrderId`. We pack both into one opaque string with a "rental|"
+// prefix so checkOrder/cancelOrder can detect a rental and unpack — no schema
+// change, and activation ids (plain alphanumeric) never collide.
+const RENTAL_ID_PREFIX = "rental|";
+
+export function encodeRentalId(orderid: string, rentalCode: string): string {
+  return `${RENTAL_ID_PREFIX}${orderid}|${rentalCode}`;
+}
+
+export function decodeRentalId(
+  upstreamOrderId: string,
+): { orderid: string; rentalCode: string } | null {
+  if (!upstreamOrderId.startsWith(RENTAL_ID_PREFIX)) return null;
+  const rest = upstreamOrderId.slice(RENTAL_ID_PREFIX.length);
+  const sep = rest.indexOf("|");
+  if (sep < 0) return null;
+  return { orderid: rest.slice(0, sep), rentalCode: rest.slice(sep + 1) };
+}
+
+/**
  * SMSPool upstream provider.
  *
  * Base: https://api.smspool.net — all calls accept GET or POST; responses JSON.
@@ -33,6 +80,11 @@ import { canonicalCountryIso, flagEmoji } from "./country-map";
  *   1) mapCheckStatus() — the numeric /sms/check status → our status mapping.
  *      A wrong "received" code would mis-fire capture/charge.
  *   2) parsePurchase()  — field names on the /purchase/sms response.
+ *   3) parseRentalPurchase() — orderid / rental_code / phone / expiry field
+ *      names on the /purchase/rental response (a ~$6 US 1-day rental confirms).
+ *   4) checkRental()    — the /rental/retrieve SMS array shape.
+ *   Rental pricing + availability (/rental/retrieve_all, /rental/retrieve_pricing)
+ *   ARE confirmed live (2026-06-22). Only the paid purchase+retrieve shapes pend.
  */
 export class SmsPoolProvider implements OtpProvider {
   readonly slug = "smspool";
@@ -79,14 +131,55 @@ export class SmsPoolProvider implements OtpProvider {
     return parsePurchase(this.slug, body);
   }
 
-  rentNumber(_params: RentalBuyParams): Promise<ProviderBuyResult> {
-    // SMSPool rentals use a separate /purchase/rental flow with its own
-    // duration products. Not wired yet — the registry should not route rental
-    // orders to SMSPool until this is implemented.
-    throw new ProviderApiError(this.slug, "rental not supported yet");
+  /**
+   * Rent a number. getQuote routes the SMSPool `rentalID` through
+   * `upstreamCountryCode` and the chosen day-tier through `durationHours`
+   * (validated against SMSPOOL_RENTALS before the hold token is signed).
+   *
+   * MVP buys the full, unlocked line (no `service_id`). A service-scoped line is
+   * 50% cheaper, but that discount is NOT reflected in /rental/retrieve_pricing,
+   * so quoting it would trip the rental price-deviation guard in purchase().
+   * The unlocked line receives every SMS to the number, so the user's code still
+   * arrives — the discount is a future optimization once verified on a real order.
+   */
+  async rentNumber(params: RentalBuyParams): Promise<ProviderBuyResult> {
+    const rentalID = params.upstreamCountryCode;
+    const days = Math.max(1, Math.round(params.durationHours / 24));
+    const body = await this.post<SmsPoolRentalPurchase>("/purchase/rental", {
+      rentalID,
+      days: String(days),
+    });
+    const result = parseRentalPurchase(this.slug, body);
+    if (result.wholesaleCents <= 0) {
+      // The purchase response didn't carry a cost — backfill from live pricing
+      // so purchase()'s rental price-deviation guard compares like-for-like
+      // (a 0 here would read as a 100% deviation and wrongly cancel+refund).
+      const n = Number(rentalID);
+      result.wholesaleCents = Number.isFinite(n)
+        ? await this.getRentalPriceCents(n, days)
+        : 0;
+    }
+    return result;
+  }
+
+  /**
+   * Live wholesale price (cents) for renting `rentalID` for `days`. Drives the
+   * rental quote. /rental/retrieve_pricing returns `pricing` as a map of
+   * day-tier → USD price; 0 means that tier isn't purchasable.
+   */
+  async getRentalPriceCents(rentalID: number, days: number): Promise<number> {
+    const body = await this.post<SmsPoolRentalPricing>(
+      "/rental/retrieve_pricing",
+      { id: String(rentalID) },
+    );
+    const n = toNumber(body.pricing?.[String(days)]);
+    return n > 0 ? Math.round(n * 100) : 0;
   }
 
   async checkOrder(upstreamOrderId: string): Promise<ProviderOrderState> {
+    const rental = decodeRentalId(upstreamOrderId);
+    if (rental) return this.checkRental(rental);
+
     const body = await this.post<SmsPoolCheck>("/sms/check", {
       orderid: upstreamOrderId,
     });
@@ -114,6 +207,41 @@ export class SmsPoolProvider implements OtpProvider {
     return { status, messages };
   }
 
+  /**
+   * Check a rental for received SMS via /rental/retrieve (needs both orderid and
+   * rental_code, unpacked from the composite upstreamOrderId). A rental stays
+   * open for its whole term, so status is "received" once any SMS lands, else
+   * "pending" — the order's own expires_at (days out) drives expiry, not this.
+   * Response field names coded to the documented shape; VERIFY on first rental.
+   */
+  private async checkRental(rental: {
+    orderid: string;
+    rentalCode: string;
+  }): Promise<ProviderOrderState> {
+    const body = await this.post<SmsPoolRentalCheck>("/rental/retrieve", {
+      orderid: rental.orderid,
+      rental_code: rental.rentalCode,
+    });
+    const raw = body.sms ?? body.messages ?? [];
+    const messages: ProviderMessage[] = (Array.isArray(raw) ? raw : [])
+      .map((m): ProviderMessage | null => {
+        const content = stringOrNull(m.message ?? m.sms ?? m.code);
+        if (!content) return null;
+        const parsed = m.date ? new Date(String(m.date)) : null;
+        const receivedAt =
+          parsed && !Number.isNaN(parsed.getTime()) ? parsed : new Date();
+        return {
+          sender: stringOrNull(m.sender ?? m.from) ?? "SMSPool",
+          content,
+          receivedAt,
+        };
+      })
+      .filter((m): m is ProviderMessage => m !== null);
+    const status: ProviderOrderStatus =
+      messages.length > 0 ? "received" : "pending";
+    return { status, messages };
+  }
+
   async getBalance(): Promise<number | null> {
     try {
       const b = await this.post<{ balance?: string | number }>(
@@ -133,6 +261,22 @@ export class SmsPoolProvider implements OtpProvider {
   }
 
   async cancelOrder(upstreamOrderId: string): Promise<void> {
+    const rental = decodeRentalId(upstreamOrderId);
+    if (rental) {
+      // Rentals refund via /rental/refund (orderid + rental_code), not /sms/cancel.
+      const body = await this.post<SmsPoolCancel>("/rental/refund", {
+        orderid: rental.orderid,
+        rental_code: rental.rentalCode,
+      });
+      if (body.success === 0 || body.success === false) {
+        throw new ProviderApiError(
+          this.slug,
+          `rental refund failed: ${stringOrNull(body.message) ?? "unknown"}`,
+        );
+      }
+      return;
+    }
+
     const body = await this.post<SmsPoolCancel>("/sms/cancel", {
       orderid: upstreamOrderId,
     });
@@ -426,6 +570,88 @@ interface SmsPoolPricingRow {
   country?: string | number;
   pool?: string | number;
   price?: string | number;
+}
+
+// ── rental response shapes (VERIFY field names on first paid rental) ────────
+interface SmsPoolRentalPricing {
+  pricing?: Record<string, string | number>;
+  extend?: Record<string, string | number>;
+}
+interface SmsPoolRentalSms {
+  sender?: string;
+  from?: string;
+  message?: string;
+  sms?: string;
+  code?: string;
+  date?: string;
+}
+interface SmsPoolRentalCheck {
+  success?: number | boolean;
+  message?: string;
+  sms?: SmsPoolRentalSms[] | null;
+  messages?: SmsPoolRentalSms[] | null;
+  expiry?: string | number;
+  status?: string | number;
+}
+interface SmsPoolRentalPurchase {
+  success?: number | boolean;
+  message?: string;
+  rental_code?: string;
+  orderid?: string | number;
+  order_id?: string | number;
+  number?: string;
+  phonenumber?: string;
+  phone_number?: string;
+  expiry?: string | number;
+  expiration?: string | number;
+  expires_in?: string | number;
+  days?: string | number;
+  cost?: string | number;
+  price?: string | number;
+}
+
+/**
+ * /purchase/rental result → common shape. Requires BOTH orderid and rental_code
+ * (the lifecycle needs both) and packs them into the composite upstreamOrderId.
+ */
+function parseRentalPurchase(
+  slug: string,
+  body: SmsPoolRentalPurchase,
+): ProviderBuyResult {
+  const ok = body.success === 1 || body.success === true;
+  const orderid = stringOrNull(body.orderid ?? body.order_id);
+  const rentalCode = stringOrNull(body.rental_code);
+  if (!ok || !orderid || !rentalCode) {
+    const msg = stringOrNull(body.message) ?? "rental purchase failed";
+    if (/out of stock|no (stock|numbers|free)|sold out/i.test(msg)) {
+      throw new ProviderOutOfStockError(slug, msg);
+    }
+    throw new ProviderApiError(slug, `rental: ${msg}`);
+  }
+  const phone = body.phone_number ?? body.number ?? body.phonenumber ?? "";
+  const wholesale = toNumber(body.cost ?? body.price);
+  return {
+    upstreamOrderId: encodeRentalId(orderid, rentalCode),
+    phoneNumber: String(phone),
+    expiresAt: parseRentalExpiry(body),
+    wholesaleCents: wholesale > 0 ? Math.round(wholesale * 100) : 0,
+  };
+}
+
+/** Resolve a rental's expiry from whichever field the purchase response carries. */
+function parseRentalExpiry(body: SmsPoolRentalPurchase): Date {
+  const abs = body.expiry ?? body.expiration;
+  if (abs != null) {
+    const n = toNumber(abs);
+    if (n > 1_000_000_000) return new Date(n * 1000); // unix seconds
+    const d = new Date(String(abs));
+    if (!Number.isNaN(d.getTime())) return d;
+  }
+  const secs = toNumber(body.expires_in);
+  if (secs > 0) return new Date(Date.now() + secs * 1000);
+  const days = toNumber(body.days);
+  if (days > 0) return new Date(Date.now() + days * 86_400_000);
+  return new Date(Date.now() + 86_400_000); // safe fallback: 1 day
 }
 
 /** SMSPool buy result → common shape. Throws on a non-success payload. */

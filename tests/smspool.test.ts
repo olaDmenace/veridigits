@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { SmsPoolProvider } from "@/lib/providers/smspool";
+import {
+  SmsPoolProvider,
+  SMSPOOL_RENTALS,
+  smspoolRentalFor,
+  encodeRentalId,
+  decodeRentalId,
+} from "@/lib/providers/smspool";
 import { ProviderApiError, ProviderOutOfStockError } from "@/lib/providers/types";
 
 const ORIGINAL_FETCH = global.fetch;
@@ -360,5 +366,139 @@ describe("SmsPoolProvider.syncCatalog", () => {
     await expect(provider().syncCatalog()).rejects.toBeInstanceOf(
       ProviderApiError,
     );
+  });
+});
+
+// ── rentals ────────────────────────────────────────────────────────────────
+
+/** Route SMSPool rental calls by URL so a single rentNumber (which may make a
+ *  purchase + a pricing backfill call) gets the right response per endpoint.
+ *  Order matters: /rental/retrieve_pricing is a prefix-superset of /rental/retrieve. */
+function routeRental(h: {
+  purchase?: unknown;
+  pricing?: unknown;
+  retrieve?: unknown;
+  refund?: unknown;
+}) {
+  (global.fetch as ReturnType<typeof vi.fn>).mockImplementation((url: unknown) => {
+    const u = String(url);
+    if (u.includes("/purchase/rental")) return Promise.resolve(jsonResponse(h.purchase ?? {}));
+    if (u.includes("/rental/retrieve_pricing")) return Promise.resolve(jsonResponse(h.pricing ?? {}));
+    if (u.includes("/rental/retrieve")) return Promise.resolve(jsonResponse(h.retrieve ?? {}));
+    if (u.includes("/rental/refund")) return Promise.resolve(jsonResponse(h.refund ?? {}));
+    return Promise.resolve(jsonResponse({}, 404));
+  });
+}
+
+describe("SMSPool rental id codec", () => {
+  it("round-trips orderid + rental_code through the composite id", () => {
+    const id = encodeRentalId("ORD123", "RC456");
+    expect(decodeRentalId(id)).toEqual({ orderid: "ORD123", rentalCode: "RC456" });
+  });
+  it("returns null for a plain activation order id", () => {
+    expect(decodeRentalId("ZC1MSIY5")).toBeNull();
+  });
+  it("keeps a rental_code containing the delimiter intact", () => {
+    const id = encodeRentalId("ORD1", "a|b|c");
+    expect(decodeRentalId(id)).toEqual({ orderid: "ORD1", rentalCode: "a|b|c" });
+  });
+});
+
+describe("smspoolRentalFor", () => {
+  it("maps the three supported countries to their rentalID + day-tiers", () => {
+    expect(smspoolRentalFor("usa")).toEqual({ rentalID: 11, days: [1, 7, 28] });
+    expect(smspoolRentalFor("england")).toEqual({ rentalID: 13, days: [30, 180, 360] });
+    expect(smspoolRentalFor("canada")).toEqual({ rentalID: 14, days: [30] });
+  });
+  it("returns null for unsupported countries", () => {
+    expect(smspoolRentalFor("switzerland")).toBeNull();
+    expect(smspoolRentalFor("nigeria")).toBeNull();
+  });
+  it("US tiers match the constant exported for the UI", () => {
+    expect(SMSPOOL_RENTALS.usa.days).toContain(7);
+  });
+});
+
+describe("SmsPoolProvider.rentNumber", () => {
+  it("buys a rental and packs orderid + rental_code into the upstream id", async () => {
+    routeRental({
+      purchase: {
+        success: 1,
+        orderid: "ORD9",
+        rental_code: "RC9",
+        phone_number: "12025550100",
+        days: 7,
+        cost: "12.00",
+      },
+    });
+    const r = await provider().rentNumber({
+      upstreamServiceCode: "telegram",
+      upstreamCountryCode: "11", // US rentalID
+      durationHours: 7 * 24,
+    });
+    expect(decodeRentalId(r.upstreamOrderId)).toEqual({ orderid: "ORD9", rentalCode: "RC9" });
+    expect(r.phoneNumber).toBe("12025550100");
+    expect(r.wholesaleCents).toBe(1200);
+    expect(r.expiresAt.getTime()).toBeGreaterThan(Date.now());
+  });
+
+  it("backfills wholesale from live pricing when the purchase omits cost", async () => {
+    routeRental({
+      purchase: { success: 1, orderid: "O", rental_code: "R", phone_number: "1", days: 7 },
+      pricing: { pricing: { "1": 6, "7": 12, "28": 18 } },
+    });
+    const r = await provider().rentNumber({
+      upstreamServiceCode: "telegram",
+      upstreamCountryCode: "11",
+      durationHours: 7 * 24, // -> 7 days -> $12
+    });
+    expect(r.wholesaleCents).toBe(1200);
+  });
+
+  it("throws ProviderApiError when the rental purchase fails", async () => {
+    routeRental({ purchase: { success: 0, message: "could not rent" } });
+    await expect(
+      provider().rentNumber({ upstreamServiceCode: "x", upstreamCountryCode: "11", durationHours: 24 }),
+    ).rejects.toBeInstanceOf(ProviderApiError);
+  });
+
+  it("throws ProviderOutOfStockError when no rental lines are free", async () => {
+    routeRental({ purchase: { success: 0, message: "No free phones available" } });
+    await expect(
+      provider().rentNumber({ upstreamServiceCode: "x", upstreamCountryCode: "11", durationHours: 24 }),
+    ).rejects.toBeInstanceOf(ProviderOutOfStockError);
+  });
+});
+
+describe("SmsPoolProvider rental checkOrder / cancelOrder", () => {
+  it("checks a rental via /rental/retrieve and surfaces received SMS", async () => {
+    routeRental({
+      retrieve: { success: 1, sms: [{ sender: "Telegram", message: "Login code 55512", date: "2026-06-22 12:00:00" }] },
+    });
+    const state = await provider().checkOrder(encodeRentalId("O", "R"));
+    expect(state.status).toBe("received");
+    expect(state.messages).toHaveLength(1);
+    expect(state.messages[0].content).toContain("55512");
+  });
+
+  it("reports pending when a rental has no SMS yet", async () => {
+    routeRental({ retrieve: { success: 1, sms: [] } });
+    const state = await provider().checkOrder(encodeRentalId("O", "R"));
+    expect(state.status).toBe("pending");
+    expect(state.messages).toHaveLength(0);
+  });
+
+  it("refunds a rental via /rental/refund on cancel", async () => {
+    routeRental({ refund: { success: 1 } });
+    await expect(
+      provider().cancelOrder(encodeRentalId("O", "R")),
+    ).resolves.toBeUndefined();
+  });
+
+  it("throws when a rental refund fails", async () => {
+    routeRental({ refund: { success: 0, message: "not refundable" } });
+    await expect(
+      provider().cancelOrder(encodeRentalId("O", "R")),
+    ).rejects.toBeInstanceOf(ProviderApiError);
   });
 });
