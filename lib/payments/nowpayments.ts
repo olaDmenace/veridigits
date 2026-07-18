@@ -114,6 +114,56 @@ export class NowPaymentsProcessor implements CryptoProcessor {
   }
 
   /**
+   * Reads a payment's CURRENT status straight from NOWPayments.
+   *
+   * The IPN webhook is a single point of failure: if a callback is never
+   * delivered (or gets rejected), a user's real money silently never reaches
+   * their wallet. That is exactly what happened — 26 payments sat at "waiting"
+   * on our side while NOWPayments had them finished/expired. The API is the
+   * source of truth, so the reconciler polls it and the webhook becomes an
+   * optimization rather than the only path to a credit.
+   */
+  async getPaymentStatus(externalId: string): Promise<{
+    status: PaymentStatus;
+    actuallyPaid: number;
+    priceAmountUsdCents: number;
+    raw: Record<string, unknown>;
+  }> {
+    const res = await fetch(
+      `${this.baseUrl}/payment/${encodeURIComponent(externalId)}`,
+      {
+        headers: { "x-api-key": this.apiKey, Accept: "application/json" },
+        cache: "no-store",
+      },
+    );
+    const text = await res.text();
+    if (!res.ok) {
+      throw new PaymentProcessorError(
+        this.slug,
+        `getPaymentStatus ${res.status}: ${text.slice(0, 200)}`,
+      );
+    }
+    let parsed: Record<string, unknown>;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      throw new PaymentProcessorError(
+        this.slug,
+        `getPaymentStatus non-JSON: ${text.slice(0, 200)}`,
+      );
+    }
+    return {
+      status:
+        typeof parsed.payment_status === "string"
+          ? mapStatus(parsed.payment_status)
+          : "waiting",
+      actuallyPaid: Number(parsed.actually_paid ?? 0),
+      priceAmountUsdCents: Math.round(Number(parsed.price_amount ?? 0) * 100),
+      raw: parsed,
+    };
+  }
+
+  /**
    * Verifies the IPN signature on a webhook POST.
    *
    * Critical: pass the RAW request body string (not a re-stringified parsed

@@ -7,6 +7,7 @@ import { abuseVelocityFn } from "@/lib/inngest/abuse-velocity";
 import { reconcileWalletsFn } from "@/lib/inngest/reconcile-wallets";
 import { reconcileUnchargedOrdersFn } from "@/lib/inngest/reconcile-uncharged";
 import { recomputeOperatorSuccessRatesFn } from "@/lib/inngest/operator-success-rates";
+import { reconcileCryptoFn } from "@/lib/inngest/reconcile-crypto";
 
 /**
  * Inngest serves all registered functions over a single endpoint.
@@ -23,5 +24,6 @@ export const { GET, POST, PUT } = serve({
     reconcileWalletsFn,
     reconcileUnchargedOrdersFn,
     recomputeOperatorSuccessRatesFn,
+    reconcileCryptoFn,
   ],
 });
